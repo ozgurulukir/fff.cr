@@ -94,6 +94,10 @@ The app uses alternate screen buffer (`\e[?1049h`/`\e[?1049l`) so the TUI doesn'
 1. `enter_tui` — hide cursor, switch to alt screen, clear, set scroll region + window title
 2. Event loop: `redraw` → `read_keypress` → `handle_key` → repeat
 3. In-TUI dialogs (search `/`, rename `r`): custom key loop, no leave_tui
+   - Search: draws `/` prompt on status line, filters list on each keystroke
+   - Rename: draws prompt, shows current name, allows inline editing
+   - ESC cancels, Enter confirms, Backspace deletes
+   - Case-insensitive search by file basename
 4. External dialogs (delete confirm, new dir, new file, go-to-dir): `leave_tui` → `term-prompt` → `enter_tui`
 5. Shell spawn: `leave_tui` → `Process.run` → `enter_tui` on exit
 6. `quit` — `leave_tui`, optionally save cwd to `$FFF_CD_FILE`

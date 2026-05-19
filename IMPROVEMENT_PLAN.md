@@ -112,17 +112,18 @@
 - On page scroll: only redraw visible area
 - Massive performance improvement for large directories
 
-### 4.2 In-TUI search (live filtering)
-- Current: `leave_tui` → `ask` → `enter_tui` (leaves alternate screen)
-- Target: draw search prompt on last line, filter on each keystroke
-- Implement custom key reading loop during search mode
-- ESC cancels, Enter confirms
-- This is how Bash does it via `cmd_line "/" "search"`
+### 4.2 In-TUI search (live filtering) ✅ DONE
+- ✅ Implemented: draws `/` prompt on status line, filters list on each keystroke
+- ✅ Custom key reading loop during search mode
+- ✅ ESC/Enter cancels/accepts, Backspace deletes
+- ✅ Case-insensitive search by file basename
+- Original issue: `leave_tui` → `ask` → `enter_tui` (leaves alternate screen)
 
-### 4.3 In-TUI rename
-- Same approach as search: draw prompt on last line
-- Show current name, allow editing
-- No need to leave alternate screen
+### 4.3 In-TUI rename ✅ DONE
+- ✅ Implemented: draws prompt, shows current name, allows inline editing
+- ✅ Custom key reading loop, no leave_tui
+- ✅ ESC/Enter cancels/accepts, Backspace deletes
+- Original plan: same approach as search, draw prompt on last line
 
 ### 4.4 In-TUI command line
 - General-purpose single-line input at bottom of screen
@@ -130,45 +131,44 @@
 - Tab completion for paths
 - ESC to cancel
 
-### 4.5 Scroll region
-- Set scroll region to file list area only: `\e[1;{max_items}r`
-- Status line stays fixed at bottom
-- Prevents status line from scrolling
+### 4.5 Scroll region ✅ DONE
+- ✅ Implemented: `\e[1;{max_items}r` in `enter_tui`
+- ✅ Status line stays fixed at bottom during file list scroll
 
-### 4.6 Window title
-- Set terminal title to `fff: /current/path` on directory change
-- `\e]2;fff: #{path}\e\\`
+### 4.6 Window title ✅ DONE
+- ✅ Implemented: `\e]2;fff: #{cwd}\e\\` in `enter_tui` and `read_directory`
+- ✅ Updates on directory change
 
 ### 4.7 Multiple key bindings per action
 - Bash supports `CHILD1..4`, `PARENT1..5` etc.
 - Allow comma-separated keys in env vars: `FFF_KEY_ENTER=l,\e[C,`
 - Or separate vars: `FFF_KEY_ENTER1=l`, `FFF_KEY_ENTER2=\e[C`
 
-### 4.8 LS_COLORS support
-- Parse `LS_COLORS` env var
-- Color files by extension (`.cr` → one color, `.md` → another)
-- Color by type: symlink (broken vs valid), fifo, socket, block/char device
-- Fallback to current simple color scheme if `LS_COLORS` is empty
+### 4.8 LS_COLORS support ✅ DONE
+- ✅ Implemented: parse `LS_COLORS` env var in Config#parse_ls_colors
+- ✅ Color files by extension (`.cr` → one color, `.md` → another)
+- ✅ Fallback to current simple color scheme if `LS_COLORS` is empty
 
 ## Phase 5: Code Quality
 
-### 5.1 Error display
-- Current: `show_error` blocks for 2 seconds with `sleep`
-- Target: show error on status line, clear on next keypress
-- Non-blocking, no forced wait
+### 5.1 Error display ✅ DONE
+- ✅ Implemented: show error on status line, clear on next keypress
+- ✅ Non-blocking, no forced wait
+- ✅ Uses @error_msg and @error_expires (2 second timeout)
 
-### 5.2 `human_size` precision
-- Show one decimal place: `1.5M` instead of `1M`
-- Use `Float` division, format with `%.1f`
+### 5.2 `human_size` precision ✅ DONE
+- ✅ Implemented: show one decimal place (e.g., `1.5M`)
+- ✅ Trailing zeros stripped: `1.0M` → `1M`
 
-### 5.3 Color caching
-- `Term::Color.color(:blue)` returns the same string every time
-- Cache in constants: `DIR_COLOR = Term::Color.color(:blue)`
-- Avoid hash lookup per file per redraw
+### 5.3 Color caching ✅ DONE
+- ✅ Implemented: @color_cache Hash(Tuple(String, Symbol), String)
+- ✅ Caches Term::Color.truecolor_string results by (label, color) tuple
+- ✅ Avoids repeated color computations per redraw
 
-### 5.4 FFF_LEVEL tracking
-- Export `FFF_LEVEL` env var, increment on shell spawn
-- Allows shell config to detect fff nesting
+### 5.4 FFF_LEVEL tracking ✅ DONE
+- ✅ Implemented: export FFF_LEVEL env var at startup
+- ✅ Increment on shell spawn, decrement on shell exit
+- ✅ Allows shell config to detect fff nesting
 
 ### 5.5 File picker mode
 - `-p` flag: on file open, write path to `~/.cache/fff/opened_file` and exit
