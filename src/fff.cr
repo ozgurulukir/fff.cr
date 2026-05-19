@@ -245,7 +245,9 @@ module FFF
     @search_mode : Bool
     @search_term : String
     @search_original_list : Array(String)
-
+    @rename_mode : Bool
+    @rename_old_name : String
+    @rename_new_name : String
     def initialize(@config : Config, start_dir : String)
       @term = Terminal.new
       Dir.cd(start_dir)
@@ -266,6 +268,9 @@ module FFF
       @search_mode = false
       @search_term = ""
       @search_original_list = [] of String
+      @rename_mode = false
+      @rename_old_name = ""
+      @rename_new_name = ""
     end
     def run
       # Signal handling: clean up terminal on exit
@@ -377,6 +382,7 @@ module FFF
       draw_status
       draw_error
       draw_search_prompt if @search_mode
+      draw_rename_prompt if @rename_mode
       STDOUT.flush
 
       # Remember current state for next redraw
@@ -483,8 +489,8 @@ module FFF
           next
         end
 
-        if @search_mode
-          # Search input is handled by read_search_input, skip here
+        if @search_mode || @rename_mode
+          # Search/rename input handled by their own loops, skip here
           next
         end
 
@@ -875,29 +881,75 @@ module FFF
       old_path = @list[@scroll]?
       return unless old_path
 
-      old_name = File.basename(old_path)
+      @rename_old_name = File.basename(old_path)
+      @rename_new_name = @rename_old_name
+      @rename_mode = true
+      draw_rename_prompt
+      read_rename_input
+    end
 
-      @term.leave_tui
-      new_name = @term.ask("Rename #{old_name} ->")
-      @term.enter_tui
+    # ── In-TUI rename ───────────────────────────────────────────
 
-      return if new_name.empty? || new_name == old_name
+    private def draw_rename_prompt
+      row = @term.max_items + 1
+      @term.move_to(row, 0)
+      print "\e[2K"
+      prompt = " Rename #{@rename_old_name} -> #{@rename_new_name}"
+      print Term::Color.truecolor_string(prompt,
+        fore: Term::Color.color(:white),
+        back: Term::Color.color(:blue))
+      @term.move_to(row, prompt.size)
+      STDOUT.flush
+    end
 
-      new_path = File.join(Dir.current, new_name)
+    private def read_rename_input
+      while @rename_mode
+        key = @term.read_keypress
+        next unless key
 
-      # Duplicate name check
+        case key
+        when "\e"
+          end_rename
+        when "\n", "\r"
+          apply_rename
+          end_rename
+        when "\b", "\x7f"
+          @rename_new_name = @rename_new_name[0...-1]
+          draw_rename_prompt
+        else
+          @rename_new_name += key
+          draw_rename_prompt
+        end
+      end
+    end
+
+    private def apply_rename
+      return if @rename_new_name.empty? || @rename_new_name == @rename_old_name
+
+      old_path = File.join(Dir.current, @rename_old_name)
+      new_path = File.join(Dir.current, @rename_new_name)
+
       if File.exists?(new_path)
-        show_error("already exists: #{new_name}")
+        show_error("already exists: #{@rename_new_name}")
         return
       end
-
 
       begin
         File.rename(old_path, new_path)
         read_directory
+        # Find renamed file in new list and restore scroll
+        new_name_only = @rename_new_name
+        idx = @list.index { |p| File.basename(p) == new_name_only }
+        @scroll = idx || 0
+        @page_offset = 0
       rescue e
         show_error("rename: #{e.message}")
       end
+    end
+
+    private def end_rename
+      @rename_mode = false
+      redraw
     end
 
     # ── Search ─────────────────────────────────────────────────
