@@ -242,6 +242,10 @@ module FFF
     @error_expires : Time?
     @prev_scroll : Int32
     @prev_page_offset : Int32
+    @search_mode : Bool
+    @search_term : String
+    @search_original_list : Array(String)
+
     def initialize(@config : Config, start_dir : String)
       @term = Terminal.new
       Dir.cd(start_dir)
@@ -259,8 +263,10 @@ module FFF
       @error_expires = nil
       @prev_scroll = -1
       @prev_page_offset = -1
+      @search_mode = false
+      @search_term = ""
+      @search_original_list = [] of String
     end
-
     def run
       # Signal handling: clean up terminal on exit
       Signal::INT.trap { quit }
@@ -370,6 +376,7 @@ module FFF
 
       draw_status
       draw_error
+      draw_search_prompt if @search_mode
       STDOUT.flush
 
       # Remember current state for next redraw
@@ -473,6 +480,11 @@ module FFF
 
         unless key
           sleep 10.milliseconds
+          next
+        end
+
+        if @search_mode
+          # Search input is handled by read_search_input, skip here
           next
         end
 
@@ -891,22 +903,75 @@ module FFF
     # ── Search ─────────────────────────────────────────────────
 
     private def search
-      @term.leave_tui
-      term = @term.ask("/")
-      @term.enter_tui
+      start_search
+    end
 
-      if term.empty?
-        read_directory
-      else
-        results = @list.select { |p| File.basename(p).downcase.includes?(term.downcase) }
-        if results.empty?
-          show_error("No matches for '#{term}'")
+    # ── In-TUI search ───────────────────────────────────────────
+
+    private def start_search
+      @search_mode = true
+      @search_term = ""
+      @search_original_list = @list.dup
+      draw_search_prompt
+      read_search_input
+    end
+
+    private def draw_search_prompt
+      row = @term.max_items + 1
+      @term.move_to(row, 0)
+      print "\e[2K"
+      prompt = " /#{@search_term}"
+      print Term::Color.truecolor_string(prompt,
+        fore: Term::Color.color(:white),
+        back: Term::Color.color(:blue))
+      @term.move_to(row, prompt.size)
+      STDOUT.flush
+    end
+
+    private def read_search_input
+      while @search_mode
+        key = @term.read_keypress
+        next unless key
+
+        case key
+        when "\e", "\n", "\r"
+          end_search
+          return
+        when "\b", "\x7f"
+          @search_term = @search_term[0...-1]
+          apply_search
+          draw_search_prompt if @search_mode
         else
-          @list = results
-          @scroll = 0
-          @page_offset = 0
+          @search_term += key
+          apply_search
+          draw_search_prompt if @search_mode
         end
       end
+    end
+
+    private def apply_search
+      if @search_term.empty?
+        @list = @search_original_list.dup
+        @scroll = 0
+        @page_offset = 0
+      else
+        results = @search_original_list.select do |p|
+          File.basename(p).downcase.includes?(@search_term.downcase)
+        end
+        @list = results
+        @scroll = 0
+        @page_offset = 0
+      end
+      redraw
+    end
+
+    private def end_search
+      @search_mode = false
+      if @search_term.empty?
+        @list = @search_original_list.dup
+      end
+      @search_original_list.clear
+      redraw
     end
 
     # ── Preview ────────────────────────────────────────────────
