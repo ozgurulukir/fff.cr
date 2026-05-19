@@ -1060,9 +1060,33 @@ module FFF
         next unless key
 
         case key
-        when "\e", "\n", "\r"
+        when "\e"  # ESC: cancel search, restore original list
+          @search_term = ""
           end_search
           return
+        when "\n", "\r"  # Enter: enter selected file, exit search
+          end_search
+          # Enter selected file if list not empty
+          if @list.size > 0
+            enter_item
+          end
+          return
+        when @config.key_down
+          cursor_down
+          redraw
+          draw_search_prompt if @search_mode
+        when @config.key_up
+          cursor_up
+          redraw
+          draw_search_prompt if @search_mode
+        when @config.key_page_up
+          page_up
+          redraw
+          draw_search_prompt if @search_mode
+        when @config.key_page_down
+          page_down
+          redraw
+          draw_search_prompt if @search_mode
         when "\b", "\x7f"
           @search_term = @search_term[0...-1]
           apply_search
@@ -1093,10 +1117,12 @@ module FFF
 
     private def end_search
       @search_mode = false
-      if @search_term.empty?
-        @list = @search_original_list.dup
-      end
+      # Always restore original list to avoid confusion
+      @list = @search_original_list.dup
       @search_original_list.clear
+      # Reset scroll to top of restored list
+      @scroll = 0
+      @page_offset = 0
       redraw
     end
 

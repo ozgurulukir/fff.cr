@@ -89,9 +89,11 @@ Tüm kısayollar `FFF_KEY_*` environment variable'ları ile özelleştirilebilir
 ### Arama
 
 - `/` tuşuna bas, arama terimini gir
+- **Arama modunda `j/k` veya `↑/↓` ile sonuçlarda gezin** (arama terimine eklenmez)
+- `Enter` ile seçili dosyaya gir, aramadan çık
+- `ESC` ile aramayı iptal et, orijinal listeyi geri yükle
 - Büyük/küçük harf duyarsız arama
 - Sonuçlar anında filtrelenir
-- Boş arama ile tüm dosyaları tekrar göster
 
 ### Önizleme
 
