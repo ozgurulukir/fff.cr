@@ -1062,11 +1062,10 @@ module FFF
           next  # No-op - arrow keys don't affect search
         when "\e"  # ESC: cancel search, restore original list
           @search_term = ""
-          end_search
+          end_search(restore_original: true)
           return
-        when "\n", "\r"  # Enter: accept search, restore original list
-          end_search
-          return
+        when "\n", "\r"  # Enter: accept search, keep filtered results
+          end_search(restore_original: false)
         when "\b", "\x7f"  # Backspace
           @search_term = @search_term[0...-1]
           apply_search
@@ -1098,12 +1097,17 @@ module FFF
       redraw
     end
 
-    private def end_search
+    private def end_search(restore_original : Bool = true)
       @search_mode = false
-      # Always restore original list to avoid confusion
-      @list = @search_original_list.dup
+      if restore_original
+        # ESC: restore original list, cancel search
+        @list = @search_original_list.dup
+      else
+        # Enter: keep filtered results, clear search term
+        @search_term = ""
+      end
       @search_original_list.clear
-      # Reset scroll to top of restored list
+      # Reset scroll to top of list
       @scroll = 0
       @page_offset = 0
       redraw
