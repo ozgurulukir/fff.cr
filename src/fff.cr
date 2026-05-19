@@ -74,7 +74,7 @@ module FFF
 
     # Read a single keypress via term-reader
     def read_keypress : String?
-      @reader.read_keypress(echo: false, raw: true, nonblock: false)
+      @reader.read_keypress(echo: false, raw: false, nonblock: false)
     end
 
     # Ask for text input (leaves TUI temporarily)
