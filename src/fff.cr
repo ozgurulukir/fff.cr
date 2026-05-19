@@ -1058,6 +1058,8 @@ module FFF
         next unless key
 
         case key
+        when "\e[A", "\e[B", "\e[C", "\e[D"  # Arrow keys: ignore in search mode
+          next  # No-op - arrow keys don't affect search
         when "\e"  # ESC: cancel search, restore original list
           @search_term = ""
           end_search
@@ -1070,9 +1072,12 @@ module FFF
           apply_search
           draw_search_prompt if @search_mode
         else
-          @search_term += key
-          apply_search
-          draw_search_prompt if @search_mode
+          # Only add printable ASCII characters (ignore other control chars)
+          if key.size > 0 && key[0].ord >= 32 && key[0].ord <= 126
+            @search_term += key
+            apply_search
+            draw_search_prompt if @search_mode
+          end
         end
       end
     end
