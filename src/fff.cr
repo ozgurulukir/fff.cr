@@ -29,7 +29,7 @@ module FFF
     end
 
     def max_items
-      @height - 3
+      {@height - 3, 0}.max
     end
 
     def refresh_size
@@ -46,6 +46,10 @@ module FFF
       set_scroll_region
       update_window_title
       STDOUT.flush
+      # Set STDIN to raw mode for key reading
+      if STDIN.tty?
+        STDIN.raw!
+      end
     end
 
     def leave_tui
@@ -397,6 +401,7 @@ module FFF
       end
       @page_offset = 0
       @term.update_window_title
+      redraw
     end
 
     # ── Drawing ────────────────────────────────────────────────
@@ -528,6 +533,7 @@ module FFF
       status = " #{cur}/#{total} #{cwd} [#{marked_n} marked]#{clip_str}"
 
       @term.move_to(row, 0)
+      print "\e[2K"  # clear line
       print Term::Color.truecolor_string(status,
         fore: Term::Color.color(:black),
         back: Term::Color.color(:white))
@@ -540,15 +546,14 @@ module FFF
       end
       row = @term.max_items + 1
       @term.move_to(row, 0)
+      print "e[2K"  # clear line
       print Term::Color.truecolor_string(" ERROR: #{msg} ",
         fore: Term::Color.color(:white),
         back: Term::Color.color(:red))
     end
 
     # ── Event loop ─────────────────────────────────────────────
-
     private def event_loop
-      redraw
 
       while @running
         key = @term.read_keypress
