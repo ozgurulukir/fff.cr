@@ -1064,10 +1064,10 @@ module FFF
           @search_term = ""
           end_search
           return
-        when "\n", "\r"  # Enter: accept search, restore original list
-          end_search
+        when "
+", ""  # Enter: accept search, restore original list
           return
-        when "\b", "\x7f"  # Backspace
+        when "\b", "\x7f"
           @search_term = @search_term[0...-1]
           apply_search
           draw_search_prompt if @search_mode

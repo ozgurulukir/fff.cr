@@ -95,9 +95,10 @@ The app uses alternate screen buffer (`\e[?1049h`/`\e[?1049l`) so the TUI doesn'
 2. Event loop: `redraw` → `read_keypress` → `handle_key` → repeat
 3. In-TUI dialogs (search `/`, rename `r`): custom key loop, no leave_tui
    - Search: draws `/` prompt on status line, filters list on each keystroke
-   - **Navigation in search**: `j/k`/`↑/↓` navigate filtered results (NOT added to search term)
-   - **Enter**: exits search, enters selected file, restores original list
-   - **ESC**: cancels search, restores original list, no action
+   - **ALL keys (including j, k) → added to search term** (ranger/nnn standard)
+   - **NO navigation in search mode** - type search → ESC → then navigate with j/k
+   - **Enter**: exits search, restores original list
+   - **ESC**: cancels search, clears term, restores original list
    - Rename: draws prompt, shows current name, allows inline editing
    - ESC cancels, Enter confirms, Backspace deletes
    - Case-insensitive search by file basename

@@ -89,9 +89,10 @@ Tüm kısayollar `FFF_KEY_*` environment variable'ları ile özelleştirilebilir
 ### Arama
 
 - `/` tuşuna bas, arama terimini gir
-- **Arama modunda `j/k` veya `↑/↓` ile sonuçlarda gezin** (arama terimine eklenmez)
-- `Enter` ile seçili dosyaya gir, aramadan çık
-- `ESC` ile aramayı iptal et, orijinal listeyi geri yükle
+- **Tüm tuşlar (j, k dahil) arama terimine eklenir** (ranger/nnn standardı)
+- Arama modunda navigasyon yok - arama yap → ESC → j/k ile gezin
+- `Enter` ile aramadan çık, orijinal listeyi geri yükle
+- `ESC` ile aramayı iptal et, termi temizle, orijinal listeyi geri yükle
 - Büyük/küçük harf duyarsız arama
 - Sonuçlar anında filtrelenir
 
