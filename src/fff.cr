@@ -548,6 +548,28 @@ module FFF
       @page_offset = {@page_offset, 0}.max
     end
 
+    # Check if a file is a text file (open in EDITOR vs OPENER)
+    private def text_file?(path : String) : Bool
+      return false unless File.file?(path)
+
+      # Check by extension first (fast path)
+      ext = File.extname(path).downcase
+      text_exts = {".txt", ".md", ".cr", ".rb", ".py", ".js", ".ts", ".json",
+                   ".yaml", ".yml", ".toml", ".xml", ".html", ".css", ".sh",
+                   ".bash", ".zsh", ".fish", ".vim", ".conf", ".cfg", ".ini",
+                   ".c", ".h", ".cpp", ".hpp", ".java", ".go", ".rs", ".php"}
+      return true if text_exts.includes?(ext)
+
+      # Check MIME type via file command
+      output = IO::Memory.new
+      Process.run("file", ["-I", path], output: output, error: Process::Redirect::Close)
+      mime = output.to_s.downcase
+
+      mime.includes?("text/") || mime.includes?("x-empty") || mime.includes?("json")
+    rescue
+      false
+    end
+
     private def enter_item
       path = @list[@scroll]?
       return unless path
@@ -559,7 +581,14 @@ module FFF
         read_directory
       else
         @term.leave_tui
-        Process.run(@config.opener, [path],
+
+        # Open text files in EDITOR, everything else with OPENER
+        opener = @config.opener
+        if text_file?(path)
+          opener = @config.editor
+        end
+
+        Process.run(opener, [path],
           input: Process::Redirect::Inherit,
           output: Process::Redirect::Inherit,
           error: Process::Redirect::Inherit)
@@ -749,16 +778,38 @@ module FFF
       return if paths.empty?
 
       @term.leave_tui
-      confirmed = @term.confirm?("Delete #{paths.size} item(s)?")
+      confirmed = @term.confirm?("Trash #{paths.size} item(s)?")
       @term.enter_tui
 
       return unless confirmed
 
+      # Use custom trash command if set
+      if trash_cmd = ENV["FFF_TRASH_CMD"]?
+        Process.run(trash_cmd, paths,
+          input: Process::Redirect::Inherit,
+          output: Process::Redirect::Inherit,
+          error: Process::Redirect::Inherit)
+        @marked.clear
+        read_directory
+        return
+      end
+
+      # Default trash: move to trash directory
+      trash_dir = @config.trash_dir
+      FileUtils.mkdir_p(trash_dir)
+
       paths.each do |path|
+        name = File.basename(path)
+        dest = File.join(trash_dir, name)
         begin
-          File.directory?(path) ? FileUtils.rm_rf(path) : FileUtils.rm(path)
+          # If destination exists, add timestamp suffix
+          if File.exists?(dest)
+            timestamp = Time.utc.to_unix
+            dest = File.join(trash_dir, "#{name}.#{timestamp}")
+          end
+          FileUtils.mv(path, dest)
         rescue e
-          show_error("delete: #{e.message}")
+          show_error("trash: #{e.message}")
         end
       end
 
