@@ -698,6 +698,7 @@ module FFF
           output: Process::Redirect::Inherit,
           error: Process::Redirect::Inherit)
         @term.enter_tui
+        redraw(true)  # Force full redraw after external app
       end
     end
 
@@ -1131,6 +1132,7 @@ module FFF
 
       @term.keypress("\nPress any key to return...")
 
+        redraw(true)  # Force full redraw after preview
       @term.enter_tui
     end
 
