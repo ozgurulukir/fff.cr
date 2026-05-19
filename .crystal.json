@@ -1,0 +1,16 @@
+{
+  "crystalLang.compiler": "crystal",
+  "crystalLang.ctrllib": ["lib"],
+  "crystalLang.diagnostics": true,
+  "crystalLang.specsHelper": "spec/spec_helper.cr",
+  "crystalLang.textlintrules": [
+    {
+      "regex": "\\\\s+$",
+      "message": "Trailing whitespace"
+    }
+  ],
+  "files.associations": {
+    "*.cr": "crystal"
+  },
+  "editor.formatOnSave": false
+}

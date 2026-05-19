@@ -1,0 +1,24 @@
+# Ameba configuration
+# https://github.com/crystal-ameba/ameba
+
+# Exclude directories
+exclude:
+  - lib
+  - bin
+
+# Linter rules
+Lint/EmptyExpression:
+  Enabled: false
+
+Lint/UselessAssign:
+  Enabled: false
+
+Naming/BlockParameterName:
+  Enabled: false
+
+Style/RedundantBegin:
+  Enabled: false
+
+# Line length
+Metrics/LineLength:
+  MaxLength: 120
