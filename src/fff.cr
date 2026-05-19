@@ -81,7 +81,6 @@ module FFF
     end
 
     # Read a single keypress via term-reader
-    # Read a single keypress via term-reader
     def read_keypress : String?
       @reader.read_keypress(echo: false, raw: false, nonblock: false)
     end
