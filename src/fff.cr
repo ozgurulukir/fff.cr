@@ -35,13 +35,13 @@ module FFF
       print Term::Cursor.hide
       print "\e[?1049h"  # alternate screen buffer
       print Term::Cursor.clear_screen
-      print Term::Cursor.move_to(0, 0)
+      print "\e[1;1H"
       STDOUT.flush
     end
 
     def leave_raw_mode
       print Term::Cursor.clear_screen
-      print Term::Cursor.move_to(0, 0)
+      print "\e[1;1H"
       print Term::Cursor.show
       print "\e[?1049l"  # restore main screen
       STDOUT.flush
@@ -49,18 +49,18 @@ module FFF
 
     def clear_screen
       print Term::Cursor.clear_screen
-      print Term::Cursor.move_to(0, 0)
+      print "\e[1;1H"
       STDOUT.flush
     end
 
     def move_to(row : Int32, col : Int32)
-      print Term::Cursor.move_to(row, col)
+      print "\e[#{row + 1};#{col + 1}H"
       STDOUT.flush
     end
 
     def clear_line(row : Int32)
-      print Term::Cursor.move_to(row, 0)
-      print Term::Cursor.clear_line
+      print "\e[#{row + 1};1H"
+      print "\e[2K"
       STDOUT.flush
     end
 
