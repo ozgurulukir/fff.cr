@@ -225,7 +225,8 @@ module FFF
     @prev_child : String?
     @error_msg : String?
     @error_expires : Time?
-
+    @prev_scroll : Int32
+    @prev_page_offset : Int32
     def initialize(@config : Config, start_dir : String)
       @term = Terminal.new
       Dir.cd(start_dir)
@@ -241,6 +242,8 @@ module FFF
       @prev_child = nil
       @error_msg = nil
       @error_expires = nil
+      @prev_scroll = -1
+      @prev_page_offset = -1
     end
 
     def run
@@ -274,7 +277,11 @@ module FFF
 
     private def handle_resize
       @term.refresh_size
-      redraw
+      # Clamp scroll to new visible area
+      max = @term.max_items
+      @scroll = {@scroll, @list.size - 1}.min if @list.size > 0
+      @page_offset = {@page_offset, {@scroll - max + 1, 0}.max}.min if @scroll >= @page_offset + max
+      redraw(true)
     end
 
     # ── Directory reading ──────────────────────────────────────
@@ -312,54 +319,100 @@ module FFF
 
     # ── Drawing ────────────────────────────────────────────────
 
-    private def redraw
+    private def redraw(full = false)
       @term.refresh_size
-      @term.move_to(0, 0)
-      print "\e[2J"
-      draw_list
+
+      # Decide what to redraw
+      list_changed = @list.object_id != @prev_list_id rescue false
+      scroll_delta = (@scroll - @prev_scroll).abs
+      page_changed = @page_offset != @prev_page_offset
+
+      if full || list_changed || page_changed
+        # Full list redraw: clear visible area and redraw all
+        max = @term.max_items
+        max.times do |i|
+          idx = @page_offset + i
+          break if idx >= @list.size
+          @term.move_to(i, 0)
+          print "\e[2K"  # clear line
+        end
+        draw_all_lines
+      elsif scroll_delta == 1
+        # Single cursor move: redraw old and new lines only
+        old_scroll = @prev_scroll
+        if old_scroll >= @page_offset && old_scroll < @page_offset + @term.max_items
+          old_row = old_scroll - @page_offset
+          @term.move_to(old_row, 0)
+          print "\e[2K"
+          draw_line(old_row, old_scroll) if old_scroll < @list.size
+        end
+        new_row = @scroll - @page_offset
+        if new_row >= 0 && new_row < @term.max_items && @scroll < @list.size
+          draw_line(new_row, @scroll)
+        end
+      end
+
       draw_status
       draw_error
       STDOUT.flush
+
+      # Remember current state for next redraw
+      @prev_scroll = @scroll
+      @prev_page_offset = @page_offset
+      @prev_list_id = @list.object_id
     end
 
-    private def draw_list
+    # Format a single list item into (label, color) — no terminal I/O
+    private def format_line(idx : Int32) : {String, Symbol}
+      path = @list[idx]
+      name = File.basename(path)
+      selected = (idx == @scroll)
+      is_marked = @marked.includes?(path)
+      in_clip = @clipboard.includes?(path)
+
+      color = if selected
+                :red
+              elsif is_marked
+                :yellow
+              elsif in_clip
+                :magenta
+              elsif File.directory?(path)
+                :blue
+              elsif File.info?(path).try(&.permissions.includes?(::File::Permissions::OtherExecute))
+                :green
+              else
+                :white
+              end
+
+      prefix = is_marked ? "*" : " "
+      suffix = File.directory?(path) ? "/" : ""
+      label = "#{prefix} #{name}#{suffix}"
+
+      # Truncate to terminal width
+      label = label[0...(@term.width - 1)] if label.size > @term.width
+      {label, color}
+    end
+
+    # Draw a single line at screen row (0-indexed)
+    private def draw_line(row : Int32, idx : Int32)
+      label, color = format_line(idx)
+      @term.move_to(row, 0)
+      print Term::Color.truecolor_string(label, fore: Term::Color.color(color))
+    end
+
+    # Draw all visible lines
+    private def draw_all_lines
       max = @term.max_items
       offset = @page_offset
-
       max.times do |i|
         idx = offset + i
         break if idx >= @list.size
-
-        path = @list[idx]
-        name = File.basename(path)
-        selected = (idx == @scroll)
-        is_marked = @marked.includes?(path)
-        in_clip = @clipboard.includes?(path)
-
-        color = if selected
-                  :red
-                elsif is_marked
-                  :yellow
-                elsif in_clip
-                  :magenta
-                elsif File.directory?(path)
-                  :blue
-                elsif File.info?(path).try(&.permissions.includes?(::File::Permissions::OtherExecute))
-                  :green
-                else
-                  :white
-                end
-
-        prefix = is_marked ? "*" : " "
-        suffix = File.directory?(path) ? "/" : ""
-        label = "#{prefix} #{name}#{suffix}"
-
-        # Truncate to terminal width
-        label = label[0...(@term.width - 1)] if label.size > @term.width
-
-        @term.move_to(i, 0)
-        print Term::Color.truecolor_string(label, fore: Term::Color.color(color))
+        draw_line(i, idx)
       end
+    end
+
+    private def draw_list
+      draw_all_lines
     end
 
     private def draw_status
