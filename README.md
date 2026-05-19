@@ -4,20 +4,21 @@ Crystal programlama dilinde yazılmış, terminal tabanlı hızlı bir dosya yö
 
 ## Özellikler
 
-- ✅ **Hızlı Navigasyon**: Klavye kısayolları ile hızlı dosya/dizin gezintisi
-- ✅ **Dosya İşlemleri**: Kopyalama, taşıma, silme işlemleri
-- ✅ **Çoklu Seçim**: Birden fazla dosyayı işaretleme ve toplu işlemler
-- ✅ **Arama**: Dosya ve dizin arama
-- ✅ **Önizleme**: Dosya içeriklerini görüntüleme
-- ✅ **Renkli Arayüz**: crystal-term shard'ları ile renkli terminal arayüzü
-- ✅ **Performans**: Büyük dizinler için sayfalama desteği
-- ✅ **Özelleştirilebilir**: Environment variable ile klavye kısayolları
+- **Hızlı Navigasyon**: Klavye kısayolları ile hızlı dosya/dizin gezintisi
+- **Dosya İşlemleri**: Kopyalama, taşıma, silme, yeniden adlandırma
+- **Çoklu Seçim**: Birden fazla dosyayı işaretleme ve toplu işlemler
+- **Arama**: Dosya ve dizin arama
+- **Önizleme**: Dosya içeriklerini görüntüleme
+- **Renkli Arayüz**: crystal-term shard'ları ile renkli terminal arayüzü
+- **Performans**: Büyük dizinler için sayfalama desteği
+- **Özelleştirilebilir**: Environment variable ile klavye kısayolları
+- **Kabuk**: Dahili kabuk başlatma (`s` tuşu)
 
 ## Kurulum
 
 ### Gereksinimler
 
-- Crystal 1.0.0 veya üzeri
+- Crystal 1.20.1 veya üzeri
 - Linux/macOS terminali
 
 ### Derleme
@@ -27,10 +28,10 @@ Crystal programlama dilinde yazılmış, terminal tabanlı hızlı bir dosya yö
 shards install
 
 # Derle
-crystal build src/fff.cr --release -o bin/fff
+make build
 
 # İsteğe bağlı: Sistem geneline kur
-sudo cp bin/fff /usr/local/bin/
+sudo make install
 ```
 
 ## Kullanım
@@ -53,26 +54,69 @@ fff --help
 
 ### Klavye Kısayolları
 
-| Tuş | İşlev |
-|-----|-------|
-| `K` | Yukarı hareket |
-| `J` | Aşağı hareket |
-| `L` | Dizine gir/dosya aç |
-| `H` | Üst dizine git |
-| `/` | Dosya ara |
-| `Q` | Çıkış |
-| `SPACE` | Dosya işaretle |
-| `M` | Tüm dosyaları işaretle |
-| `C` | İşaretli dosyaları kopyala |
-| `V` | İşaretli dosyaları taşı |
-| `P` | Dosyaları yapıştır |
-| `D` | İşaretli dosyaları sil |
-| `N` | Yeni dizin oluştur |
-| `I` | Dosya önizleme |
-| `SHIFT+K` | Sayfa yukarı |
-| `SHIFT+J` | Sayfa aşağı |
+| Tuş | İşlev | Tuş | İşlev |
+|-----|-------|-----|-------|
+| `j` | Aşağı hareket | `k` | Yukarı hareket |
+| `l` | Dizine gir / dosya aç | `h` | Üst dizine git |
+| `q` | Çıkış | `/` | Dosya ara |
+| `space` | Dosya işaretle | `m` | Tüm dosyaları işaretle |
+| `y` | Kopyala (yank) | `v` | Taşı (cut) |
+| `p` | Yapıştır | `d` | Sil |
+| `n` | Yeni dizin oluştur | `r` | Yeniden adlandır |
+| `i` | Dosya önizleme | `s` | Kabuk başlat |
+| `g` | En üste git | `G` | En alta git |
+| `↑` | Sayfa yukarı | `↓` | Sayfa aşağı |
 
-### Environment Variables
+Tüm kısayollar `FFF_KEY_*` environment variable'ları ile özelleştirilebilir.
+
+### Dosya İşlemleri
+
+1. **Kopyalama**: Dosyaları işaretleyip `y` tuşu ile panoya kopyala
+2. **Taşıma**: Dosyaları işaretleyip `v` tuşu ile taşıma moduna al
+3. **Yapıştırma**: Hedef dizine gidip `p` tuşu ile yapıştır
+4. **Silme**: Dosyaları işaretleyip `d` tuşu ile sil (onay gerekir)
+5. **Yeniden adlandırma**: Dosya üzerinde `r` tuşu ile yeni isim gir
+6. **Yeni dizin**: `n` tuşu ile dizin adı gir
+
+İşaretlenmemiş dosya üzerinde işlem yapılırsa sadece o dosya etkilenir.
+
+### Çoklu Seçim
+
+- `space` tuşu ile tek tek dosya işaretle
+- `m` tuşu ile tüm dosyaları işaretle / işaretleri kaldır
+- İşaretli dosyalar sarı renkle, panodaki dosyalar mor renkle gösterilir
+
+### Arama
+
+- `/` tuşuna bas, arama terimini gir
+- Büyük/küçük harf duyarsız arama
+- Sonuçlar anında filtrelenir
+- Boş arama ile tüm dosyaları tekrar göster
+
+### Önizleme
+
+- `i` tuşu ile dosya içeriğini görüntüle
+- Dosya adı, boyutu ve değiştirilme tarihi gösterilir
+- 2MB altındaki dosyalar için ilk 30 satır gösterilir
+- Herhangi bir tuşa basarak geri dön
+
+### Kabuk
+
+- `s` tuşu ile mevcut dizinde `$SHELL` başlatılır
+- `exit` yazarak dosya yöneticisine dön
+
+### Renk Kodları
+
+| Renk | Anlam |
+|------|-------|
+| Kırmızı | Seçili dosya |
+| Sarı | İşaretli dosya |
+| Mor | Panodaki dosya |
+| Mavi | Dizin |
+| Yeşil | Çalıştırılabilir dosya |
+| Beyaz | Normal dosya |
+
+## Environment Variables
 
 ```bash
 # Klavye kısayolları
@@ -84,14 +128,18 @@ export FFF_KEY_SEARCH="/"
 export FFF_KEY_PARENT="h"
 export FFF_KEY_MARK=" "
 export FFF_KEY_MARK_ALL="m"
-export FFF_KEY_COPY="c"
+export FFF_KEY_COPY="y"
 export FFF_KEY_MOVE="v"
 export FFF_KEY_PASTE="p"
 export FFF_KEY_DELETE="d"
 export FFF_KEY_NEW_DIR="n"
 export FFF_KEY_PREVIEW="i"
-export FFF_KEY_PAGE_UP="K"
-export FFF_KEY_PAGE_DOWN="J"
+export FFF_KEY_RENAME="r"
+export FFF_KEY_SHELL="s"
+export FFF_KEY_TOP="g"
+export FFF_KEY_BOTTOM="G"
+export FFF_KEY_PAGE_UP="\e[A"
+export FFF_KEY_PAGE_DOWN="\e[B"
 
 # Dosya açıcı
 export FFF_OPENER="xdg-open"
@@ -102,40 +150,10 @@ export FFF_CD_FILE="$HOME/.cache/fff/.fff_d"
 
 # Çöp kutusu
 export FFF_TRASH="$HOME/.local/share/fff/trash"
+
+# Hata ayıklama
+export FFF_DEBUG=1
 ```
-
-## Özellikler Detaylı
-
-### Dosya İşlemleri
-
-1. **Kopyalama**: `C` tuşu ile işaretli dosyaları panoya kopyala
-2. **Taşıma**: `V` tuşu ile işaretli dosyaları taşıma moduna al
-3. **Yapıştırma**: `P` tuşu ile panodaki dosyaları mevcut dizine yapıştır
-4. **Silme**: `D` tuşu ile işaretli dosyaları sil
-
-### Çoklu Seçim
-
-- `SPACE` tuşu ile tek tek dosya işaretle
-- `M` tuşu ile tüm dosyaları işaretle
-- İşaretli dosyalar sarı renkle gösterilir
-
-### Arama
-
-- `/` tuşuna bas, arama terimini gir
-- Sonuçlar anında gösterilir
-- Boş arama ile tüm dosyaları görüntüle
-
-### Önizleme
-
-- `I` tuşu ile dosya içeriğini görüntüle
-- Sadece metin dosyaları için (1MB altı)
-- İlk 20 satır gösterilir
-
-### Performans
-
-- Büyük dizinler için otomatik sayfalama
-- Sayfa başına maksimum dosya sayısı terminal boyuna göre ayarlanır
-- Sayfa yukarı/aşağı ile hızlı gezinme
 
 ## Geliştirme
 
@@ -144,26 +162,52 @@ export FFF_TRASH="$HOME/.local/share/fff/trash"
 ```
 .
 ├── src/
-│   └── fff.cr          # Ana kaynak kodu
+│   └── fff.cr          # Tüm kaynak kodu (tek dosya)
 ├── shard.yml           # Bağımlılıklar
 ├── shard.lock          # Bağımlılık versiyonları
 ├── Makefile            # Derleme komutları
-├── README.md           # Bu dosya
-└── spec/
-    └── fff_spec.cr     # Testler
+├── fff.1               # Man sayfası
+└── README.md           # Bu dosya
 ```
 
-### Bağımlılıklar
+### Mimari
 
-- `term-color`: Terminal renkleri için
-- `term-screen`: Terminal boyutu bilgisi için
-- `term-cursor`: İmleç kontrolü için
+```
+FFF::Application  # CLI giriş noktası (--version, --help, start_dir)
+FFF::Config       # Environment variable yapılandırması
+FFF::Terminal     # Terminal I/O (cursor, screen, reader, prompt)
+FFF::FileManager  # Olay döngüsü, çizim, navigasyon, dosya işlemleri
+```
 
-### Test
+### Bağımlılıklar (crystal-term shard'ları)
+
+| Shard | Versiyon | Kullanım |
+|-------|----------|----------|
+| `term-color` | ~> 0.4.0 | Dosya tipi renklendirmesi, durum çubuğu |
+| `term-screen` | ~> 0.3.0 | Terminal genişliği/yüksekliği |
+| `term-cursor` | ~> 0.3.0 | İmleç gizle/göster |
+| `term-reader` | ~> 0.3.0 | Tuş basımı okuma |
+| `term-prompt` | ~> 0.3.0 | Etkileşimli diyaloglar (arama, silme onayı, yeniden adlandırma) |
+
+### Bilinen Shard Hataları
+
+`shards install` sonrası `lib/` dizininde elle düzeltilmesi gereken hatalar:
+
+1. **term-reader** (`lib/term-reader/src/term-reader.cr:102`): `sync=` `Bool` bekler, `Bool | Nil` alır
+2. **term-prompt** (`lib/term-prompt/src/prompt/confirm_question.cr:95`): `Regex.escape` `String` bekler, `Char` alır
+3. **term-cursor** `move_to`: satır/sütun parametrelerini yer değiştirir — ham ANSI kullanılır
+4. **term-reader** `Mode#raw`: `raw: true` raw mode'a geçmez, `raw: false` geçer
+
+### Komutlar
 
 ```bash
-# Testleri çalıştır
-crystal spec
+make build      # Release derleme
+make debug      # Debug derleme (hızlı derleme, optimizasyonsuz)
+make run        # Derle ve çalıştır
+make test       # Testleri çalıştır
+make format     # Kodu formatla
+make clean      # Derleme artefaktlarını temizle
+make deps       # Bağımlılıkları yükle
 ```
 
 ## Katkıda Bulunma
@@ -182,12 +226,3 @@ MIT License - Orijinal proje lisansına uygun olarak
 
 - Orijinal FFF projesi için [dylanaraps](https://github.com/dylanaraps/fff)
 - Crystal-term shard'ları için [crystal-term](https://github.com/crystal-term) organizasyonu
-
-## Sürüm Geçmişi
-
-### v0.1.0 (2025)
-- ✅ İlk Crystal port
-- ✅ Temel dosya yönetimi özellikleri
-- ✅ crystal-term shard'ları ile entegrasyon
-- ✅ Performans optimizasyonları
-- ✅ Çoklu seçim ve clipboard desteği
