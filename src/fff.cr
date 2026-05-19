@@ -51,6 +51,11 @@ module FFF
       print Term::Cursor.show
       print "\e[?1049l"   # restore main screen
       STDOUT.flush
+      # Restore STDIN to normal (cooked + echo) for shell/prompt use.
+      # Crystal's IO::Console provides cooked!/raw! for permanent mode changes.
+      if STDIN.tty?
+        STDIN.cooked!
+      end
     end
 
     def clear
