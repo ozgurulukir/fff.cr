@@ -4,646 +4,678 @@ require "term-cursor"
 require "file"
 require "file_utils"
 require "process"
+require "io"
 
 # Fucking Fast File Manager - Crystal Port
-# Using crystal-term shards for proper TUI
+# Using crystal-term shards: term-color, term-screen, term-cursor
 
 module FFF
   VERSION = "0.1.0"
 
-  # Simple key reader
-  class KeyReader
+  # Raw terminal I/O using IO#raw
+  class Terminal
+    getter width : Int32
+    getter height : Int32
+
+    @original_tty : Bool
+
     def initialize
-      @input = STDIN
+      @original_tty = STDIN.tty?
+      @width = Term::Screen.width
+      @height = Term::Screen.height
     end
 
+    def max_items
+      @height - 3
+    end
+
+    def enter_raw_mode
+      @width = Term::Screen.width
+      @height = Term::Screen.height
+      print Term::Cursor.hide
+      print "\e[?1049h"  # alternate screen buffer
+      print Term::Cursor.clear_screen
+      print Term::Cursor.move_to(0, 0)
+      STDOUT.flush
+    end
+
+    def leave_raw_mode
+      print Term::Cursor.clear_screen
+      print Term::Cursor.move_to(0, 0)
+      print Term::Cursor.show
+      print "\e[?1049l"  # restore main screen
+      STDOUT.flush
+    end
+
+    def clear_screen
+      print Term::Cursor.clear_screen
+      print Term::Cursor.move_to(0, 0)
+      STDOUT.flush
+    end
+
+    def move_to(row : Int32, col : Int32)
+      print Term::Cursor.move_to(row, col)
+      STDOUT.flush
+    end
+
+    def clear_line(row : Int32)
+      print Term::Cursor.move_to(row, 0)
+      print Term::Cursor.clear_line
+      STDOUT.flush
+    end
+
+    # Read a single keypress using IO#raw (Crystal built-in)
     def read_keypress : String?
-      # Set terminal to raw mode
-      system("stty -echo -icanon min 0 time 0 2>/dev/null")
+      return nil unless @original_tty
 
-      char = @input.read_char
-
-      # Restore terminal
-      system("stty echo icanon 2>/dev/null")
-
+      char = STDIN.raw do |io|
+        io.read_char
+      end
       char.try(&.to_s)
     end
 
+    # Read a line with echo (for search, new dir, etc.)
     def read_line(prompt : String = "") : String
       print prompt
-      @input.gets.to_s.strip
+      STDOUT.flush
+      STDIN.gets.to_s.strip
+    end
+
+    def refresh_size
+      @width = Term::Screen.width
+      @height = Term::Screen.height
     end
   end
 
-  # Configuration
+  # Configuration from environment
   class Config
-    getter editor : String = ENV["EDITOR"]? || "vim"
-    getter opener : String = ENV["FFF_OPENER"]? || "xdg-open"
-    getter trash_dir : String = ENV["FFF_TRASH"]? || File.join(ENV["HOME"], ".local", "share", "fff", "trash")
-    getter cd_on_exit : Bool = ENV["FFF_CD_ON_EXIT"]?.try(&.to_i?) != 0
-    getter cd_file : String = ENV["FFF_CD_FILE"]? || File.join(ENV["HOME"], ".cache", "fff", ".fff_d")
+    getter editor : String
+    getter opener : String
+    getter trash_dir : String
+    getter cd_on_exit : Bool
+    getter cd_file : String
+    getter key_up : String
+    getter key_down : String
+    getter key_enter : String
+    getter key_quit : String
+    getter key_search : String
+    getter key_parent : String
+    getter key_mark : String
+    getter key_mark_all : String
+    getter key_copy : String
+    getter key_move : String
+    getter key_delete : String
+    getter key_new_dir : String
+    getter key_paste : String
+    getter key_preview : String
+    getter key_page_up : String
+    getter key_page_down : String
+    getter key_top : String
+    getter key_bottom : String
+    getter key_rename : String
+    getter key_shell : String
 
-    # Keybindings
-    getter key_up : String = ENV["FFF_KEY_UP"]? || "k"
-    getter key_down : String = ENV["FFF_KEY_DOWN"]? || "j"
-    getter key_enter : String = ENV["FFF_KEY_ENTER"]? || "l"
-    getter key_quit : String = ENV["FFF_KEY_QUIT"]? || "q"
-    getter key_search : String = ENV["FFF_KEY_SEARCH"]? || "/"
-    getter key_parent : String = ENV["FFF_KEY_PARENT"]? || "h"
-    getter key_mark : String = ENV["FFF_KEY_MARK"]? || " "
-    getter key_mark_all : String = ENV["FFF_KEY_MARK_ALL"]? || "m"
-    getter key_copy : String = ENV["FFF_KEY_COPY"]? || "c"
-    getter key_move : String = ENV["FFF_KEY_MOVE"]? || "v"
-    getter key_delete : String = ENV["FFF_KEY_DELETE"]? || "d"
-    getter key_new_dir : String = ENV["FFF_KEY_NEW_DIR"]? || "n"
-    getter key_paste : String = ENV["FFF_KEY_PASTE"]? || "p"
-    getter key_preview : String = ENV["FFF_KEY_PREVIEW"]? || "i"
-    getter key_page_up : String = ENV["FFF_KEY_PAGE_UP"]? || "K"
-    getter key_page_down : String = ENV["FFF_KEY_PAGE_DOWN"]? || "J"
+    def initialize
+      @editor = ENV["EDITOR"]? || "vi"
+      @opener = ENV["FFF_OPENER"]? || "xdg-open"
+      @trash_dir = ENV["FFF_TRASH"]? || File.join(ENV["HOME"], ".local", "share", "fff", "trash")
+      @cd_on_exit = (ENV["FFF_CD_ON_EXIT"]? == "1")
+      @cd_file = ENV["FFF_CD_FILE"]? || File.join(ENV["HOME"], ".cache", "fff", ".fff_d")
+      @key_up = ENV["FFF_KEY_UP"]? || "k"
+      @key_down = ENV["FFF_KEY_DOWN"]? || "j"
+      @key_enter = ENV["FFF_KEY_ENTER"]? || "l"
+      @key_quit = ENV["FFF_KEY_QUIT"]? || "q"
+      @key_search = ENV["FFF_KEY_SEARCH"]? || "/"
+      @key_parent = ENV["FFF_KEY_PARENT"]? || "h"
+      @key_mark = ENV["FFF_KEY_MARK"]? || " "
+      @key_mark_all = ENV["FFF_KEY_MARK_ALL"]? || "m"
+      @key_copy = ENV["FFF_KEY_COPY"]? || "y"
+      @key_move = ENV["FFF_KEY_MOVE"]? || "v"
+      @key_delete = ENV["FFF_KEY_DELETE"]? || "d"
+      @key_new_dir = ENV["FFF_KEY_NEW_DIR"]? || "n"
+      @key_paste = ENV["FFF_KEY_PASTE"]? || "p"
+      @key_preview = ENV["FFF_KEY_PREVIEW"]? || "i"
+      @key_page_up = ENV["FFF_KEY_PAGE_UP"]? || "\e[A"   # arrow up
+      @key_page_down = ENV["FFF_KEY_PAGE_DOWN"]? || "\e[B" # arrow down
+      @key_top = ENV["FFF_KEY_TOP"]? || "g"
+      @key_bottom = ENV["FFF_KEY_BOTTOM"]? || "G"
+      @key_rename = ENV["FFF_KEY_RENAME"]? || "r"
+      @key_shell = ENV["FFF_KEY_SHELL"]? || "s"
+    end
   end
 
   # Main application
   class Application
-    property start_dir : String = "."
-    property version : Bool = false
-    property help : Bool = false
-
-    def initialize(args : Array(String))
-      @help = false
-
-      args.each do |arg|
-        case arg
-        when "--version"
-          @version = true
-        when "--help", "-h"
-          @help = true
-        else
-          @start_dir = arg
-        end
-      end
+    def initialize(@args : Array(String))
     end
 
     def run
-      if @version
+      if @args.includes?("--version")
         puts "fff #{VERSION}"
-        exit
+        return
       end
 
-      if @help
+      if @args.includes?("--help") || @args.includes?("-h")
         print_help
-        exit
+        return
       end
 
+      start_dir = @args.find { |a| !a.starts_with?('-') } || "."
       config = Config.new
-      Dir.cd(@start_dir) unless @start_dir == "."
 
-      file_manager = FileManager.new(config)
-      file_manager.run
+      fm = FileManager.new(config, start_dir)
+      fm.run
     end
 
-    def print_help
-      puts "Fucking Fast File Manager - Crystal Port"
-      puts "Usage: fff [directory]"
+    private def print_help
+      puts "fff - Fucking Fast File Manager (Crystal)"
       puts ""
-      puts "Keybindings:"
-      puts "  K      - Move up"
-      puts "  J      - Move down"
-      puts "  L      - Enter directory/open file"
-      puts "  H      - Go to parent directory"
-      puts "  /      - Search files"
-      puts "  Q      - Quit"
-      puts "  SPACE  - Mark file"
-      puts "  M      - Mark all files"
-      puts "  C      - Copy marked files"
-      puts "  V      - Move marked files"
-      puts "  P      - Paste files"
-      puts "  D      - Delete marked files"
-      puts "  N      - Create new directory"
-      puts "  I      - Preview file"
-      puts "  SHIFT+K - Page up"
-      puts "  SHIFT+J - Page down"
+      puts "Usage: fff [options] [directory]"
       puts ""
-      puts "Environment Variables:"
-      puts "  FFF_KEY_UP       Up key (default: k)"
-      puts "  FFF_KEY_DOWN     Down key (default: j)"
-      puts "  FFF_KEY_ENTER    Enter key (default: l)"
-      puts "  FFF_KEY_QUIT     Quit key (default: q)"
-      puts "  FFF_KEY_SEARCH   Search key (default: /)"
-      puts "  FFF_KEY_PARENT   Parent key (default: h)"
-      puts "  FFF_KEY_MARK     Mark file (default: space)"
-      puts "  FFF_KEY_MARK_ALL Mark all files (default: m)"
-      puts "  FFF_KEY_COPY     Copy files (default: c)"
-      puts "  FFF_KEY_MOVE     Move files (default: v)"
-      puts "  FFF_KEY_PASTE    Paste files (default: p)"
-      puts "  FFF_KEY_DELETE   Delete files (default: d)"
-      puts "  FFF_KEY_NEW_DIR  Create directory (default: n)"
-      puts "  FFF_KEY_PREVIEW  Preview file (default: i)"
-      puts "  FFF_KEY_PAGE_UP  Page up (default: K)"
-      puts "  FFF_KEY_PAGE_DOWN Page down (default: J)"
-      puts "  FFF_OPENER       File opener (default: xdg-open)"
-      puts "  FFF_TRASH        Trash directory"
-      puts "  FFF_CD_ON_EXIT   Save last directory on exit"
-      puts "  FFF_CD_FILE      File to save last directory"
+      puts "Options:"
+      puts "  -h, --help     Show this help"
+      puts "  --version      Show version"
+      puts ""
+      puts "Keys:"
+      puts "  j/k       Down/Up        l/h    Enter/Parent"
+      puts "  q         Quit           /      Search"
+      puts "  space     Mark           m      Mark all"
+      puts "  y         Yank (copy)    v      Move (cut)"
+      puts "  p         Paste          d      Delete"
+      puts "  n         New dir        r      Rename"
+      puts "  i         Preview        s      Shell"
+      puts "  g/G       Top/Bottom     arrows Page up/down"
+      puts ""
+      puts "All keys configurable via FFF_KEY_* env vars."
     end
   end
 
-  # Terminal UI using crystal-term shards
-  class TerminalUI
-    getter screen : Term::Screen.class
-    getter cursor : Term::Cursor.class
-    getter reader : KeyReader
-    getter max_items : Int32
-    getter y : Int32 = 0
-
-    def initialize
-      @screen = Term::Screen
-      @cursor = Term::Cursor
-      @reader = KeyReader.new
-
-      height = @screen.height
-      @max_items = height - 3
-    end
-
-    def setup
-      @cursor.hide
-      @cursor.clear_screen
-    end
-
-    def reset
-      @cursor.show
-      @cursor.clear_screen
-    end
-
-    def clear
-      @cursor.clear_screen
-    end
-
-    def move_to(x : Int32, y : Int32)
-      @cursor.move_to(y, x)
-    end
-
-    def read_keypress
-      @reader.read_keypress
-    end
-
-    def read_line(prompt : String = "")
-      @reader.read_line(prompt)
-    end
-
-    def get_terminal_size
-      {@screen.width, @screen.height}
-    end
-  end
-
-  # Main File Manager
+  # The file manager
   class FileManager
-    getter config : Config
-    getter terminal : TerminalUI
-    getter current_dir : String = Dir.current
-    getter list : Array(String) = [] of String
-    getter marked_files : Hash(String, String) = {} of String => String
-    getter scroll : Int32 = 0
-    getter list_total : Int32 = 0
-    getter all_marked : Bool = false
-    getter clipboard_files : Array(String) = [] of String
-    getter clipboard_mode : Symbol = :none # :none, :copy, :move
-    getter page_offset : Int32 = 0
+    @term : Terminal
+    @config : Config
+    @list : Array(String)
+    @scroll : Int32
+    @page_offset : Int32
+    @marked : Set(String)
+    @clipboard : Array(String)
+    @clipboard_mode : Symbol
+    @running : Bool
 
-    def initialize(@config : Config)
-      @terminal = TerminalUI.new
+    def initialize(@config : Config, start_dir : String)
+      @term = Terminal.new
+      Dir.cd(start_dir)
+      @list = [] of String
+      @scroll = 0
+      @page_offset = 0
+      @marked = Set(String).new
+      @clipboard = [] of String
+      @clipboard_mode = :none
+      @running = true
     end
 
-    def setup
+    def run
+      ensure_dirs
+      @term.enter_raw_mode
+      read_directory
+      event_loop
+    rescue e : Exception
+      @term.leave_raw_mode
+      STDERR.puts "fff error: #{e.message}"
+      STDERR.puts e.backtrace.join('\n') if ENV["FFF_DEBUG"]? == "1"
+    end
+
+    private def ensure_dirs
       FileUtils.mkdir_p(File.join(ENV["HOME"], ".cache", "fff"))
       FileUtils.mkdir_p(@config.trash_dir)
-
-      @terminal.setup
-      read_directory
-      run_event_loop
     end
 
-    def read_directory
-      @current_dir = Dir.current
+    # ── Directory reading ──────────────────────────────────────
+
+    private def read_directory
+      cwd = Dir.current
       dirs = [] of String
       files = [] of String
 
-      Dir.each_child(@current_dir) do |item|
-        full_path = File.join(@current_dir, item)
-        if File.directory?(full_path)
-          dirs << full_path
+      Dir.each_child(cwd) do |name|
+        path = File.join(cwd, name)
+        if File.directory?(path)
+          dirs << path
         else
-          files << full_path
+          files << path
         end
+      rescue File::NotFoundError
+        next
       end
 
-      @list = dirs + files
-      @list = ["empty"] of String if @list.empty?
-      @list_total = @list.size - 1
+      @list = dirs.sort + files.sort
+      @scroll = 0
       @page_offset = 0
     end
 
-    def visible_range
-      max_items = @terminal.max_items
-      start_idx = @page_offset
-      end_idx = Math.min(@page_offset + max_items, @list.size)
-      (start_idx...end_idx)
+    private def list_total
+      @list.size
     end
 
-    def draw_directory
-      @terminal.clear
+    # ── Drawing ────────────────────────────────────────────────
 
-      visible_range.each do |i|
-        print_line(i - @page_offset, @list[i]?)
+    private def redraw
+      @term.refresh_size
+      @term.clear_screen
+      draw_list
+      draw_status
+      STDOUT.flush
+    end
+
+    private def draw_list
+      max = @term.max_items
+      offset = @page_offset
+
+      max.times do |i|
+        idx = offset + i
+        break if idx >= @list.size
+
+        path = @list[idx]
+        name = File.basename(path)
+        selected = (idx == @scroll)
+        is_marked = @marked.includes?(path)
+        in_clip = @clipboard.includes?(path)
+
+        color = if selected
+                  :red
+                elsif is_marked
+                  :yellow
+                elsif in_clip
+                  :magenta
+                elsif File.directory?(path)
+                  :blue
+                elsif File.info?(path).try(&.permissions.includes?(::File::Permissions::OtherExecute))
+                  :green
+                else
+                  :white
+                end
+
+        prefix = is_marked ? "*" : " "
+        suffix = File.directory?(path) ? "/" : ""
+        label = "#{prefix} #{name}#{suffix}"
+
+        # Truncate to terminal width
+        label = label[0...(@term.width - 1)] if label.size > @term.width
+
+        @term.move_to(i, 0)
+        print Term::Color.truecolor_string(label, fore: Term::Color.color(color))
       end
     end
 
-    def print_line(display_index : Int32, file_path : String?)
-      return unless file_path
+    private def draw_status
+      row = @term.max_items
+      cwd = Dir.current
+      total = list_total
+      cur = total > 0 ? @scroll + 1 : 0
+      marked_n = @marked.size
+      clip_str = case @clipboard_mode
+                 when :copy then " [yank:#{@clipboard.size}]"
+                 when :move then " [cut:#{@clipboard.size}]"
+                 else ""
+                 end
 
-      file_name = File.basename(file_path)
-      is_marked = @marked_files.has_key?(file_path)
-      is_clipboard = @clipboard_files.includes?(file_path)
-      actual_index = @page_offset + display_index
+      status = " #{cur}/#{total} #{cwd} [#{marked_n} marked]#{clip_str}"
 
-      color = if is_clipboard
-                Term::Color.color(:magenta)
-              elsif is_marked
-                Term::Color.color(:yellow)
-              elsif File.directory?(file_path)
-                Term::Color.color(:blue)
-              elsif File.executable?(file_path)
-                Term::Color.color(:green)
-              else
-                Term::Color.color(:white)
-              end
-
-      if actual_index == @scroll
-        color = Term::Color.color(:red)
-      end
-
-      suffix = File.directory?(file_path) ? "/" : ""
-      mark = is_marked ? "*" : " "
-
-      @terminal.move_to(0, display_index)
-      print "#{mark}#{Term::Color.truecolor_string(file_name + suffix, fore: color)}"
-    end
-
-    def status_line
-      pwd_escaped = @current_dir.gsub(/[^[:print:]]/, "^[")
-      marked_count = @marked_files.size
-      all_marked_str = @all_marked ? "ALL" : marked_count.to_s
-      clipboard_info = @clipboard_mode == :none ? "" : " [#{@clipboard_mode}: #{@clipboard_files.size}]"
-      page_info = @list.size > @terminal.max_items ? " [#{@page_offset + 1}-#{Math.min(@page_offset + @terminal.max_items, @list.size)}/#{@list.size}]" : ""
-
-      @terminal.move_to(0, @terminal.max_items)
-      print Term::Color.truecolor_string(" (#{@scroll + 1}/#{@list_total + 1}) #{pwd_escaped} [#{all_marked_str} marked]#{clipboard_info}#{page_info}",
+      @term.move_to(row, 0)
+      print Term::Color.truecolor_string(status,
         fore: Term::Color.color(:black),
         back: Term::Color.color(:white))
     end
 
-    def redraw
-      @terminal.clear
-      draw_directory
-      status_line
-    end
+    # ── Event loop ─────────────────────────────────────────────
 
-    def run_event_loop
-      loop do
-        draw_directory
-        status_line
-
-        key = @terminal.read_keypress
-        break unless key
-
-        handle_keypress(key)
-      end
-    end
-
-    def handle_keypress(key : String)
-      case key
-      when @config.key_quit
-        quit
-      when @config.key_up
-        scroll_up
-      when @config.key_down
-        scroll_down
-      when @config.key_page_up
-        page_up
-      when @config.key_page_down
-        page_down
-      when @config.key_enter
-        open_item(@list[@scroll]?)
-      when @config.key_parent
-        go_parent
-      when @config.key_search
-        search_files
-      when @config.key_mark
-        toggle_mark
-      when @config.key_mark_all
-        toggle_mark_all
-      when @config.key_copy
-        copy_files
-      when @config.key_move
-        move_files
-      when @config.key_paste
-        paste_files
-      when @config.key_delete
-        delete_files
-      when @config.key_new_dir
-        create_directory
-      when @config.key_preview
-        preview_file
-      end
-    end
-
-    def scroll_down
-      return if @scroll >= @list_total
-      @scroll += 1
-
-      # Auto scroll page if cursor goes below visible area
-      if @scroll >= @page_offset + @terminal.max_items
-        @page_offset += @terminal.max_items
-        @page_offset = Math.min(@page_offset, @list.size - @terminal.max_items)
-        @page_offset = Math.max(@page_offset, 0)
-      end
-
+    private def event_loop
       redraw
+
+      while @running
+        key = @term.read_keypress
+
+        unless key
+          sleep 10.milliseconds
+          next
+        end
+
+        handle_key(key)
+        redraw if @running
+      end
+
+      @term.leave_raw_mode
+      save_cd_on_exit
     end
 
-    def scroll_up
+    private def handle_key(key : String)
+      case key
+      when @config.key_quit     then quit
+      when @config.key_up       then cursor_up
+      when @config.key_down     then cursor_down
+      when @config.key_enter    then enter_item
+      when @config.key_parent   then go_parent
+      when @config.key_search   then search
+      when @config.key_mark     then toggle_mark
+      when @config.key_mark_all then toggle_mark_all
+      when @config.key_copy     then yank_files
+      when @config.key_move     then cut_files
+      when @config.key_paste    then paste_files
+      when @config.key_delete   then delete_files
+      when @config.key_new_dir  then new_directory
+      when @config.key_preview  then preview_file
+      when @config.key_page_up  then page_up
+      when @config.key_page_down then page_down
+      when @config.key_top      then go_top
+      when @config.key_bottom   then go_bottom
+      when @config.key_rename   then rename_item
+      when @config.key_shell    then spawn_shell
+      end
+    end
+
+    # ── Navigation ─────────────────────────────────────────────
+
+    private def cursor_up
       return if @scroll <= 0
       @scroll -= 1
+      adjust_page_offset
+    end
 
-      # Auto scroll page if cursor goes above visible area
+    private def cursor_down
+      return if @scroll >= list_total - 1
+      @scroll += 1
+      adjust_page_offset
+    end
+
+    private def page_up
+      max = @term.max_items
+      @scroll = {@scroll - max, 0}.max
+      adjust_page_offset
+    end
+
+    private def page_down
+      max = @term.max_items
+      @scroll = {@scroll + max, list_total - 1}.min
+      adjust_page_offset
+    end
+
+    private def go_top
+      @scroll = 0
+      @page_offset = 0
+    end
+
+    private def go_bottom
+      @scroll = {list_total - 1, 0}.max
+      adjust_page_offset
+    end
+
+    private def adjust_page_offset
+      max = @term.max_items
       if @scroll < @page_offset
-        @page_offset -= @terminal.max_items
-        @page_offset = Math.max(@page_offset, 0)
+        @page_offset = @scroll
+      elsif @scroll >= @page_offset + max
+        @page_offset = @scroll - max + 1
       end
-
-      redraw
+      @page_offset = {@page_offset, 0}.max
     end
 
-    def page_down
-      return if @scroll >= @list_total
-
-      @page_offset += @terminal.max_items
-      @page_offset = Math.min(@page_offset, @list.size - @terminal.max_items)
-      @page_offset = Math.max(@page_offset, 0)
-
-      @scroll = Math.min(@scroll + @terminal.max_items, @list_total)
-      redraw
-    end
-
-    def page_up
-      return if @scroll <= 0
-
-      @page_offset -= @terminal.max_items
-      @page_offset = Math.max(@page_offset, 0)
-
-      @scroll = Math.max(@scroll - @terminal.max_items, 0)
-      redraw
-    end
-
-    def go_parent
-      if @current_dir != "/"
-        Dir.cd(File.dirname(@current_dir))
-        read_directory
-        @scroll = 0
-        redraw
-      end
-    end
-
-    def open_item(path : String?)
+    private def enter_item
+      path = @list[@scroll]?
       return unless path
+
       if File.directory?(path)
-        Dir.cd(path) do
-          read_directory
-          @scroll = 0
-          redraw
-        end
-      elsif File.file?(path)
-        Process.run(@config.opener, [path], output: Process::Redirect::Close, error: Process::Redirect::Close)
+        Dir.cd(path)
+        read_directory
+      else
+        # Open file with opener, restore terminal temporarily
+        @term.leave_raw_mode
+        Process.run(@config.opener, [path],
+          input: Process::Redirect::Inherit,
+          output: Process::Redirect::Inherit,
+          error: Process::Redirect::Inherit)
+        @term.enter_raw_mode
       end
     end
 
-    def toggle_mark
-      return if @list.empty?
-      file_path = @list[@scroll]?
-      return unless file_path
-
-      if @marked_files.has_key?(file_path)
-        @marked_files.delete(file_path)
-      else
-        @marked_files[file_path] = file_path
-      end
-
-      redraw
+    private def go_parent
+      cwd = Dir.current
+      return if cwd == "/"
+      Dir.cd(File.dirname(cwd))
+      read_directory
     end
 
-    def toggle_mark_all
-      if @all_marked
-        @marked_files.clear
-        @all_marked = false
-      else
-        @list.each do |file_path|
-          @marked_files[file_path] = file_path
-        end
-        @all_marked = true
-      end
+    # ── Marking ────────────────────────────────────────────────
 
-      redraw
+    private def toggle_mark
+      path = @list[@scroll]?
+      return unless path
+      @marked.includes?(path) ? @marked.delete(path) : @marked.add(path)
     end
 
-    def copy_files
-      if @marked_files.empty?
-        # Copy current file
-        current_file = @list[@scroll]?
-        return unless current_file
-        @clipboard_files = [current_file]
+    private def toggle_mark_all
+      if @marked.size == @list.size
+        @marked.clear
       else
-        @clipboard_files = @marked_files.keys.to_a
-        @marked_files.clear
-        @all_marked = false
+        @list.each { |p| @marked.add(p) }
       end
+    end
 
+    # ── Clipboard ──────────────────────────────────────────────
+
+    private def yank_files
+      paths = marked_or_current
+      return if paths.empty?
+      @clipboard = paths
       @clipboard_mode = :copy
-      redraw
+      @marked.clear
     end
 
-    def move_files
-      if @marked_files.empty?
-        # Move current file
-        current_file = @list[@scroll]?
-        return unless current_file
-        @clipboard_files = [current_file]
-      else
-        @clipboard_files = @marked_files.keys.to_a
-        @marked_files.clear
-        @all_marked = false
-      end
-
+    private def cut_files
+      paths = marked_or_current
+      return if paths.empty?
+      @clipboard = paths
       @clipboard_mode = :move
-      redraw
+      @marked.clear
     end
 
-    def paste_files
-      return if @clipboard_files.empty?
+    private def paste_files
+      return if @clipboard.empty?
+      dest_dir = Dir.current
 
-      @clipboard_files.each do |file_path|
-        file_name = File.basename(file_path)
-        dest_path = File.join(@current_dir, file_name)
-
+      @clipboard.each do |src|
+        name = File.basename(src)
+        dest = File.join(dest_dir, name)
         begin
           case @clipboard_mode
           when :copy
-            if File.directory?(file_path)
-              FileUtils.cp_r(file_path, dest_path)
-            else
-              FileUtils.cp(file_path, dest_path)
-            end
+            File.directory?(src) ? FileUtils.cp_r(src, dest) : FileUtils.cp(src, dest)
           when :move
-            FileUtils.mv(file_path, dest_path)
+            FileUtils.mv(src, dest)
           end
         rescue e
-          # Handle error
+          show_error("paste: #{e.message}")
         end
       end
 
-      @clipboard_files.clear
+      @clipboard.clear
       @clipboard_mode = :none
       read_directory
-      redraw
     end
 
-    def delete_files
-      files_to_delete = if @marked_files.empty?
-                          # Delete current file
-                          current_file = @list[@scroll]?
-                          return unless current_file
-                          [current_file]
-                        else
-                          @marked_files.keys.to_a
-                        end
+    # ── Delete ─────────────────────────────────────────────────
 
-      files_to_delete.each do |file_path|
+    private def delete_files
+      paths = marked_or_current
+      return if paths.empty?
+
+      return unless confirm?("Delete #{paths.size} item(s)?")
+
+      paths.each do |path|
         begin
-          if File.directory?(file_path)
-            FileUtils.rm_rf(file_path)
-          else
-            FileUtils.rm(file_path)
-          end
+          File.directory?(path) ? FileUtils.rm_rf(path) : FileUtils.rm(path)
         rescue e
-          # Handle error
+          show_error("delete: #{e.message}")
         end
       end
 
-      @marked_files.clear
-      @all_marked = false
+      @marked.clear
       read_directory
-      redraw
     end
 
-    def create_directory
-      @terminal.move_to(0, @terminal.max_items)
-      print Term::Color.truecolor_string("New directory name: ", fore: Term::Color.color(:white))
-      @terminal.cursor.move_to(18, @terminal.max_items)
+    # ── New directory ──────────────────────────────────────────
 
-      dir_name = @terminal.read_line("")
-      return if dir_name.empty?
-
-      dir_path = File.join(@current_dir, dir_name)
-
+    private def new_directory
+      name = prompt_input("New dir: ")
+      return if name.empty?
       begin
-        Dir.mkdir(dir_path)
+        Dir.mkdir(File.join(Dir.current, name))
         read_directory
-        redraw
       rescue e
-        # Handle error
+        show_error("mkdir: #{e.message}")
       end
     end
 
-    def preview_file
-      file_path = @list[@scroll]?
-      return unless file_path
-      return unless File.file?(file_path)
+    # ── Rename ─────────────────────────────────────────────────
 
-      # Show preview in a temporary screen
-      @terminal.reset
+    private def rename_item
+      old_path = @list[@scroll]?
+      return unless old_path
 
+      old_name = File.basename(old_path)
+      new_name = prompt_input("Rename: #{old_name} -> ")
+      return if new_name.empty? || new_name == old_name
+
+      new_path = File.join(Dir.current, new_name)
       begin
-        # Try to show file info
-        file_size = File.size(file_path)
-        file_mtime = File.info(file_path).modification_time
-
-        puts "File: #{File.basename(file_path)}"
-        puts "Size: #{file_size} bytes"
-        puts "Modified: #{file_mtime}"
-        puts ""
-        puts "--- Preview (first 20 lines) ---"
-        puts ""
-
-        # Show first 20 lines for text files
-        if file_size < 1024 * 1024 # Only preview files smaller than 1MB
-          File.open(file_path) do |file|
-            20.times do
-              line = file.gets
-              break unless line
-              puts line
-            end
-          end
-        else
-          puts "File too large to preview"
-        end
+        File.rename(old_path, new_path)
+        read_directory
       rescue e
-        puts "Error reading file: #{e.message}"
+        show_error("rename: #{e.message}")
       end
-
-      puts ""
-      puts "Press any key to continue..."
-
-      # Wait for keypress
-      STDIN.read_char
-
-      # Restore terminal
-      @terminal.setup
-      redraw
     end
 
-    def search_files
-      @terminal.move_to(0, @terminal.max_items)
-      print Term::Color.truecolor_string("/", fore: Term::Color.color(:white))
-      @terminal.cursor.move_to(1, @terminal.max_items)
+    # ── Search ─────────────────────────────────────────────────
 
-      search_term = @terminal.read_line("")
-      search_term = search_term.strip
-
-      if search_term.empty?
+    private def search
+      term = prompt_input("/")
+      if term.empty?
         read_directory
       else
-        @list = Dir.glob(File.join(@current_dir, "*#{search_term}*"))
-        @list_total = @list.size - 1
-        @scroll = 0
-        @page_offset = 0
+        cwd = Dir.current
+        results = @list.select { |p| File.basename(p).downcase.includes?(term.downcase) }
+        if results.empty?
+          show_error("No matches for '#{term}'")
+        else
+          @list = results
+          @scroll = 0
+          @page_offset = 0
+        end
       end
-      redraw
     end
 
-    def quit
-      cd_file = @config.cd_file
-      File.delete(cd_file) if File.exists?(cd_file)
-      if @config.cd_on_exit
-        File.write(cd_file, @current_dir)
+    # ── Preview ────────────────────────────────────────────────
+
+    private def preview_file
+      path = @list[@scroll]?
+      return unless path && File.file?(path)
+
+      @term.leave_raw_mode
+
+      size = File.size(path)
+      mtime = File.info(path).modification_time
+
+      puts "\e[1m#{File.basename(path)}\e[0m  #{human_size(size)}  #{mtime}"
+      puts "-" * 60
+
+      if size < 2 * 1024 * 1024
+        File.open(path) do |f|
+          30.times do
+            line = f.gets
+            break unless line
+            puts line
+          end
+        end
+      else
+        puts "(file too large)"
       end
-      @terminal.reset
-      exit
+
+      puts "\nPress Enter to return..."
+      STDIN.gets
+
+      @term.enter_raw_mode
     end
 
-    def run
-      setup
+    # ── Shell ──────────────────────────────────────────────────
+
+    private def spawn_shell
+      @term.leave_raw_mode
+
+      shell = ENV["SHELL"]? || "/bin/sh"
+      puts "(fff) spawning shell, type 'exit' to return"
+      Process.run(shell, input: Process::Redirect::Inherit,
+                        output: Process::Redirect::Inherit,
+                        error: Process::Redirect::Inherit)
+
+      @term.enter_raw_mode
+      read_directory  # refresh in case files changed
+    end
+
+    # ── Quit ───────────────────────────────────────────────────
+
+    private def quit
+      @running = false
+    end
+
+    private def save_cd_on_exit
+      return unless @config.cd_on_exit
+      File.write(@config.cd_file, Dir.current)
+    end
+
+    # ── Helpers ────────────────────────────────────────────────
+
+    private def marked_or_current : Array(String)
+      if @marked.empty?
+        path = @list[@scroll]?
+        path ? [path] : [] of String
+      else
+        @marked.to_a
+      end
+    end
+
+    private def prompt_input(prompt : String) : String
+      @term.leave_raw_mode
+      result = @term.read_line(prompt)
+      @term.enter_raw_mode
+      result
+    end
+
+    private def confirm?(message : String) : Bool
+      @term.leave_raw_mode
+      print "#{message} [y/N] "
+      STDOUT.flush
+      answer = STDIN.gets.to_s.strip.downcase
+      @term.enter_raw_mode
+      answer == "y"
+    end
+
+    private def show_error(message : String)
+      row = @term.max_items + 1
+      @term.move_to(row, 0)
+      print Term::Color.truecolor_string(" ERROR: #{message} ", fore: Term::Color.color(:white), back: Term::Color.color(:red))
+      STDOUT.flush
+      sleep 2.seconds
+    end
+
+    private def human_size(bytes : Int) : String
+      case bytes
+      when .<(1024)           then "#{bytes}B"
+      when .<(1024 * 1024)    then "#{bytes / 1024}K"
+      when .<(1024 * 1024 * 1024) then "#{bytes / (1024 * 1024)}M"
+      else "#{bytes / (1024 * 1024 * 1024)}G"
+      end
     end
   end
 end
 
-# Entry point
 app = FFF::Application.new(ARGV)
 app.run
