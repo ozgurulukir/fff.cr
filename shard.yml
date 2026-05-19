@@ -1,0 +1,26 @@
+name: fff
+version: 0.1.0
+
+authors:
+  - dylanaraps <dylanaraps@gmail.com>
+
+description: |
+  Fucking Fast File Manager - Crystal port
+
+license: MIT
+
+dependencies:
+  # Terminal colors
+  term-color:
+    github: crystal-term/color
+    version: ~> 0.4.0
+
+  # Terminal screen for terminal size
+  term-screen:
+    github: crystal-term/screen
+    version: ~> 0.3.0
+
+  # Terminal cursor for cursor control
+  term-cursor:
+    github: crystal-term/cursor
+    version: ~> 0.3.0

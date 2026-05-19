@@ -1,0 +1,14 @@
+version: 2.0
+shards:
+  term-color:
+    git: https://github.com/crystal-term/color.git
+    version: 0.4.1
+
+  term-cursor:
+    git: https://github.com/crystal-term/cursor.git
+    version: 0.3.1
+
+  term-screen:
+    git: https://github.com/crystal-term/screen.git
+    version: 0.3.1
+

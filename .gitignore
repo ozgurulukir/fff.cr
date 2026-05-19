@@ -1,0 +1,32 @@
+# Binaries
+bin/
+fff
+
+# Crystal
+.crystal/
+lib/
+
+# Shards
+shards/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+
+# Test coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.log
