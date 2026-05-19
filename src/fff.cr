@@ -416,15 +416,13 @@ module FFF
       if full || list_changed || page_changed
         # Full list redraw: clear visible area and redraw all
         max = @term.max_items
-        max.times do |i|
-          idx = @page_offset + i
-          break if idx >= @list.size
-          @term.move_to(i, 0)
-          print "\e[2K"  # clear line
-        end
-        draw_all_lines
+      # Clear ALL visible lines first (not just @list.size!)
+      max.times do |i|
+        @term.move_to(i, 0)
+        print "\e[2K"  # clear line
+      end
+      draw_all_lines
       elsif scroll_delta == 1
-        # Single cursor move: redraw old and new lines only
         old_scroll = @prev_scroll
         if old_scroll >= @page_offset && old_scroll < @page_offset + @term.max_items
           old_row = old_scroll - @page_offset
