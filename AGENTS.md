@@ -5,7 +5,7 @@
 **fff** (Fucking Fast File Manager) — a terminal-based file manager, originally written in Bash (~1,146 lines), ported to Crystal on the `crystal-port` branch.
 
 - **Language**: Crystal 1.20.1
-- **Source**: single file `src/fff.cr` (~688 lines)
+|- **Source**: single file `src/fff.cr` (~1193 lines)
 - **Branch**: `crystal-port` (Bash source preserved on `master` as `fff`)
 - **Build**: `make build` or `crystal build src/fff.cr --release -o bin/fff`
 
@@ -74,34 +74,60 @@ make run                          # build + run
 |---|---|---|---|
 | `j` | Down | `k` | Up |
 | `l` | Enter dir / open file | `h` | Parent dir |
-| `q` | Quit | `/` | Search |
+| `q` | Quit | `/` | Search (in-TUI) |
 | `space` | Mark file | `m` | Mark all |
 | `y` | Yank (copy) | `v` | Cut (move) |
-| `p` | Paste | `d` | Delete |
-| `n` | New directory | `r` | Rename |
+| `p` | Paste | `d` | Delete (to trash) |
+| `n` | New directory | `r` | Rename (in-TUI) |
 | `i` | Preview file | `s` | Spawn shell |
-| `g` | Go to top | `G` | Go to bottom |
-| `↑` | Page up | `↓` | Page down |
-
+| `g` / `G` | Top / Bottom | `↑` / `↓` | Page up / down |
+| `.` | Toggle hidden files | `t` | Go to trash |
+| `f` | New file | `x` | File attributes |
+| `X` | Toggle executable | `:` | Go to directory |
+| `~` | Home directory | `-` | Previous directory |
+| `e` | Refresh directory | | |
 ## Terminal Handling
 
 The app uses alternate screen buffer (`\e[?1049h`/`\e[?1049l`) so the TUI doesn't destroy shell history.
 
 **Flow**:
-1. `enter_tui` — hide cursor, switch to alt screen, clear
+1. `enter_tui` — hide cursor, switch to alt screen, clear, set scroll region + window title
 2. Event loop: `redraw` → `read_keypress` → `handle_key` → repeat
-3. For dialogs (search, rename, delete confirm): `leave_tui` → use `term-prompt` → `enter_tui`
-4. `quit` — `leave_tui`, optionally save cwd to `$FFF_CD_FILE`
+3. In-TUI dialogs (search `/`, rename `r`): custom key loop, no leave_tui
+4. External dialogs (delete confirm, new dir, new file, go-to-dir): `leave_tui` → `term-prompt` → `enter_tui`
+5. Shell spawn: `leave_tui` → `Process.run` → `enter_tui` on exit
+6. `quit` — `leave_tui`, optionally save cwd to `$FFF_CD_FILE`
 
 **Cursor positioning**: raw ANSI `\e[row;colH` (1-indexed internally, methods accept 0-indexed).
 
 ## File Operations
 
 - **Copy/Move**: mark files → `y` (copy) or `v` (cut) → navigate to target → `p` (paste)
-- **Delete**: mark files → `d` → confirmation via `term-prompt`
-- **Rename**: `r` on a file → `term-prompt` ask dialog
-- **New dir**: `n` → `term-prompt` ask dialog
+- **Delete**: mark files → `d` → moves to trash (configurable via `FFF_TRASH`)
+- **Rename**: `r` on a file → in-TUI rename prompt (no leave_tui)
+- **New dir**: `n` → in-TUI prompt (no leave_tui)
+- **New file**: `f` → creates empty file
 - **Shell**: `s` → `leave_tui` → `Process.run($SHELL)` → `enter_tui` on exit
+- **Text files**: opened in `$EDITOR` (detected via extension + MIME type)
+- **Binary files**: opened with `$FFF_OPENER` (default: `xdg-open`)
+- **Preview**: `i` shows first 30 lines / 2MB of file
+- **Attributes**: `x` shows `stat` output for selected file
+- **Executable toggle**: `X` toggles `+x` on regular files
+- **Go to dir**: `:` prompts for directory path (tab completion)
+- **Go to trash**: `t` navigates to trash directory
+- **Go home**: `~` navigates to `$HOME`
+- **Previous dir**: `-` navigates to previous directory
+- **Refresh**: `e` reloads current directory
+
+## Performance & Quality
+
+- **Incremental redraw**: only redraws changed lines on cursor move (not full clear)
+- **Color caching**: `Term::Color.truecolor_string` results cached by (label, color) tuple
+- **Scroll region**: `\e[1;{max_items}r` keeps status line fixed during scroll
+- **Window title**: `\e]2;fff: {cwd}\e\\` updated on directory change
+- **LS_COLORS support**: file extension colors parsed from `LS_COLORS` env var
+- **Non-blocking errors**: errors shown on status line, cleared on next keypress
+- **human_size**: shows one decimal place (e.g. `1.5M`)
 
 ## Environment Variables
 
@@ -114,7 +140,9 @@ All `FFF_KEY_*` vars override keybindings. Other vars:
 | `FFF_CD_ON_EXIT` | unset | Set to `1` to save last dir on exit |
 | `FFF_CD_FILE` | `~/.cache/fff/.fff_d` | File to save last directory |
 | `FFF_DEBUG` | unset | Set to `1` for backtrace on crash |
-
+| `FFF_HIDDEN` | `0` | Set to `1` to show hidden files |
+| `FFF_LEVEL` | `0` | Nesting level (incremented on shell spawn) |
+| `LS_COLORS` | — | File extension colors (parsed from env) |
 ## Testing
 
 ```bash
