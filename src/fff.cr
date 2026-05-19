@@ -43,6 +43,8 @@ module FFF
       print "\e[?1049h"   # alternate screen buffer
       print "\e[2J"       # clear
       print "\e[1;1H"     # home
+      set_scroll_region
+      update_window_title
       STDOUT.flush
     end
 
@@ -50,6 +52,7 @@ module FFF
       print "\e[2J"
       print "\e[1;1H"
       print Term::Cursor.show
+      print "\e[;r"      # reset scroll region
       print "\e[?1049l"   # restore main screen
       STDOUT.flush
       # Restore STDIN to normal (cooked + echo) for shell/prompt use.
@@ -62,6 +65,18 @@ module FFF
       print "\e[#{row + 1};#{col + 1}H"
     end
 
+    # Set scroll region to file list area (status line stays fixed)
+    def set_scroll_region
+      max = max_items
+      print "\e[1;#{max}r"
+    end
+
+    # Set terminal window title
+    def update_window_title
+      print "\e]2;fff: #{Dir.current}\e\\"
+    end
+
+    # Read a single keypress via term-reader
     # Read a single keypress via term-reader
     def read_keypress : String?
       @reader.read_keypress(echo: false, raw: false, nonblock: false)
@@ -315,6 +330,7 @@ module FFF
         @scroll = 0
       end
       @page_offset = 0
+      @term.update_window_title
     end
 
     # ── Drawing ────────────────────────────────────────────────
