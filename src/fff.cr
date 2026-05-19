@@ -296,6 +296,7 @@ module FFF
     @rename_old_name : String
     @rename_new_name : String
     @color_cache : Hash(Tuple(String, Symbol), String)
+    @fff_level : Int32
 
     def initialize(@config : Config, start_dir : String)
       @term = Terminal.new
@@ -321,6 +322,7 @@ module FFF
       @rename_old_name = ""
       @rename_new_name = ""
       @color_cache = Hash(Tuple(String, Symbol), String).new
+      @fff_level = (ENV["FFF_LEVEL"]?.try(&.to_i) || 0)
     end
     def run
       # Signal handling: clean up terminal on exit
@@ -331,6 +333,9 @@ module FFF
 
       # Ensure terminal is restored even on abnormal exit
       at_exit { @term.leave_tui if @running }
+
+      # Export FFF_LEVEL for child processes
+      ENV["FFF_LEVEL"] = @fff_level.to_s
 
       ensure_dirs
       @term.enter_tui
@@ -1126,6 +1131,10 @@ module FFF
     private def spawn_shell
       @term.leave_tui
 
+      # Increment FFF_LEVEL for nested shell detection
+      @fff_level += 1
+      ENV["FFF_LEVEL"] = @fff_level.to_s
+
       shell = ENV["SHELL"]? || "/bin/sh"
       puts "(fff) spawning #{shell}, type 'exit' to return"
       STDOUT.flush
@@ -1133,6 +1142,10 @@ module FFF
       Process.run(shell, input: Process::Redirect::Inherit,
                         output: Process::Redirect::Inherit,
                         error: Process::Redirect::Inherit)
+
+      # Decrement after shell exits
+      @fff_level -= 1
+      ENV["FFF_LEVEL"] = @fff_level.to_s
 
       @term.enter_tui
       read_directory
