@@ -10,17 +10,18 @@ description: |
 license: MIT
 
 dependencies:
-  # Terminal colors
   term-color:
     github: crystal-term/color
     version: ~> 0.4.0
-
-  # Terminal screen for terminal size
   term-screen:
     github: crystal-term/screen
     version: ~> 0.3.0
-
-  # Terminal cursor for cursor control
   term-cursor:
     github: crystal-term/cursor
+    version: ~> 0.3.0
+  term-reader:
+    github: crystal-term/reader
+    version: ~> 0.3.0
+  term-prompt:
+    github: crystal-term/prompt
     version: ~> 0.3.0

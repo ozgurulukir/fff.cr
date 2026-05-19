@@ -8,6 +8,14 @@ shards:
     git: https://github.com/crystal-term/cursor.git
     version: 0.3.1
 
+  term-prompt:
+    git: https://github.com/crystal-term/prompt.git
+    version: 0.3.3
+
+  term-reader:
+    git: https://github.com/crystal-term/reader.git
+    version: 0.3.2
+
   term-screen:
     git: https://github.com/crystal-term/screen.git
     version: 0.3.1

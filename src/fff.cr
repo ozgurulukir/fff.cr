@@ -1,89 +1,95 @@
 require "term-color"
 require "term-screen"
 require "term-cursor"
+require "term-reader"
+require "term-prompt"
 require "file"
 require "file_utils"
 require "process"
-require "io"
 
 # Fucking Fast File Manager - Crystal Port
-# Using crystal-term shards: term-color, term-screen, term-cursor
+# Using crystal-term shards: term-color, term-screen, term-cursor, term-reader, term-prompt
 
 module FFF
   VERSION = "0.1.0"
 
-  # Raw terminal I/O using IO#raw
+  # Terminal wrapper using crystal-term shards
   class Terminal
     getter width : Int32
     getter height : Int32
-
-    @original_tty : Bool
+    getter reader : Term::Reader
+    getter prompt : Term::Prompt
 
     def initialize
-      @original_tty = STDIN.tty?
       @width = Term::Screen.width
       @height = Term::Screen.height
+      @reader = Term::Reader.new(interrupt: :no_exit)
+      @prompt = Term::Prompt.new(interrupt: :no_exit)
     end
 
     def max_items
       @height - 3
     end
 
-    def enter_raw_mode
+    def refresh_size
       @width = Term::Screen.width
       @height = Term::Screen.height
+    end
+
+    def enter_tui
+      refresh_size
       print Term::Cursor.hide
-      print "\e[?1049h"  # alternate screen buffer
-      print Term::Cursor.clear_screen
-      print "\e[1;1H"
+      print "\e[?1049h"   # alternate screen buffer
+      print "\e[2J"       # clear
+      print "\e[1;1H"     # home
       STDOUT.flush
     end
 
-    def leave_raw_mode
-      print Term::Cursor.clear_screen
+    def leave_tui
+      print "\e[2J"
       print "\e[1;1H"
       print Term::Cursor.show
-      print "\e[?1049l"  # restore main screen
+      print "\e[?1049l"   # restore main screen
       STDOUT.flush
     end
 
-    def clear_screen
-      print Term::Cursor.clear_screen
+    def clear
+      print "\e[2J"
       print "\e[1;1H"
       STDOUT.flush
     end
 
     def move_to(row : Int32, col : Int32)
       print "\e[#{row + 1};#{col + 1}H"
-      STDOUT.flush
     end
 
     def clear_line(row : Int32)
       print "\e[#{row + 1};1H"
       print "\e[2K"
+    end
+
+    def flush
       STDOUT.flush
     end
 
-    # Read a single keypress using IO#raw (Crystal built-in)
+    # Read a single keypress via term-reader
     def read_keypress : String?
-      return nil unless @original_tty
-
-      char = STDIN.raw do |io|
-        io.read_char
-      end
-      char.try(&.to_s)
+      @reader.read_keypress(echo: false, raw: true, nonblock: false)
     end
 
-    # Read a line with echo (for search, new dir, etc.)
-    def read_line(prompt : String = "") : String
-      print prompt
-      STDOUT.flush
-      STDIN.gets.to_s.strip
+    # Ask for text input (leaves TUI temporarily)
+    def ask(message : String) : String
+      @prompt.ask(message, default: "").to_s
     end
 
-    def refresh_size
-      @width = Term::Screen.width
-      @height = Term::Screen.height
+    # Yes/no confirmation (leaves TUI temporarily)
+    def confirm?(message : String) : Bool
+      @prompt.yes?(message) || false
+    end
+
+    # Keypress prompt (leaves TUI temporarily)
+    def keypress(message : String)
+      @prompt.keypress(message)
     end
   end
 
@@ -135,8 +141,8 @@ module FFF
       @key_new_dir = ENV["FFF_KEY_NEW_DIR"]? || "n"
       @key_paste = ENV["FFF_KEY_PASTE"]? || "p"
       @key_preview = ENV["FFF_KEY_PREVIEW"]? || "i"
-      @key_page_up = ENV["FFF_KEY_PAGE_UP"]? || "\e[A"   # arrow up
-      @key_page_down = ENV["FFF_KEY_PAGE_DOWN"]? || "\e[B" # arrow down
+      @key_page_up = ENV["FFF_KEY_PAGE_UP"]? || "\e[A"
+      @key_page_down = ENV["FFF_KEY_PAGE_DOWN"]? || "\e[B"
       @key_top = ENV["FFF_KEY_TOP"]? || "g"
       @key_bottom = ENV["FFF_KEY_BOTTOM"]? || "G"
       @key_rename = ENV["FFF_KEY_RENAME"]? || "r"
@@ -216,13 +222,15 @@ module FFF
 
     def run
       ensure_dirs
-      @term.enter_raw_mode
+      @term.enter_tui
       read_directory
       event_loop
     rescue e : Exception
-      @term.leave_raw_mode
+      @term.leave_tui
       STDERR.puts "fff error: #{e.message}"
-      STDERR.puts e.backtrace.join('\n') if ENV["FFF_DEBUG"]? == "1"
+      if ENV["FFF_DEBUG"]? == "1"
+        STDERR.puts e.backtrace.join('\n')
+      end
     end
 
     private def ensure_dirs
@@ -261,10 +269,10 @@ module FFF
 
     private def redraw
       @term.refresh_size
-      @term.clear_screen
+      @term.clear
       draw_list
       draw_status
-      STDOUT.flush
+      @term.flush
     end
 
     private def draw_list
@@ -344,32 +352,32 @@ module FFF
         redraw if @running
       end
 
-      @term.leave_raw_mode
+      @term.leave_tui
       save_cd_on_exit
     end
 
     private def handle_key(key : String)
       case key
-      when @config.key_quit     then quit
-      when @config.key_up       then cursor_up
-      when @config.key_down     then cursor_down
-      when @config.key_enter    then enter_item
-      when @config.key_parent   then go_parent
-      when @config.key_search   then search
-      when @config.key_mark     then toggle_mark
-      when @config.key_mark_all then toggle_mark_all
-      when @config.key_copy     then yank_files
-      when @config.key_move     then cut_files
-      when @config.key_paste    then paste_files
-      when @config.key_delete   then delete_files
-      when @config.key_new_dir  then new_directory
-      when @config.key_preview  then preview_file
-      when @config.key_page_up  then page_up
+      when @config.key_quit      then quit
+      when @config.key_up        then cursor_up
+      when @config.key_down      then cursor_down
+      when @config.key_enter     then enter_item
+      when @config.key_parent    then go_parent
+      when @config.key_search    then search
+      when @config.key_mark      then toggle_mark
+      when @config.key_mark_all  then toggle_mark_all
+      when @config.key_copy      then yank_files
+      when @config.key_move      then cut_files
+      when @config.key_paste     then paste_files
+      when @config.key_delete    then delete_files
+      when @config.key_new_dir   then new_directory
+      when @config.key_preview   then preview_file
+      when @config.key_page_up   then page_up
       when @config.key_page_down then page_down
-      when @config.key_top      then go_top
-      when @config.key_bottom   then go_bottom
-      when @config.key_rename   then rename_item
-      when @config.key_shell    then spawn_shell
+      when @config.key_top       then go_top
+      when @config.key_bottom    then go_bottom
+      when @config.key_rename    then rename_item
+      when @config.key_shell     then spawn_shell
       end
     end
 
@@ -427,13 +435,12 @@ module FFF
         Dir.cd(path)
         read_directory
       else
-        # Open file with opener, restore terminal temporarily
-        @term.leave_raw_mode
+        @term.leave_tui
         Process.run(@config.opener, [path],
           input: Process::Redirect::Inherit,
           output: Process::Redirect::Inherit,
           error: Process::Redirect::Inherit)
-        @term.enter_raw_mode
+        @term.enter_tui
       end
     end
 
@@ -508,7 +515,11 @@ module FFF
       paths = marked_or_current
       return if paths.empty?
 
-      return unless confirm?("Delete #{paths.size} item(s)?")
+      @term.leave_tui
+      confirmed = @term.confirm?("Delete #{paths.size} item(s)?")
+      @term.enter_tui
+
+      return unless confirmed
 
       paths.each do |path|
         begin
@@ -525,7 +536,10 @@ module FFF
     # ── New directory ──────────────────────────────────────────
 
     private def new_directory
-      name = prompt_input("New dir: ")
+      @term.leave_tui
+      name = @term.ask("New directory name:")
+      @term.enter_tui
+
       return if name.empty?
       begin
         Dir.mkdir(File.join(Dir.current, name))
@@ -542,7 +556,11 @@ module FFF
       return unless old_path
 
       old_name = File.basename(old_path)
-      new_name = prompt_input("Rename: #{old_name} -> ")
+
+      @term.leave_tui
+      new_name = @term.ask("Rename #{old_name} ->")
+      @term.enter_tui
+
       return if new_name.empty? || new_name == old_name
 
       new_path = File.join(Dir.current, new_name)
@@ -557,11 +575,13 @@ module FFF
     # ── Search ─────────────────────────────────────────────────
 
     private def search
-      term = prompt_input("/")
+      @term.leave_tui
+      term = @term.ask("/")
+      @term.enter_tui
+
       if term.empty?
         read_directory
       else
-        cwd = Dir.current
         results = @list.select { |p| File.basename(p).downcase.includes?(term.downcase) }
         if results.empty?
           show_error("No matches for '#{term}'")
@@ -579,7 +599,7 @@ module FFF
       path = @list[@scroll]?
       return unless path && File.file?(path)
 
-      @term.leave_raw_mode
+      @term.leave_tui
 
       size = File.size(path)
       mtime = File.info(path).modification_time
@@ -599,25 +619,26 @@ module FFF
         puts "(file too large)"
       end
 
-      puts "\nPress Enter to return..."
-      STDIN.gets
+      @term.keypress("\nPress any key to return...")
 
-      @term.enter_raw_mode
+      @term.enter_tui
     end
 
     # ── Shell ──────────────────────────────────────────────────
 
     private def spawn_shell
-      @term.leave_raw_mode
+      @term.leave_tui
 
       shell = ENV["SHELL"]? || "/bin/sh"
-      puts "(fff) spawning shell, type 'exit' to return"
+      puts "(fff) spawning #{shell}, type 'exit' to return"
+      STDOUT.flush
+
       Process.run(shell, input: Process::Redirect::Inherit,
                         output: Process::Redirect::Inherit,
                         error: Process::Redirect::Inherit)
 
-      @term.enter_raw_mode
-      read_directory  # refresh in case files changed
+      @term.enter_tui
+      read_directory
     end
 
     # ── Quit ───────────────────────────────────────────────────
@@ -642,35 +663,21 @@ module FFF
       end
     end
 
-    private def prompt_input(prompt : String) : String
-      @term.leave_raw_mode
-      result = @term.read_line(prompt)
-      @term.enter_raw_mode
-      result
-    end
-
-    private def confirm?(message : String) : Bool
-      @term.leave_raw_mode
-      print "#{message} [y/N] "
-      STDOUT.flush
-      answer = STDIN.gets.to_s.strip.downcase
-      @term.enter_raw_mode
-      answer == "y"
-    end
-
     private def show_error(message : String)
       row = @term.max_items + 1
       @term.move_to(row, 0)
-      print Term::Color.truecolor_string(" ERROR: #{message} ", fore: Term::Color.color(:white), back: Term::Color.color(:red))
-      STDOUT.flush
+      print Term::Color.truecolor_string(" ERROR: #{message} ",
+        fore: Term::Color.color(:white),
+        back: Term::Color.color(:red))
+      @term.flush
       sleep 2.seconds
     end
 
     private def human_size(bytes : Int) : String
       case bytes
-      when .<(1024)           then "#{bytes}B"
-      when .<(1024 * 1024)    then "#{bytes / 1024}K"
-      when .<(1024 * 1024 * 1024) then "#{bytes / (1024 * 1024)}M"
+      when .<(1024)                then "#{bytes}B"
+      when .<(1024 * 1024)         then "#{bytes / 1024}K"
+      when .<(1024 * 1024 * 1024)  then "#{bytes / (1024 * 1024)}M"
       else "#{bytes / (1024 * 1024 * 1024)}G"
       end
     end
