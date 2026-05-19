@@ -171,6 +171,53 @@ module FFF
       @key_go_dir = ENV["FFF_KEY_GO_DIR"]? || ":"
       @key_go_trash = ENV["FFF_KEY_GO_TRASH"]? || "t"
     end
+
+    # Parse LS_COLORS into a hash of extension => color symbol
+    def ls_colors : Hash(String, Symbol)
+      result = Hash(String, Symbol).new
+      ls_colors = ENV["LS_COLORS"]?
+      return result unless ls_colors
+
+      ls_colors.split(':').each do |entry|
+        next if entry.empty?
+        parts = entry.split('=')
+        next if parts.size != 2
+        key, value = parts
+
+        # Only handle extension patterns (*.ext)
+        next unless key.starts_with?("*.")
+        ext = key[2..].downcase
+
+        # Parse ANSI color code to symbol
+        color = parse_ls_color(value)
+        result[ext] = color if color
+      end
+
+      result
+    end
+
+    # Parse LS_COLORS ANSI code to Term::Color symbol
+    private def parse_ls_color(code : String) : Symbol?
+      # LS_COLORS uses ANSI codes like 01;31 (bold red), 34 (blue), etc.
+      # Map common codes to our color symbols
+      case code
+      when /01;31/, /31;01/  then :red
+      when /01;32/, /32;01/  then :green
+      when /01;33/, /33;01/  then :yellow
+      when /01;34/, /34;01/  then :blue
+      when /01;35/, /35;01/  then :magenta
+      when /01;36/, /36;01/  then :cyan
+      when /01;37/, /37;01/  then :white
+      when "31"               then :red
+      when "32"               then :green
+      when "33"               then :yellow
+      when "34"               then :blue
+      when "35"               then :magenta
+      when "36"               then :cyan
+      when "37"               then :white
+      else nil
+      end
+    end
   end
 
   # Main application
@@ -248,6 +295,8 @@ module FFF
     @rename_mode : Bool
     @rename_old_name : String
     @rename_new_name : String
+    @color_cache : Hash(Tuple(String, Symbol), String)
+
     def initialize(@config : Config, start_dir : String)
       @term = Terminal.new
       Dir.cd(start_dir)
@@ -271,6 +320,7 @@ module FFF
       @rename_mode = false
       @rename_old_name = ""
       @rename_new_name = ""
+      @color_cache = Hash(Tuple(String, Symbol), String).new
     end
     def run
       # Signal handling: clean up terminal on exit
@@ -410,7 +460,14 @@ module FFF
               elsif File.info?(path).try(&.permissions.includes?(::File::Permissions::OtherExecute))
                 :green
               else
-                :white
+                # Check LS_COLORS for extension-based coloring
+                ext = File.extname(name).downcase
+                ls_colors = @config.ls_colors
+                if ls_colors.has_key?(ext)
+                  ls_colors[ext]
+                else
+                  :white
+                end
               end
 
       prefix = is_marked ? "*" : " "
@@ -426,7 +483,14 @@ module FFF
     private def draw_line(row : Int32, idx : Int32)
       label, color = format_line(idx)
       @term.move_to(row, 0)
-      print Term::Color.truecolor_string(label, fore: Term::Color.color(color))
+      # Check color cache first
+      cache_key = {label, color}
+      colored = @color_cache[cache_key]?
+      unless colored
+        colored = Term::Color.truecolor_string(label, fore: Term::Color.color(color))
+        @color_cache[cache_key] = colored
+      end
+      print colored
     end
 
     # Draw all visible lines
