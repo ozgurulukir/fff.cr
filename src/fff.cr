@@ -6,6 +6,7 @@ require "term-prompt"
 require "file"
 require "file_utils"
 require "process"
+require "signal"
 
 # Fucking Fast File Manager - Crystal Port
 # Using crystal-term shards: term-color, term-screen, term-cursor, term-reader, term-prompt
@@ -52,29 +53,13 @@ module FFF
       print "\e[?1049l"   # restore main screen
       STDOUT.flush
       # Restore STDIN to normal (cooked + echo) for shell/prompt use.
-      # Crystal's IO::Console provides cooked!/raw! for permanent mode changes.
       if STDIN.tty?
         STDIN.cooked!
       end
     end
 
-    def clear
-      print "\e[2J"
-      print "\e[1;1H"
-      STDOUT.flush
-    end
-
     def move_to(row : Int32, col : Int32)
       print "\e[#{row + 1};#{col + 1}H"
-    end
-
-    def clear_line(row : Int32)
-      print "\e[#{row + 1};1H"
-      print "\e[2K"
-    end
-
-    def flush
-      STDOUT.flush
     end
 
     # Read a single keypress via term-reader
@@ -125,6 +110,15 @@ module FFF
     getter key_bottom : String
     getter key_rename : String
     getter key_shell : String
+    getter key_hidden : String
+    getter key_home : String
+    getter key_prev : String
+    getter key_refresh : String
+    getter key_mkfile : String
+    getter key_attributes : String
+    getter key_executable : String
+    getter key_go_dir : String
+    getter key_go_trash : String
 
     def initialize
       @editor = ENV["EDITOR"]? || "vi"
@@ -152,6 +146,15 @@ module FFF
       @key_bottom = ENV["FFF_KEY_BOTTOM"]? || "G"
       @key_rename = ENV["FFF_KEY_RENAME"]? || "r"
       @key_shell = ENV["FFF_KEY_SHELL"]? || "s"
+      @key_hidden = ENV["FFF_KEY_HIDDEN"]? || "."
+      @key_home = ENV["FFF_KEY_HOME"]? || "~"
+      @key_prev = ENV["FFF_KEY_PREVIOUS"]? || "-"
+      @key_refresh = ENV["FFF_KEY_REFRESH"]? || "e"
+      @key_mkfile = ENV["FFF_KEY_MKFILE"]? || "f"
+      @key_attributes = ENV["FFF_KEY_ATTRIBUTES"]? || "x"
+      @key_executable = ENV["FFF_KEY_EXECUTABLE"]? || "X"
+      @key_go_dir = ENV["FFF_KEY_GO_DIR"]? || ":"
+      @key_go_trash = ENV["FFF_KEY_GO_TRASH"]? || "t"
     end
   end
 
@@ -196,6 +199,11 @@ module FFF
       puts "  n         New dir        r      Rename"
       puts "  i         Preview        s      Shell"
       puts "  g/G       Top/Bottom     arrows Page up/down"
+      puts "  .         Toggle hidden  ~      Home dir"
+      puts "  -         Prev dir       e      Refresh"
+      puts "  f         New file       x      Attributes"
+      puts "  X         Toggle exec    :      Go to dir"
+      puts "  t         Go to trash"
       puts ""
       puts "All keys configurable via FFF_KEY_* env vars."
     end
@@ -212,6 +220,11 @@ module FFF
     @clipboard : Array(String)
     @clipboard_mode : Symbol
     @running : Bool
+    @show_hidden : Bool
+    @prev_dir : String?
+    @prev_child : String?
+    @error_msg : String?
+    @error_expires : Time?
 
     def initialize(@config : Config, start_dir : String)
       @term = Terminal.new
@@ -223,9 +236,23 @@ module FFF
       @clipboard = [] of String
       @clipboard_mode = :none
       @running = true
+      @show_hidden = (ENV["FFF_HIDDEN"]? == "1")
+      @prev_dir = nil
+      @prev_child = nil
+      @error_msg = nil
+      @error_expires = nil
     end
 
     def run
+      # Signal handling: clean up terminal on exit
+      Signal::INT.trap { quit }
+      Signal::TERM.trap { quit }
+      Signal::QUIT.trap { quit }
+      Signal::WINCH.trap { handle_resize }
+
+      # Ensure terminal is restored even on abnormal exit
+      at_exit { @term.leave_tui if @running }
+
       ensure_dirs
       @term.enter_tui
       read_directory
@@ -239,8 +266,15 @@ module FFF
     end
 
     private def ensure_dirs
-      FileUtils.mkdir_p(File.join(ENV["HOME"], ".cache", "fff"))
+      FileUtils.mkdir_p(File.join(ENV["HOME"], ".cache", "fff")) if @config.cd_on_exit
       FileUtils.mkdir_p(@config.trash_dir)
+    end
+
+    # ── Signal / resize ────────────────────────────────────────
+
+    private def handle_resize
+      @term.refresh_size
+      redraw
     end
 
     # ── Directory reading ──────────────────────────────────────
@@ -251,6 +285,9 @@ module FFF
       files = [] of String
 
       Dir.each_child(cwd) do |name|
+        # Skip hidden files unless show_hidden is enabled
+        next if name.starts_with?('.') && !@show_hidden
+
         path = File.join(cwd, name)
         if File.directory?(path)
           dirs << path
@@ -262,22 +299,27 @@ module FFF
       end
 
       @list = dirs.sort + files.sort
-      @scroll = 0
-      @page_offset = 0
-    end
 
-    private def list_total
-      @list.size
+      # Restore scroll position for parent navigation
+      if @prev_dir && cwd == File.dirname(@prev_dir.not_nil!) && @prev_child
+        idx = @list.index(@prev_child.not_nil!)
+        @scroll = idx || 0
+      else
+        @scroll = 0
+      end
+      @page_offset = 0
     end
 
     # ── Drawing ────────────────────────────────────────────────
 
     private def redraw
       @term.refresh_size
-      @term.clear
+      @term.move_to(0, 0)
+      print "\e[2J"
       draw_list
       draw_status
-      @term.flush
+      draw_error
+      STDOUT.flush
     end
 
     private def draw_list
@@ -323,7 +365,7 @@ module FFF
     private def draw_status
       row = @term.max_items
       cwd = Dir.current
-      total = list_total
+      total = @list.size
       cur = total > 0 ? @scroll + 1 : 0
       marked_n = @marked.size
       clip_str = case @clipboard_mode
@@ -338,6 +380,18 @@ module FFF
       print Term::Color.truecolor_string(status,
         fore: Term::Color.color(:black),
         back: Term::Color.color(:white))
+    end
+
+    private def draw_error
+      return unless msg = @error_msg
+      if exp = @error_expires
+        return if Time.utc > exp
+      end
+      row = @term.max_items + 1
+      @term.move_to(row, 0)
+      print Term::Color.truecolor_string(" ERROR: #{msg} ",
+        fore: Term::Color.color(:white),
+        back: Term::Color.color(:red))
     end
 
     # ── Event loop ─────────────────────────────────────────────
@@ -383,6 +437,15 @@ module FFF
       when @config.key_bottom    then go_bottom
       when @config.key_rename    then rename_item
       when @config.key_shell     then spawn_shell
+      when @config.key_hidden    then toggle_hidden
+      when @config.key_home      then go_home
+      when @config.key_prev      then go_prev
+      when @config.key_refresh   then refresh_dir
+      when @config.key_mkfile    then new_file
+      when @config.key_attributes then show_attributes
+      when @config.key_executable then toggle_executable
+      when @config.key_go_dir    then go_to_dir
+      when @config.key_go_trash  then go_to_trash
       end
     end
 
@@ -395,7 +458,7 @@ module FFF
     end
 
     private def cursor_down
-      return if @scroll >= list_total - 1
+      return if @scroll >= @list.size - 1
       @scroll += 1
       adjust_page_offset
     end
@@ -408,7 +471,7 @@ module FFF
 
     private def page_down
       max = @term.max_items
-      @scroll = {@scroll + max, list_total - 1}.min
+      @scroll = {@scroll + max, @list.size - 1}.min
       adjust_page_offset
     end
 
@@ -418,7 +481,7 @@ module FFF
     end
 
     private def go_bottom
-      @scroll = {list_total - 1, 0}.max
+      @scroll = {@list.size - 1, 0}.max
       adjust_page_offset
     end
 
@@ -437,6 +500,8 @@ module FFF
       return unless path
 
       if File.directory?(path)
+        @prev_dir = Dir.current
+        @prev_child = File.basename(path)
         Dir.cd(path)
         read_directory
       else
@@ -452,7 +517,109 @@ module FFF
     private def go_parent
       cwd = Dir.current
       return if cwd == "/"
+      @prev_dir = cwd
+      @prev_child = nil
       Dir.cd(File.dirname(cwd))
+      read_directory
+    end
+
+    # ── New: hidden files toggle ───────────────────────────────
+
+    private def toggle_hidden
+      @show_hidden = !@show_hidden
+      read_directory
+    end
+
+    # ── New: quick navigation ──────────────────────────────────
+
+    private def go_home
+      Dir.cd(ENV["HOME"])
+      @prev_dir = nil
+      @prev_child = nil
+      read_directory
+    end
+
+    private def go_prev
+      return unless @prev_dir
+      Dir.cd(@prev_dir.not_nil!)
+      @prev_child = nil
+      read_directory
+    end
+
+    private def refresh_dir
+      read_directory
+    end
+
+    private def go_to_dir
+      @term.leave_tui
+      path = @term.ask("go to dir:")
+      @term.enter_tui
+
+      return if path.empty?
+      expanded = path.gsub("~", ENV["HOME"])
+      if Dir.exists?(expanded)
+        Dir.cd(expanded)
+        @prev_dir = nil
+        @prev_child = nil
+        read_directory
+      else
+        show_error("dir not found: #{path}")
+      end
+    end
+
+    private def go_to_trash
+      Dir.cd(@config.trash_dir)
+      @prev_dir = nil
+      @prev_child = nil
+      read_directory
+    end
+
+    # ── New: file creation ─────────────────────────────────────
+
+    private def new_file
+      @term.leave_tui
+      name = @term.ask("New file name:")
+      @term.enter_tui
+
+      return if name.empty?
+      begin
+        File.touch(File.join(Dir.current, name))
+        read_directory
+      rescue e
+        show_error("touch: #{e.message}")
+      end
+    end
+
+    # ── New: file attributes ───────────────────────────────────
+
+    private def show_attributes
+      path = @list[@scroll]?
+      return unless path
+
+      @term.leave_tui
+      puts `stat --format="%A %h %U %G %s %y %n" #{path}`
+      @term.keypress("\nPress any key to return...")
+      @term.enter_tui
+    end
+
+    # ── New: executable toggle ─────────────────────────────────
+
+    private def toggle_executable
+      path = @list[@scroll]?
+      return unless path
+      return unless File.file?(path)
+
+      perms = File.info(path).permissions
+      if perms.includes?(::File::Permissions::OtherExecute)
+        new_perms = perms & ~::File::Permissions::OtherExecute
+      else
+        new_perms = perms | ::File::Permissions::OtherExecute
+      end
+      # Use Process.run for chmod due to Crystal 1.20 union type bug
+      Process.run("chmod", [new_perms.value.to_s(8), path.to_s],
+        input: Process::Redirect::Inherit,
+        output: Process::Redirect::Inherit,
+        error: Process::Redirect::Inherit)
       read_directory
     end
 
@@ -494,9 +661,17 @@ module FFF
       return if @clipboard.empty?
       dest_dir = Dir.current
 
+
       @clipboard.each do |src|
         name = File.basename(src)
         dest = File.join(dest_dir, name)
+
+        # Duplicate name check
+        if File.exists?(dest)
+          show_error("already exists: #{name}")
+          next
+        end
+
         begin
           case @clipboard_mode
           when :copy
@@ -546,6 +721,14 @@ module FFF
       @term.enter_tui
 
       return if name.empty?
+
+      # Duplicate name check
+      if File.exists?(File.join(Dir.current, name))
+        show_error("already exists: #{name}")
+        return
+      end
+
+
       begin
         Dir.mkdir(File.join(Dir.current, name))
         read_directory
@@ -569,6 +752,14 @@ module FFF
       return if new_name.empty? || new_name == old_name
 
       new_path = File.join(Dir.current, new_name)
+
+      # Duplicate name check
+      if File.exists?(new_path)
+        show_error("already exists: #{new_name}")
+        return
+      end
+
+
       begin
         File.rename(old_path, new_path)
         read_directory
@@ -669,21 +860,16 @@ module FFF
     end
 
     private def show_error(message : String)
-      row = @term.max_items + 1
-      @term.move_to(row, 0)
-      print Term::Color.truecolor_string(" ERROR: #{message} ",
-        fore: Term::Color.color(:white),
-        back: Term::Color.color(:red))
-      @term.flush
-      sleep 2.seconds
+      @error_msg = message
+      @error_expires = Time.utc + 2.seconds
     end
 
     private def human_size(bytes : Int) : String
       case bytes
       when .<(1024)                then "#{bytes}B"
-      when .<(1024 * 1024)         then "#{bytes / 1024}K"
-      when .<(1024 * 1024 * 1024)  then "#{bytes / (1024 * 1024)}M"
-      else "#{bytes / (1024 * 1024 * 1024)}G"
+      when .<(1024 * 1024)         then "#{(bytes / 1024.0).round(1)}K"
+      when .<(1024 * 1024 * 1024)  then "#{(bytes / (1024.0 * 1024.0)).round(1)}M"
+      else "#{(bytes / (1024.0 * 1024.0 * 1024.0)).round(1)}G"
       end
     end
   end
