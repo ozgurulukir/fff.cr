@@ -13,6 +13,11 @@ require "signal"
 
 require "./fff/terminal"
 require "./fff/config"
+require "./fff/directory_manager"
+require "./fff/ui_renderer"
+require "./fff/input_mode"
+require "./fff/file_operations"
+require "./fff/search_engine"
 require "./fff/file_manager"
 
 module FFF
@@ -34,10 +39,11 @@ module FFF
         return
       end
 
+      picker_mode = @args.includes?("-p")
       start_dir = @args.find { |a| !a.starts_with?('-') } || "."
       config = Config.new
 
-      fm = FileManager.new(config, start_dir)
+      fm = FileManager.new(config, start_dir, picker_mode: picker_mode)
       fm.run
     end
 
@@ -49,6 +55,7 @@ module FFF
       puts "Options:"
       puts "  -h, --help     Show this help"
       puts "  --version      Show version"
+      puts "  -p             Picker mode (write selection to file)"
       puts ""
       puts "Keys:"
       puts "  j/k       Down/Up        l/h    Enter/Parent"
@@ -64,6 +71,8 @@ module FFF
       puts "  f         New file       x      Attributes"
       puts "  X         Toggle exec    :      Go to dir"
       puts "  t         Go to trash"
+      puts "  S         Create symlink"
+      puts "  =/+       Cycle sort mode/reverse"
       puts ""
       puts "All keys configurable via FFF_KEY_* env vars."
     end

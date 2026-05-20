@@ -39,23 +39,28 @@ module FFF
       set_scroll_region
       update_window_title
       STDOUT.flush
-      # Set STDIN to raw mode for key reading
-      if STDIN.tty?
-        STDIN.raw!
-      end
+      # Note: term-reader manages raw mode automatically
     end
 
     def leave_tui
       print "\e[2J"
       print "\e[1;1H"
       print Term::Cursor.show
-      print "\e[;r"      # reset scroll region
+      reset_scroll_region
       print "\e[?1049l"   # restore main screen
       STDOUT.flush
-      # Restore STDIN to normal (cooked + echo) for shell/prompt use.
-      if STDIN.tty?
-        STDIN.cooked!
-      end
+    end
+
+    def clear
+      print "\e[2J"
+    end
+
+    def clear_to_end
+      print "\e[J"
+    end
+
+    def clear_line
+      print "\e[2K"
     end
 
     def move_to(row : Int32, col : Int32)
@@ -65,17 +70,26 @@ module FFF
     end
 
     def set_scroll_region
-      # Set scroll region (top row 0 to max_items)
-      max = max_items
-      print "\e[0;#{max}r"
+      # Set scroll region (top row 1 to max_items)
+      # ANSI uses 1-indexed rows
+      print "\e[1;#{@height - 2}r"
     end
 
-    def update_window_title
-      print "\e]0;fff - Fucking Fast File Manager\a"
+    def reset_scroll_region
+      print "\e[;r"
+    end
+
+    def update_window_title(path : String = "")
+      title = path.empty? ? "fffm" : "fffm: #{path}"
+      # Use both title sequences for better compatibility
+      print "\e]2;#{title}\a"
+      print "\e]2;#{title}\e\\"
     end
 
     def read_keypress : String?
-      @reader.read_keypress(raw: false)  # raw: false = actually use raw mode
+      @reader.read_keypress(raw: false)  # raw: false = actually use raw mode in term-reader
+    rescue
+      nil
     end
 
     def ask(message : String) : String

@@ -1,0 +1,139 @@
+require "file_utils"
+
+module FFF
+  # DirectoryManager - Manages directory listing, navigation, and sorting
+  class DirectoryManager
+    getter current_dir : String
+    getter list : Array(String)
+    property list
+    getter show_hidden : Bool
+    getter sort_mode : Symbol
+    getter sort_reverse : Bool
+
+    def initialize(start_dir : String)
+      Dir.cd(start_dir)
+      @current_dir = Dir.current
+      @list = [] of String
+      @show_hidden = (ENV["FFF_HIDDEN"]? == "1")
+      @sort_mode = :name
+      @sort_reverse = false
+    end
+
+    def read!
+      @current_dir = Dir.current
+      all_entries = Dir.entries(@current_dir)
+      
+      dirs = [] of String
+      files = [] of String
+
+      all_entries.each do |entry|
+        next if entry == "."
+        next if entry == ".." && !@show_hidden
+        next if !@show_hidden && entry.starts_with?('.')
+        
+        path = File.join(@current_dir, entry)
+        next unless File.exists?(path)
+
+        if File.directory?(path)
+          dirs << path
+        else
+          files << path
+        end
+      end
+
+      @list = sort(dirs, files)
+    end
+
+    def sort(dirs : Array(String), files : Array(String)) : Array(String)
+      case @sort_mode
+      when :name
+        sorted_dirs = dirs.sort_by { |d| File.basename(d).downcase }
+        sorted_files = files.sort_by { |f| File.basename(f).downcase }
+      when :size
+        sorted_dirs = dirs.sort_by { |d| File.info(d).size }
+        sorted_files = files.sort_by { |f| File.info?(f).try(&.size) || 0 }
+      when :time
+        sorted_dirs = dirs.sort_by { |d| File.info(d).modification_time }
+        sorted_files = files.sort_by { |f| File.info?(f).try(&.modification_time) || Time.unix(0) }
+      else
+        sorted_dirs = dirs
+        sorted_files = files
+      end
+
+      sorted_dirs = sorted_dirs.reverse if @sort_reverse
+      sorted_files = sorted_files.reverse if @sort_reverse
+
+      sorted_dirs + sorted_files
+    end
+
+    def go_parent : Bool
+      parent = File.dirname(@current_dir)
+      return false if parent == @current_dir
+
+      Dir.cd(parent)
+      read!
+      true
+    end
+
+    def go_home
+      home = ENV["HOME"] || Dir.current
+      Dir.cd(home)
+      read!
+    end
+
+    def go_prev(prev_dir : String?, prev_child : String?) : Bool
+      return false if prev_dir.nil? || prev_child.nil?
+
+      Dir.cd(prev_dir) if Dir.exists?(prev_dir)
+      read!
+
+      # Find and select the previous child
+      @list.index(prev_child)
+      true
+    end
+
+    def go_to(path : String) : Bool
+      return false unless File.exists?(path) && File.directory?(path)
+
+      Dir.cd(path)
+      read!
+      true
+    end
+
+    def go_to_trash(trash_dir : String) : Bool
+      return false unless Dir.exists?(trash_dir)
+
+      Dir.cd(trash_dir)
+      read!
+      true
+    end
+
+    def refresh!
+      read!
+    end
+
+    def toggle_hidden
+      @show_hidden = !@show_hidden
+      read!
+    end
+
+    def cycle_sort_mode
+      @sort_mode = case @sort_mode
+      when :name then :size
+      when :size then :time
+      when :time then :name
+      else            :name
+      end
+      read!
+    end
+
+    def toggle_sort_reverse
+      @sort_reverse = !@sort_reverse
+      read!
+    end
+
+    def find_child(name : String) : Int32?
+      @list.index { |path| File.basename(path) == name }
+    end
+  end
+end
