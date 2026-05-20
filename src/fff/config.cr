@@ -76,8 +76,8 @@ module FFF
       @key_new_dir = ENV["FFF_KEY_NEW_DIR"]? || json_get(json, "keys", "new_dir") || "n"
       @key_paste = ENV["FFF_KEY_PASTE"]? || json_get(json, "keys", "paste") || "p"
       @key_preview = ENV["FFF_KEY_PREVIEW"]? || json_get(json, "keys", "preview") || "i"
-      @key_page_up = ENV["FFF_KEY_PAGE_UP"]? || json_get(json, "keys", "page_up") || "\e[A"
-      @key_page_down = ENV["FFF_KEY_PAGE_DOWN"]? || json_get(json, "keys", "page_down") || "\e[B"
+      @key_page_up = ENV["FFF_KEY_PAGE_UP"]? || json_get(json, "keys", "page_up") || "\e[5~"
+      @key_page_down = ENV["FFF_KEY_PAGE_DOWN"]? || json_get(json, "keys", "page_down") || "\e[6~"
       @key_top = ENV["FFF_KEY_TOP"]? || json_get(json, "keys", "top") || "g"
       @key_bottom = ENV["FFF_KEY_BOTTOM"]? || json_get(json, "keys", "bottom") || "G"
       @key_rename = ENV["FFF_KEY_RENAME"]? || json_get(json, "keys", "rename") || "r"
@@ -110,7 +110,7 @@ module FFF
     private def default_opener
       case `uname`.strip
       when "Darwin" then "open"
-      else "xdg-open"
+      else               "xdg-open"
       end
     rescue
       "xdg-open"
@@ -159,21 +159,21 @@ module FFF
 
     private def parse_ls_color(code : String) : Symbol?
       case code
-      when /01;31/, /31;01/  then :red
-      when /01;32/, /32;01/  then :green
-      when /01;33/, /33;01/  then :yellow
-      when /01;34/, /34;01/  then :blue
-      when /01;35/, /35;01/  then :magenta
-      when /01;36/, /36;01/  then :cyan
-      when /01;37/, /37;01/  then :white
-      when "31"               then :red
-      when "32"               then :green
-      when "33"               then :yellow
-      when "34"               then :blue
-      when "35"               then :magenta
-      when "36"               then :cyan
-      when "37"               then :white
-      else nil
+      when /01;31/, /31;01/ then :red
+      when /01;32/, /32;01/ then :green
+      when /01;33/, /33;01/ then :yellow
+      when /01;34/, /34;01/ then :blue
+      when /01;35/, /35;01/ then :magenta
+      when /01;36/, /36;01/ then :cyan
+      when /01;37/, /37;01/ then :white
+      when "31"             then :red
+      when "32"             then :green
+      when "33"             then :yellow
+      when "34"             then :blue
+      when "35"             then :magenta
+      when "36"             then :cyan
+      when "37"             then :white
+      else                       nil
       end
     end
 
@@ -186,7 +186,7 @@ module FFF
         "i" => @key_preview, "s" => @key_shell, "g" => @key_top, "G" => @key_bottom,
         "." => @key_hidden, "~" => @key_home, "-" => @key_prev, "e" => @key_refresh,
         "x" => @key_attributes, "X" => @key_executable, ":" => @key_go_dir, "t" => @key_go_trash,
-        "S" => @key_symlink, "=" => "=", "+" => "+"
+        "S" => @key_symlink, "=" => "=", "+" => "+",
       }
     end
   end

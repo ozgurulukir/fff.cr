@@ -105,12 +105,13 @@ make run                          # build + run
 | `n` | New directory | `f` | New file |
 | `r` | Rename | `b` | Bulk Rename |
 | `i` | Preview (`bat`→`less`→builtin) | `s` | Spawn shell |
-| `g` / `G` | Top / Bottom | `↑` / `↓` | Page up / down |
+| `g` / `G` | Top / Bottom | `↑` / `↓` | Cursor up / down |
 | `.` | Toggle hidden | `t` | Go to trash |
 | `x` | Attributes | `X` | Toggle executable |
 | `:` | Go to directory | `~` | Home directory |
 | `-` | Previous directory| `e` | Refresh directory |
-| `S` | Symlink | `1-9` | Favorites |
+| `S` | Symlink | `=` / `+` | Cycle sort / Reverse |
+| `1-9` | Favorites | | |
 
 ## Terminal Handling
 
@@ -118,6 +119,7 @@ make run                          # build + run
 - **Incremental & State Redraws**: Uses dynamic `@force_full_redraw` to force clean clears only when transitioning into or out of search/rename modes. Normal state changes redraw incrementally to eliminate TUI flickering.
 - **Color Caching**: Results cached by file path only (removed stale width dependency).
 - **Scroll Region**: `\e[1;{max_items}r` keeps status line fixed.
+- **Page Scroll**: `PgUp`/`PgDn` (`\e[5~`/`\e[6~`) scroll by one screenful. Configurable via `FFF_KEY_PAGE_UP`/`FFF_KEY_PAGE_DOWN`.
 - **Arrow Key Safety**: Safe fallback lookup (`@config.key_bindings[key]? || key`) protects against unrecognized raw escape sequences raising `KeyError` crashes.
 - **Input Mismatch Resilience**: Robust matching handles both raw characters (`\e`, `\r`, `\b`) and mapped TTY names (`"escape"`, `"enter"`, `"backspace"`, `"up"`, `"down"`) to ensure 100% terminal compatibility.
 
