@@ -1,0 +1,26 @@
+version: 2.0
+shards:
+  ameba:
+    git: https://github.com/crystal-ameba/ameba.git
+    version: 1.5.0
+
+  term-color:
+    git: https://github.com/crystal-term/color.git
+    version: 0.4.1
+
+  term-cursor:
+    git: https://github.com/crystal-term/cursor.git
+    version: 0.3.1
+
+  term-prompt:
+    git: https://github.com/crystal-term/prompt.git
+    version: 0.3.3
+
+  term-reader:
+    git: https://github.com/crystal-term/reader.git
+    version: 0.3.2
+
+  term-screen:
+    git: https://github.com/crystal-term/screen.git
+    version: 0.3.1
+

@@ -1,0 +1,38 @@
+name: fff
+version: 0.1.0
+
+authors:
+  - dylanaraps <dylanaraps@gmail.com>
+
+description: |
+  Fucking Fast File Manager - Crystal port
+
+license: MIT
+
+targets:
+  fff:
+    main: src/fff.cr
+
+crystal: 1.20.1
+
+dependencies:
+  term-color:
+    github: crystal-term/color
+    version: ~> 0.4.0
+  term-screen:
+    github: crystal-term/screen
+    version: ~> 0.3.0
+  term-cursor:
+    github: crystal-term/cursor
+    version: ~> 0.3.0
+  term-reader:
+    github: crystal-term/reader
+    version: ~> 0.3.0
+  term-prompt:
+    github: crystal-term/prompt
+    version: ~> 0.3.0
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 1.5.0
