@@ -2,7 +2,6 @@
 
 [![Crystal](https://img.shields.io/badge/Crystal-1.20.1-000?labelColor=eee&logo=crystal)](https://crystal-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/user/fff/actions/workflows/ci.yml/badge.svg)](https://github.com/user/fff/actions/workflows/ci.yml)
 
 A terminal-based file manager written in **Crystal**. Ported from the original Bash version for performance, safety, and maintainability.
 
