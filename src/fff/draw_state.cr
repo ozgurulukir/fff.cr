@@ -16,6 +16,11 @@ module FFF
     getter error_msg : String?
     getter loading : Bool
     getter full : Bool
+    getter sort_mode : Symbol
+    getter sort_reverse : Bool
+    getter show_help : Bool
+    getter git_branch : String
+    getter git_status : String
 
     def initialize(
       @scroll : Int32,
@@ -34,6 +39,11 @@ module FFF
       @error_msg : String?,
       @loading : Bool,
       @full : Bool,
+      @sort_mode : Symbol = :name,
+      @sort_reverse : Bool = false,
+      @show_help : Bool = false,
+      @git_branch : String = "",
+      @git_status : String = "",
     )
     end
   end

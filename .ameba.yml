@@ -1,0 +1,10 @@
+Globs:
+  - src/**/*.cr
+  - spec/**/*.cr
+  - "!lib"
+
+Style/QueryBoolMethods:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false

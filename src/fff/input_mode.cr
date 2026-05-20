@@ -35,17 +35,17 @@ module FFF
       return false unless @active
 
       case key
-      when "\e", "escape"                     # ESC - cancel
+      when "\e", "escape" # ESC - cancel
         return true
-      when "\r", "\n", "enter"                # Enter - confirm
+      when "\r", "\n", "enter" # Enter - confirm
         return true
-      when "\u0003"                           # Ctrl+C - cancel
+      when "\u0003" # Ctrl+C - cancel
         return true
-      when "\u007F", "\b", "backspace"        # Backspace / DEL
+      when "\u007F", "\b", "backspace" # Backspace / DEL
         if @text.size > 0
           @text = @text[0...-1]
         end
-      when "\e[A", "\e[B", "up", "down"       # Up/Down arrows in search mode - ignore
+      when "\e[A", "\e[B", "up", "down" # Up/Down arrows in search mode - ignore
         # Do nothing, let navigation handle these
       else
         if key.bytesize > 0 && key.char_at(0).ord >= 32

@@ -44,6 +44,10 @@ module FFF
     @loading : Bool
     @prev_list_size : Int32
     @force_full_redraw : Bool
+    @show_help : Bool
+    @git_branch : String
+    @git_status : String
+    @git_dir_cache : String
 
     def initialize(@config : Config, start_dir : String, @picker_mode = false)
       @term = Terminal.new
@@ -68,6 +72,10 @@ module FFF
       @loading = false
       @prev_list_size = -1
       @force_full_redraw = false
+      @show_help = false
+      @git_branch = ""
+      @git_status = ""
+      @git_dir_cache = ""
     end
 
     def run
@@ -100,6 +108,7 @@ module FFF
       max = @term.max_items
       @scroll = {@scroll, @dir_manager.list.size - 1}.min if @dir_manager.list.size > 0
       @page_offset = {@page_offset, {@scroll - max + 1, 0}.max}.min if @scroll >= @page_offset + max
+      @show_help = false if @show_help
       redraw(true)
     end
 
@@ -109,7 +118,9 @@ module FFF
       list_changed = @dir_manager.list.size != @prev_list_size
       @prev_list_size = @dir_manager.list.size
 
-      full_draw = full || @force_full_redraw || @input_mode.active || list_changed || !@error_msg.nil? || @loading
+      update_git_branch
+
+      full_draw = full || @force_full_redraw || @input_mode.active || list_changed || !@error_msg.nil? || @loading || @show_help
       @force_full_redraw = false
 
       state = DrawState.new(
@@ -128,12 +139,78 @@ module FFF
         clipboard_size: @clipboard.size,
         error_msg: @error_msg,
         loading: @loading,
-        full: full_draw
+        full: full_draw,
+        sort_mode: @dir_manager.sort_mode,
+        sort_reverse: @dir_manager.sort_reverse,
+        show_help: @show_help,
+        git_branch: @git_branch,
+        git_status: @git_status
       )
       @renderer.redraw(state)
 
       @prev_scroll = @scroll
       @prev_page_offset = @page_offset
+    end
+
+    private def update_git_branch
+      dir = @dir_manager.current_dir
+      @git_dir_cache ||= ""
+      if @git_dir_cache == dir
+        return
+      end
+      @git_dir_cache = dir
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      status = Process.run("git", ["rev-parse", "--abbrev-ref", "HEAD"], output: output, error: error, chdir: dir)
+      if status.success?
+        @git_branch = output.to_s.strip
+        update_git_status(dir)
+      else
+        @git_branch = ""
+        @git_status = ""
+        @git_dir_cache = ""
+      end
+    rescue
+      @git_branch = ""
+      @git_status = ""
+    end
+
+    private def update_git_status(dir : String)
+      output = IO::Memory.new
+      error = IO::Memory.new
+      status = Process.run("git", ["status", "--porcelain"], output: output, error: error, chdir: dir)
+      unless status.success?
+        @git_status = ""
+        return
+      end
+
+      staged = 0
+      modified = 0
+      untracked = 0
+      deleted = 0
+
+      output.to_s.each_line do |line|
+        next if line.empty?
+        if line.starts_with?("??")
+          untracked += 1
+        elsif line.starts_with?("M ") || line.starts_with?("A ") || line.starts_with?("R ")
+          staged += 1
+        elsif line.starts_with?(" M") || line.starts_with?(" D")
+          modified += 1
+        elsif line.starts_with?("D ")
+          deleted += 1
+        elsif line.starts_with?(" D")
+          deleted += 1
+        end
+      end
+
+      parts = [] of String
+      parts << "+#{staged}" if staged > 0
+      parts << "~#{modified}" if modified > 0
+      parts << "?#{untracked}" if untracked > 0
+      parts << "-#{deleted}" if deleted > 0
+      @git_status = parts.join(" ")
     end
 
     private def check_error_expiry
@@ -165,6 +242,12 @@ module FFF
     end
 
     private def handle_input_mode(key : String)
+      if @show_help
+        @show_help = false
+        @force_full_redraw = true
+        return
+      end
+
       if key == "\e" || key == "escape" || key == "\u0003" || (key.bytesize == 1 && key.char_at(0).ord == 27)
         @dir_manager.list = @input_mode.original_list.dup
         @input_mode.end
@@ -197,42 +280,49 @@ module FFF
     end
 
     private def handle_key(key : String)
+      if @show_help
+        @show_help = false
+        @force_full_redraw = true
+        return
+      end
+
       key = @config.key_bindings[key]? || key
 
       case key
-      when "j", "\e[B" then cursor_down
-      when "k", "\e[A" then cursor_up
-      when @config.key_page_up then page_up
+      when "j", "\e[B"           then cursor_down
+      when "k", "\e[A"           then cursor_up
+      when @config.key_page_up   then page_up
       when @config.key_page_down then page_down
-      when "h", "\e[D" then go_parent
-      when "l", "\e[C" then enter_item
-      when "G"         then go_bottom
-      when "g"         then go_top
-      when " "         then toggle_mark
-      when "m"         then toggle_mark_all
-      when "y"         then yank_files
-      when "v"         then cut_files
-      when "p"         then paste_files
-      when "d"         then delete_files
-      when "n"         then new_directory
-      when "f"         then new_file
-      when "r"         then start_rename
-      when "b"         then bulk_rename
-      when "i"         then preview_file
-      when "s"         then spawn_shell
-      when "/"         then start_search
-      when "."         then @dir_manager.toggle_hidden
-      when "t"         then go_to_trash
-      when "x"         then show_attributes
-      when "X"         then toggle_executable
-      when ":"         then go_to_dir
-      when "~"         then @dir_manager.go_home
-      when "-"         then go_prev
-      when "e"         then @dir_manager.refresh!
-      when "S"         then create_symlink
-      when "="         then @dir_manager.cycle_sort_mode
-      when "+"         then @dir_manager.toggle_sort_reverse
-      when "q"         then quit
+      when "h", "\e[D"           then go_parent
+      when "l", "\e[C"           then enter_item
+      when "G"                   then go_bottom
+      when "g"                   then go_top
+      when " "                   then toggle_mark
+      when "m"                   then toggle_mark_all
+      when "y"                   then yank_files
+      when "v"                   then cut_files
+      when "p"                   then paste_files
+      when "d"                   then delete_files
+      when "n"                   then new_directory
+      when "f"                   then new_file
+      when "r"                   then start_rename
+      when "b"                   then bulk_rename
+      when "i"                   then preview_file
+      when "s"                   then spawn_shell
+      when "/"                   then start_search
+      when "."                   then @dir_manager.toggle_hidden
+      when "t"                   then go_to_trash
+      when "x"                   then show_attributes
+      when "X"                   then toggle_executable
+      when ":"                   then go_to_dir
+      when "~"                   then @dir_manager.go_home
+      when "-"                   then go_prev
+      when "e"                   then @dir_manager.refresh!
+      when "S"                   then create_symlink
+      when "="                   then @dir_manager.cycle_sort_mode
+      when "+"                   then @dir_manager.toggle_sort_reverse
+      when "?"                   then toggle_help
+      when "q"                   then quit
       when "1", "2", "3", "4", "5", "6", "7", "8", "9"
         jump_to_bookmark(key)
       end
@@ -312,6 +402,11 @@ module FFF
 
       last_file = File.join(ENV["HOME"], ".cache", "fff", "opened_file")
       File.write(last_file, @dir_manager.list[@scroll])
+    end
+
+    private def toggle_help
+      @show_help = !@show_help
+      @force_full_redraw = true
     end
 
     private def clamp_scroll

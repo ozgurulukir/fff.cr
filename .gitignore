@@ -12,6 +12,7 @@ shards/
 # IDE
 .vscode/
 .idea/
+.crystal.json
 *.swp
 *.swo
 
@@ -33,4 +34,5 @@ coverage/
 
 # Agent tooling artifacts
 .antigravitycli/
+.agents/
 scripts/

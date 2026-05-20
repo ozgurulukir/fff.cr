@@ -1,209 +1,166 @@
-# FFF - Fucking Fast File Manager
+# FFF — Fucking Fast File Manager
 
-Crystal ile yazılmış, terminal tabanlı hızlı bir dosya yöneticisi. Orijinal Bash versiyonunun Crystal'e yeniden yazılmış halidir.
+[![Crystal](https://img.shields.io/badge/Crystal-1.20.1-000?labelColor=eee&logo=crystal)](https://crystal-lang.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/user/fff/actions/workflows/ci.yml/badge.svg)](https://github.com/user/fff/actions/workflows/ci.yml)
 
-## Özellikler
+A terminal-based file manager written in **Crystal**. Ported from the original Bash version for performance, safety, and maintainability.
 
-- **Yüksek Performans**: `LS_COLORS` önbelleğe alma ve optimize edilmiş incremental çizim döngüsü.
-- **Hızlı Navigasyon**: Klavye kısayolları ve favori dizinler (`1-9`).
-- **Dosya İşlemleri**: Kopyalama, taşıma, silme (çöp kutusu), yeniden adlandırma.
-- **Toplu İşlemler**: Toplu yeniden adlandırma (Bulk Rename) ve çoklu seçim.
-- **Güvenlik**: Tüm harici komutlar `Process.run` ile (shell injection yok), işlem öncesi yazma izin kontrolü.
-- **Arama**: Anlık filtreleme, arama sırasında navigasyon, ripgrep ile içerik arama (`!` öneki).
-- **Önizleme**: `bat` → `less` → builtin fallback ile akıllı önizleme; dosya öznitelikleri (`stat`).
-- **Dosya Seçici Modu**: Diğer araçlarla entegrasyon için `-p` bayrağı.
-- **Özelleştirilebilir**: Environment variable ile tam kontrol.
+## Features
 
-## Kurulum
+- **Fast**: `LS_COLORS` caching, optimized incremental render loop, no flicker
+- **Navigable Search**: Fuzzy filename filtering + ripgrep content search (`!` prefix), all while keeping cursor navigation live
+- **File Operations**: Copy, move, delete (trash), rename, bulk rename, symlink
+- **Smart Preview**: `bat` → `less` → builtin fallback chain; file attributes via `stat`
+- **Picker Mode**: `-p` flag writes selection to `~/.cache/fff/opened_file` for external tool integration
+- **Secure**: All external commands via `Process.run` (no shell injection), pre-operation writability checks
+- **Customizable**: Full keybinding control via environment variables or `~/.config/fff/config.json`
 
-### Gereksinimler
+## Installation
 
-- Crystal 1.20.1 veya üzeri
-- Linux/macOS terminali
+### Requirements
 
-### Derleme
+- Crystal 1.20.1+
+- Linux or macOS terminal (with true-color support recommended)
+
+### Build
 
 ```bash
-# Bağımlılıkları yükle
-make deps
+make deps       # install shards
+make build      # release build → bin/fff
+make debug      # debug build (faster compile)
+make run        # build + run
+make test       # run test suite
 
-# Release derlemesi (önerilir)
-make build
-
-# Debug derlemesi (hızlı derleme, optimizasyon yok)
-make debug
-
-# Derle ve çalıştır
-make run
-
-# Test
-make test
-
-# Format kontrolü
-make format
-
-# Temizlik
-make clean
-
-# İsteğe bağlı: Sistem geneline kur (man sayfası dahil)
+# Optional: system-wide install (including man page)
 sudo make install
 ```
 
-## Kullanım
-
-### Temel Komutlar
+## Usage
 
 ```bash
-# Mevcut dizini aç
-fff
-
-# Belirli bir dizini aç
-fff /path/to/directory
-
-# Dosya seçici modu (seçilen dosyayı cache'e yazar)
-fff -p
+fff                    # open current directory
+fff /path/to/dir       # open specific directory
+fff -p                 # picker mode (writes to opened_file cache)
 ```
 
-### Klavye Kısayolları
+### Key Bindings
 
-| Tuş | İşlev | Tuş | İşlev |
-|-----|-------|-----|-------|
-| `j`/`k` | Aşağı/Yukarı | `l`/`h` | Gir/Geri |
-| `q` | Çıkış | `/` | Ara (Navigasyon açık) |
-| `space` | İşaretle | `m` | Tümünü işaretle |
-| `y`/`v` | Kopyala/Kes | `p` | Yapıştır |
-| `d` | Çöpe at | `t` | Çöp kutusuna git |
-| `n` | Yeni dizin | `f` | Yeni dosya |
-| `r` | Yeniden adlandır | `b` | Toplu yeniden adlandır |
-| `i` | İçerik önizle | `x` | Özellikleri göster (`stat`) |
-| `X` | Executable toggle | `s` | Kabuk (Shell) başlat |
-| `g`/`G` | En üst/En alt | `↑`/`↓` | İmleç yukarı/aşağı |
-| `.` | Gizli dosyalar | `~` | Home dizini |
-| `-` | Önceki dizin | `e` | Yenile (Refresh) |
-| `=` | Sıralama modu değiştir | `+` | Sıralama ters çevir |
-| `1-9` | Favori dizinler | `:` | Dizine git |
-| `S` | Sembolik link | | |
+| Key | Action | Key | Action |
+|---|---|---|---|
+| `j`/`k` | Down/Up | `l`/`h` | Enter/Parent |
+| `q` | Quit | `/` | Search |
+| `space` | Mark | `m` | Mark all |
+| `y`/`v` | Copy/Cut | `p` | Paste |
+| `d` | Delete (trash) | `t` | Go to trash |
+| `n` | New dir | `f` | New file |
+| `r` | Rename | `b` | Bulk rename |
+| `i` | Preview | `x` | Attributes |
+| `X` | Toggle executable | `s` | Spawn shell |
+| `g`/`G` | Top/Bottom | `↑`/`↓` | Cursor |
+| `.` | Toggle hidden | `~` | Home |
+| `-` | Previous dir | `e` | Refresh |
+| `=` / `+` | Cycle sort / Reverse | `:` | Go to dir |
+| `S` | Symlink | `1-9` | Favorites |
 
-## Yapılandırma
+All bindings are configurable via `FFF_KEY_*` environment variables.
 
-fff, `~/.config/fff/config.json` dosyasından ve environment variable'lardan yapılandırılır. Environment variable'lar JSON'dan önceliklidir.
+## Configuration
 
-### Environment Variables
+fff reads from environment variables first, then falls back to `~/.config/fff/config.json`.
+
+### Key variables
 
 ```bash
-# Favori dizinler (1-9 arası)
-export FFF_FAV1="$HOME/Documents"
-export FFF_FAV2="$HOME/Downloads"
-
-# Dosya açıcı (varsayılan: Linux'ta xdg-open, macOS'te open)
-export FFF_OPENER="xdg-open"
-
-# Editör (varsayılan: $EDITOR veya vi)
-export EDITOR="vim"
-
-# Çöp kutusu dizini
+export FFF_OPENER="xdg-open"              # file opener
+export FFF_FAV1="$HOME/Documents"         # favorite dirs 1-9
+export FFF_CD_ON_EXIT="1"                 # save cwd on exit
 export FFF_TRASH="$HOME/.local/share/fff/trash"
-
-# Çıkışta dizin kaydetme
-export FFF_CD_ON_EXIT="1"
-export FFF_CD_FILE="$HOME/.cache/fff/.fff_d"
-
-# Tüm tuş atamaları FFF_KEY_* ile değiştirilebilir:
-# FFF_KEY_UP, FFF_KEY_DOWN, FFF_KEY_ENTER, FFF_KEY_QUIT,
-# FFF_KEY_SEARCH, FFF_KEY_PARENT, FFF_KEY_MARK, FFF_KEY_MARK_ALL,
-# FFF_KEY_COPY, FFF_KEY_MOVE, FFF_KEY_PASTE, FFF_KEY_DELETE,
-# FFF_KEY_NEW_DIR, FFF_KEY_MKFILE, FFF_KEY_RENAME, FFF_KEY_BULK_RENAME,
-# FFF_KEY_PREVIEW, FFF_KEY_SHELL, FFF_KEY_HIDDEN, FFF_KEY_HOME,
-# FFF_KEY_PREVIOUS, FFF_KEY_REFRESH, FFF_KEY_ATTRIBUTES,
-# FFF_KEY_EXECUTABLE, FFF_KEY_GO_DIR, FFF_KEY_GO_TRASH,
-# FFF_KEY_SYMLINK, FFF_KEY_TOP, FFF_KEY_BOTTOM,
-# FFF_KEY_PAGE_UP, FFF_KEY_PAGE_DOWN
 ```
 
-### JSON Yapılandırma
+Full list of `FFF_KEY_*` variables: `UP`, `DOWN`, `ENTER`, `QUIT`, `SEARCH`, `PARENT`, `MARK`, `MARK_ALL`, `COPY`, `MOVE`, `PASTE`, `DELETE`, `NEW_DIR`, `MKFILE`, `RENAME`, `BULK_RENAME`, `PREVIEW`, `SHELL`, `HIDDEN`, `HOME`, `PREVIOUS`, `REFRESH`, `ATTRIBUTES`, `EXECUTABLE`, `GO_DIR`, `GO_TRASH`, `SYMLINK`, `TOP`, `BOTTOM`, `PAGE_UP`, `PAGE_DOWN`.
 
 ```json
 {
   "editor": "vim",
   "opener": "xdg-open",
   "trash_dir": "/path/to/trash",
-  "cd_on_exit": "true",
-  "favorites": {
-    "1": "/home/user/Documents",
-    "2": "/home/user/Downloads"
-  },
-  "keys": {
-    "up": "k", "down": "j", "enter": "l", "quit": "q"
-  },
-  "bookmarks": {
-    "proj": "/home/user/projects"
-  }
+  "favorites": { "1": "/home/user/Documents" },
+  "keys": { "up": "k", "down": "j" },
+  "bookmarks": { "proj": "/home/user/projects" }
 }
 ```
 
-## Geliştirme
+## Preview
 
-### Proje Yapısı
+Press `i` to preview a file. The preview chain tries:
+
+1. `bat --paging=always` — syntax-highlighted, scrollable
+2. `less` — paged, searchable
+3. Built-in — first 50 lines for plain text
+
+Directories always use the built-in preview.
+
+## Project Structure
 
 ```
 .
-├── Makefile                    # Derleme, kurulum, test hedefleri
-├── shard.yml                   # Crystal bağımlılıkları
-├── shard.lock
-├── ameba.yml                   # Ameba linter yapılandırması
-├── .gitignore
-├── .travis.yml                 # CI yapılandırması
-├── AGENTS.md                   # AI asistan bağlamı
-├── LICENSE.md
-├── README.md
-├── fff.1                       # Man sayfası
-├── bin/
-│   └── fff                    # Derlenmiş binary
-└── src/
-    ├── fff.cr                  # Uygulama giriş noktası
-    └── fff/
-        ├── config.cr           # Environment variable ve LS_COLORS
-        ├── directory_manager.cr# Dizin tarama, sıralama, durum
-        ├── draw_state.cr       # Render durumu struct
-        ├── file_manager.cr     # TUI olay döngüsü, ana koordinasyon
-        ├── file_op_handlers.cr # Dosya işlemleri (include)
-        ├── file_operations.cr  # Dosya/dizin oluşturma, silme
-        ├── file_service.cr     # Düşük seviye dosya işlemleri
-        ├── format_utils.cr     # Paylaşılan yardımcılar
-        ├── input_mode.cr       # Arama/yeniden adlandırma modu
-        ├── navigation_handlers.cr# Gezinme (include)
-        ├── search_engine.cr    # Bulanık arama + ripgrep
-        ├── terminal.cr         # crystal-term sarmalayıcı
-        ├── ui_renderer.cr      # Incremental redraw
-        └── view_handlers.cr    # Önizleme, shell (include)
+├── bin/fff                  # compiled binary
+├── man/fff.1                # man page
+├── src/
+│   ├── fff.cr               # entry point
+│   └── fff/
+│       ├── config.cr
+│       ├── directory_manager.cr
+│       ├── draw_state.cr
+│       ├── file_manager.cr
+│       ├── file_op_handlers.cr
+│       ├── file_operations.cr
+│       ├── file_service.cr
+│       ├── format_utils.cr
+│       ├── input_mode.cr
+│       ├── navigation_handlers.cr
+│       ├── search_engine.cr
+│       ├── terminal.cr
+│       ├── ui_renderer.cr
+│       └── view_handlers.cr
+├── spec/                    # test suite
+│   ├── spec_helper.cr
+│   ├── fff/
+│   └── integration/
+├── Makefile
+├── shard.yml
+├── .ameba.yml               # linter config
+└── LICENSE
 ```
 
-### Mimari
+## Architecture
 
-- **FFF::Application**: Komut satırı argümanlarını işler, terminal ortamını başlatır.
-- **FFF::Config**: `LS_COLORS` dahil tüm yapılandırmayı yönetir.
-- **FFF::DirectoryManager**: Dizin tarama, sıralama, filtreleme — `@full_list` ile arama iptalinde tam listeyi geri getirir.
-- **FFF::DrawState**: `redraw`'ın tüm parametrelerini tek bir struct'ta toplar.
-- **FFF::FileManager**: Olay döngüsü ve TUI yönlendirici. `NavigationHandlers`, `FileOpHandlers`, `ViewHandlers` modüllerini include eder.
-- **FFF::FileOperations**: Dosya/dizin oluşturma, kopyalama, silme, taşıma.
-- **FFF::FileService**: `copy`, `move`, `trash`, `symlink` — yazma izni kontrollü.
-- **FFF::InputMode**: Arama/yeniden adlandırma modlarında tuş vuruşu yönetimi, ESC/Enter işleme.
-- **FFF::SearchEngine**: Bulanık dosya adı araması + ripgrep ile içerik arama (`!` öneki).
-- **FFF::FormatUtils**: `human_size` gibi paylaşılan yardımcılar.
-- **FFF::Terminal**: `crystal-term` shard'larını sarmalar, ANSI kontrol, raw mod.
-- **FFF::UIRenderer**: Incremental redraw ile titreşimsiz arayüz çizimi.
+- **FFF::Application** — CLI argument parsing, terminal setup
+- **FFF::Config** — env var & JSON config management, `LS_COLORS` parsing
+- **FFF::DirectoryManager** — directory reading, sorting, hidden-file filtering
+- **FFF::DrawState** — bundles all redraw parameters into one struct
+- **FFF::FileManager** — event loop and TUI router; includes `NavigationHandlers`, `FileOpHandlers`, `ViewHandlers`
+- **FFF::FileOperations** — file/directory creation, deletion, copying
+- **FFF::FileService** — low-level `copy`/`move`/`trash`/`symlink` with writability checks
+- **FFF::InputMode** — search/rename keystroke handler
+- **FFF::SearchEngine** — fuzzy filename matching + ripgrep content search
+- **FFF::Terminal** — `crystal-term` shard wrapper
+- **FFF::UIRenderer** — incremental, flicker-free drawing
+- **FFF::FormatUtils** — shared helpers (`human_size`)
 
-## Önizleme
+## Development
 
-`i` tuşu ile dosya önizleme şu sırayla dener:
+```bash
+make test       # run all specs
+make format     # crystal tool format
+make lint       # ameba static analysis
+```
 
-1. `bat --paging=always` (syntax highlighting, scroll)
-2. `less` (sayfalama, arama)
-3. Dahili builtin (ilk 50 satır)
+### Patches
 
-Dizinler için her zaman dahili builtin kullanılır.
+The project patches several `crystal-term` shard bugs in `lib/` after `shards install`. See `AGENTS.md` for details.
 
-## Lisans
+## License
 
-MIT License
-
+MIT. See [LICENSE](LICENSE).

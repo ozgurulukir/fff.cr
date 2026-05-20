@@ -1,0 +1,196 @@
+.TH FFF 1 "2025-05-19" "0.1.0" "User Commands"
+.SH NAME
+fff \- Fucking Fast File Manager (Crystal port)
+.SH SYNOPSIS
+.B fff
+[\fIDIRECTORY\fR]
+.SH DESCRIPTION
+fff is a blazingly fast terminal file manager written in Crystal. It provides a keyboard-driven interface for navigating and managing files with minimal overhead.
+.SH OPTIONS
+.TP
+.B DIRECTORY
+Start fff in the specified directory instead of the current working directory.
+.TP
+.B \-p
+Run as a file picker (writes selected file path to ~/.cache/fff/opened_file).
+.TP
+.B \-h, \-\-help
+Display help information.
+.TP
+.B \-v, \-\-version
+Display version information.
+.SH KEYBINDINGS
+All keybindings are configurable via FFF_KEY_* environment variables. Defaults listed below.
+.SS Navigation
+.TP
+.B j, \fB↓\fR
+Scroll down
+.TP
+.B k, \fB↑\fR
+Scroll up
+.TP
+.B h, \fB←\fR
+Go to parent directory
+.TP
+.B l, \fB→\fR
+Enter directory / open file
+.TP
+.B g
+Go to top
+.TP
+.B G
+Go to bottom
+.TP
+.B PgUp
+Scroll up one screenful
+.TP
+.B PgDn
+Scroll down one screenful
+.TP
+.B -
+Go to previous directory
+.TP
+.B ~
+Go to home directory
+.TP
+.B :
+Go to directory (type path)
+.TP
+.B t
+Go to trash directory
+.TP
+.B e
+Refresh current directory
+.TP
+.B .
+Toggle hidden files visibility
+.SS File Operations
+.TP
+.B SPACE
+Mark / unmark file
+.TP
+.B m
+Mark all files
+.TP
+.B y
+Yank (copy) marked files to clipboard
+.TP
+.B v
+Cut (move) marked files to clipboard
+.TP
+.B p
+Paste files from clipboard to current directory
+.TP
+.B d
+Delete marked files (move to trash)
+.TP
+.B S
+Create symbolic link
+.SS File Management
+.TP
+.B r
+Rename file under cursor
+.TP
+.B b
+Bulk rename marked files (opens $EDITOR)
+.TP
+.B n
+Create new directory
+.TP
+.B f
+Create new file
+.TP
+.B x
+Show file attributes (stat)
+.TP
+.B X
+Toggle executable permission
+.SS Preview & Search
+.TP
+.B i
+Preview file content (bat -> less -> builtin)
+.TP
+.B /
+Search files (navigable fuzzy search)
+.TP
+.B !\fIquery\fR
+Content search via ripgrep (prefix with ! in search mode)
+.SS Miscellaneous
+.TP
+.B s
+Spawn shell in current directory
+.TP
+.B =
+Cycle sort mode (name -> size -> time)
+.TP
+.B +
+Reverse sort order
+.TP
+.B 1-9
+Jump to favorite directory
+.TP
+.B q
+Quit fff
+.SH CONFIGURATION
+fff reads configuration from environment variables and ~/.config/fff/config.json.
+Environment variables take precedence over JSON.
+.SS Core Options
+.TP
+.B EDITOR
+Text editor for bulk rename (default: vi)
+.TP
+.B FFF_OPENER
+File opener command (default: xdg-open on Linux, open on macOS)
+.TP
+.B FFF_TRASH
+Trash directory path (default: ~/.local/share/fff/trash)
+.TP
+.B FFF_CD_ON_EXIT
+Enable saving current directory on exit (0 or 1)
+.TP
+.B FFF_CD_FILE
+Path to the cd-on-exit helper file (default: ~/.cache/fff/.fff_d)
+.SS Favorite Directories
+.TP
+.B FFF_FAV1 \- FFF_FAV9
+Favorite directories accessible via keys 1-9
+.SS Key Bindings (all optional, defaults shown)
+All keys can be rebound via FFF_KEY_<ACTION>.
+.TP
+Available actions:
+UP, DOWN, ENTER, QUIT, SEARCH, PARENT, MARK, MARK_ALL, COPY, MOVE, PASTE, DELETE, NEW_DIR, MKFILE, RENAME, BULK_RENAME, PREVIEW, SHELL, HIDDEN, HOME, PREVIOUS, REFRESH, ATTRIBUTES, EXECUTABLE, GO_DIR, GO_TRASH, SYMLINK, TOP, BOTTOM, PAGE_UP, PAGE_DOWN.
+.SH FILES
+.TP
+.I ~/.cache/fff/.fff_d
+CD on exit helper file
+.TP
+.I ~/.cache/fff/opened_file
+Picker mode output (written with -p flag)
+.TP
+.I ~/.local/share/fff/trash/
+Default trash directory
+.TP
+.I ~/.config/fff/config.json
+JSON configuration file
+.SH EXAMPLES
+.TP
+Start fff in the current directory:
+.B fff
+.TP
+Start fff in a specific directory:
+.B fff /home/user/documents
+.TP
+Use as file picker in vim:
+.B fff \-p
+.TP
+Configure custom trash directory:
+.B export FFF_TRASH="$HOME/.local/share/fff/trash"
+.SH BUGS
+Report bugs at: https://github.com/yourusername/fff/issues
+.SH AUTHORS
+.TP
+Original Bash version by Dylan Araps
+.TP
+Crystal port contributors
+.SH LICENSE
+MIT License \- see LICENSE for details

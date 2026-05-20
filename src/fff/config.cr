@@ -41,6 +41,7 @@ module FFF
     getter key_go_trash : String
     getter key_bulk_rename : String
     getter key_symlink : String
+    getter key_help : String
     getter favorites : Hash(String, String)
     getter bookmarks : Hash(String, String)
 
@@ -93,6 +94,7 @@ module FFF
       @key_go_trash = ENV["FFF_KEY_GO_TRASH"]? || json_get(json, "keys", "go_trash") || "t"
       @key_bulk_rename = ENV["FFF_KEY_BULK_RENAME"]? || json_get(json, "keys", "bulk_rename") || "b"
       @key_symlink = ENV["FFF_KEY_SYMLINK"]? || json_get(json, "keys", "symlink") || "S"
+      @key_help = ENV["FFF_KEY_HELP"]? || json_get(json, "keys", "help") || "?"
       @favorites = parse_favorites(json)
       @bookmarks = parse_bookmarks(json)
     end
@@ -134,6 +136,45 @@ module FFF
         end
       end
       bookmarks
+    end
+
+    def self.parse_ls_colors(colors : String) : Hash(String, Symbol)
+      result = Hash(String, Symbol).new
+
+      colors.split(':').each do |entry|
+        next if entry.empty?
+        parts = entry.split('=')
+        next if parts.size != 2
+        key, value = parts
+
+        next unless key.starts_with?("*.")
+        ext = key[2..].downcase
+
+        color = parse_ls_color_class(value)
+        result[ext] = color if color
+      end
+
+      result
+    end
+
+    private def self.parse_ls_color_class(code : String) : Symbol?
+      case code
+      when /01;31/, /31;01/ then :red
+      when /01;32/, /32;01/ then :green
+      when /01;33/, /33;01/ then :yellow
+      when /01;34/, /34;01/ then :blue
+      when /01;35/, /35;01/ then :magenta
+      when /01;36/, /36;01/ then :cyan
+      when /01;37/, /37;01/ then :white
+      when "31"             then :red
+      when "32"             then :green
+      when "33"             then :yellow
+      when "34"             then :blue
+      when "35"             then :magenta
+      when "36"             then :cyan
+      when "37"             then :white
+      else                       nil
+      end
     end
 
     private def parse_ls_colors : Hash(String, Symbol)
@@ -186,8 +227,46 @@ module FFF
         "i" => @key_preview, "s" => @key_shell, "g" => @key_top, "G" => @key_bottom,
         "." => @key_hidden, "~" => @key_home, "-" => @key_prev, "e" => @key_refresh,
         "x" => @key_attributes, "X" => @key_executable, ":" => @key_go_dir, "t" => @key_go_trash,
-        "S" => @key_symlink, "=" => "=", "+" => "+",
+        "S" => @key_symlink, "=" => "=", "+" => "+", "?" => @key_help,
       }
+    end
+
+    def key_binding(action : String) : String
+      case action
+      when "up"          then @key_up
+      when "down"        then @key_down
+      when "enter"       then @key_enter
+      when "quit"        then @key_quit
+      when "search"      then @key_search
+      when "parent"      then @key_parent
+      when "mark"        then @key_mark
+      when "mark_all"    then @key_mark_all
+      when "copy"        then @key_copy
+      when "move"        then @key_move
+      when "delete"      then @key_delete
+      when "new_dir"     then @key_new_dir
+      when "paste"       then @key_paste
+      when "preview"     then @key_preview
+      when "page_up"     then @key_page_up
+      when "page_down"   then @key_page_down
+      when "top"         then @key_top
+      when "bottom"      then @key_bottom
+      when "rename"      then @key_rename
+      when "shell"       then @key_shell
+      when "hidden"      then @key_hidden
+      when "home"        then @key_home
+      when "prev"        then @key_prev
+      when "refresh"     then @key_refresh
+      when "mkfile"      then @key_mkfile
+      when "attributes"  then @key_attributes
+      when "executable"  then @key_executable
+      when "go_dir"      then @key_go_dir
+      when "go_trash"    then @key_go_trash
+      when "bulk_rename" then @key_bulk_rename
+      when "symlink"     then @key_symlink
+      when "help"        then @key_help
+      else                    ""
+      end
     end
   end
 end

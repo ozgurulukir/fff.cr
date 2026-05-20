@@ -64,8 +64,8 @@ module FFF
     private def go_prev
       return unless @dir_manager.go_prev(@prev_dir, @prev_child)
 
-      if @prev_child
-        found_idx = @dir_manager.find_child(@prev_child.not_nil!)
+      if prev_child = @prev_child
+        found_idx = @dir_manager.find_child(prev_child)
         @scroll = found_idx if found_idx
       end
       @page_offset = 0

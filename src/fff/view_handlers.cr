@@ -19,10 +19,10 @@ module FFF
     end
 
     private def external_preview(path : String) : Bool
-      if (bat = Process.find_executable("bat"))
+      if bat = Process.find_executable("bat")
         with_tui_restored { Process.run(bat, ["--paging=always", path], input: STDIN, output: STDOUT, error: STDERR) }
         true
-      elsif (less = Process.find_executable("less"))
+      elsif less = Process.find_executable("less")
         with_tui_restored { Process.run(less, [path], input: STDIN, output: STDOUT, error: STDERR) }
         true
       else
@@ -54,7 +54,7 @@ module FFF
       end
       print "Press any key to continue..."
       STDOUT.flush
-      STDIN.raw { |fd| fd.read_char }
+      STDIN.raw(&.read_char)
       print "\n"
       STDOUT.flush
       @term.enter_tui
@@ -72,7 +72,7 @@ module FFF
       puts result
       print "Press any key to continue..."
       STDOUT.flush
-      STDIN.raw { |fd| fd.read_char }
+      STDIN.raw(&.read_char)
       print "\n"
       STDOUT.flush
       @term.enter_tui

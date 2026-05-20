@@ -48,7 +48,6 @@ State is managed within the `FileManager` instance, with `Config` and `Terminal`
 
 All external command execution uses `Process.run` with explicit argv arrays — no shell interpolation. Backtick and `system()` calls were eliminated in Phase 7 refactor. Commands affected: ripgrep (`rg`), `file --mime-type`, shell spawn, editor/open invocations, bulk rename, `bat`, `less`.
 
-
 ## Dependencies (crystal-term shards)
 
 | Shard | Version | Usage |
@@ -82,12 +81,20 @@ These are fixed via `sed` in `lib/` after `shards install`. Patches are **not** 
 ### 5. `term-reader` — `Mode#raw` inverted semantics
 - **Workaround**: call `read_keypress(raw: false)` to actually get raw mode
 
+### 6. `term-color` — `Cor` undefined constant in `pretty_print`
+- **File**: `lib/term-color/src/color/color.cr:359`
+- **Bug**: `Cor.truecolor_string(...)` references undefined constant `Cor` — should be `Color.truecolor_string(...)`
+- **Fix**: change `Cor.truecolor_string` to `Color.truecolor_string`
+
 ## Build & Run
 
 ```bash
 shards install                    # install dependencies
 make build                        # release build → bin/fff
 make debug                        # debug build (faster compile, no optimizations)
+make test                         # run test suite
+make format                       # crystal tool format
+make lint                         # ameba static analysis
 make run                          # build + run
 ./bin/fff                         # launch in current directory
 ./bin/fff /path/to/dir            # launch in specific directory
