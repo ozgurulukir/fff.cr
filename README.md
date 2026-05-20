@@ -1,6 +1,6 @@
 # FFF - Fucking Fast File Manager
 
-Crystal ile yazılmış, terminal tabanlı hızlı bir dosya yöneticisi. Orijinal Bash versiyonunun Crystal'e port edilmiş halidir.
+Crystal ile yazılmış, terminal tabanlı hızlı bir dosya yöneticisi. Orijinal Bash versiyonunun Crystal'e yeniden yazılmış halidir.
 
 ## Özellikler
 
@@ -25,12 +25,27 @@ Crystal ile yazılmış, terminal tabanlı hızlı bir dosya yöneticisi. Orijin
 
 ```bash
 # Bağımlılıkları yükle
-shards install
+make deps
 
-# Derle
+# Release derlemesi (önerilir)
 make build
 
-# İsteğe bağlı: Sistem geneline kur
+# Debug derlemesi (hızlı derleme, optimizasyon yok)
+make debug
+
+# Derle ve çalıştır
+make run
+
+# Test
+make test
+
+# Format kontrolü
+make format
+
+# Temizlik
+make clean
+
+# İsteğe bağlı: Sistem geneline kur (man sayfası dahil)
 sudo make install
 ```
 
@@ -62,24 +77,68 @@ fff -p
 | `r` | Yeniden adlandır | `b` | Toplu yeniden adlandır |
 | `i` | İçerik önizle | `x` | Özellikleri göster (`stat`) |
 | `X` | Executable toggle | `s` | Kabuk (Shell) başlat |
-| `g`/`G` | En üst/En alt | `↑`/`↓` | Sayfa yukarı/aşağı |
+| `g`/`G` | En üst/En alt | `↑`/`↓` | İmleç yukarı/aşağı |
 | `.` | Gizli dosyalar | `~` | Home dizini |
 | `-` | Önceki dizin | `e` | Yenile (Refresh) |
+| `=` | Sıralama modu değiştir | `+` | Sıralama ters çevir |
 | `1-9` | Favori dizinler | `:` | Dizine git |
 | `S` | Sembolik link | | |
 
-## Environment Variables
+## Yapılandırma
+
+fff, `~/.config/fff/config.json` dosyasından ve environment variable'lardan yapılandırılır. Environment variable'lar JSON'dan önceliklidir.
+
+### Environment Variables
 
 ```bash
-# Favoriler
+# Favori dizinler (1-9 arası)
 export FFF_FAV1="$HOME/Documents"
 export FFF_FAV2="$HOME/Downloads"
 
-# Dosya açıcı (macOS'ta otomatik 'open')
+# Dosya açıcı (varsayılan: Linux'ta xdg-open, macOS'te open)
 export FFF_OPENER="xdg-open"
 
-# Çöp kutusu
+# Editör (varsayılan: $EDITOR veya vi)
+export EDITOR="vim"
+
+# Çöp kutusu dizini
 export FFF_TRASH="$HOME/.local/share/fff/trash"
+
+# Çıkışta dizin kaydetme
+export FFF_CD_ON_EXIT="1"
+export FFF_CD_FILE="$HOME/.cache/fff/.fff_d"
+
+# Tüm tuş atamaları FFF_KEY_* ile değiştirilebilir:
+# FFF_KEY_UP, FFF_KEY_DOWN, FFF_KEY_ENTER, FFF_KEY_QUIT,
+# FFF_KEY_SEARCH, FFF_KEY_PARENT, FFF_KEY_MARK, FFF_KEY_MARK_ALL,
+# FFF_KEY_COPY, FFF_KEY_MOVE, FFF_KEY_PASTE, FFF_KEY_DELETE,
+# FFF_KEY_NEW_DIR, FFF_KEY_MKFILE, FFF_KEY_RENAME, FFF_KEY_BULK_RENAME,
+# FFF_KEY_PREVIEW, FFF_KEY_SHELL, FFF_KEY_HIDDEN, FFF_KEY_HOME,
+# FFF_KEY_PREVIOUS, FFF_KEY_REFRESH, FFF_KEY_ATTRIBUTES,
+# FFF_KEY_EXECUTABLE, FFF_KEY_GO_DIR, FFF_KEY_GO_TRASH,
+# FFF_KEY_SYMLINK, FFF_KEY_TOP, FFF_KEY_BOTTOM,
+# FFF_KEY_PAGE_UP, FFF_KEY_PAGE_DOWN
+```
+
+### JSON Yapılandırma
+
+```json
+{
+  "editor": "vim",
+  "opener": "xdg-open",
+  "trash_dir": "/path/to/trash",
+  "cd_on_exit": "true",
+  "favorites": {
+    "1": "/home/user/Documents",
+    "2": "/home/user/Downloads"
+  },
+  "keys": {
+    "up": "k", "down": "j", "enter": "l", "quit": "q"
+  },
+  "bookmarks": {
+    "proj": "/home/user/projects"
+  }
+}
 ```
 
 ## Geliştirme
@@ -88,23 +147,35 @@ export FFF_TRASH="$HOME/.local/share/fff/trash"
 
 ```
 .
-├── src/
-│   ├── fff.cr                  # Uygulama giriş noktası
-│   └── fff/
-│       ├── config.cr           # Çevre değişkenleri ve LS_COLORS ayarları
-│       ├── directory_manager.cr# Dizin tarama, sıralama ve durum yönetimi
-│       ├── draw_state.cr       # Render durumu struct (16 parametre yerine)
-│       ├── file_manager.cr     # TUI olay döngüsü ve ana koordinasyon
-│       ├── file_op_handlers.cr # Dosya işlemleri (FileManager include)
-│       ├── file_operations.cr  # Dosya/dizin oluşturma, silme, taşıma
-│       ├── file_service.cr     # Düşük seviye dosya sistemi işlemleri
-│       ├── format_utils.cr     # Paylaşılan yardımcı fonksiyonlar
-│       ├── input_mode.cr       # Arama/yeniden adlandırma giriş modları
-│       ├── navigation_handlers.cr# Gezinme metodları (FileManager include)
-│       ├── search_engine.cr    # Bulanık arama + ripgrep içerik arama
-│       ├── terminal.cr         # crystal-term sarmalayıcısı
-│       ├── ui_renderer.cr      # Incremental redraw arayüz çizici
-│       └── view_handlers.cr    # Önizleme, öznitelik, shell (FileManager include)
+├── Makefile                    # Derleme, kurulum, test hedefleri
+├── shard.yml                   # Crystal bağımlılıkları
+├── shard.lock
+├── ameba.yml                   # Ameba linter yapılandırması
+├── .gitignore
+├── .travis.yml                 # CI yapılandırması
+├── AGENTS.md                   # AI asistan bağlamı
+├── LICENSE.md
+├── README.md
+├── fff.1                       # Man sayfası
+├── bin/
+│   └── fff                    # Derlenmiş binary
+└── src/
+    ├── fff.cr                  # Uygulama giriş noktası
+    └── fff/
+        ├── config.cr           # Environment variable ve LS_COLORS
+        ├── directory_manager.cr# Dizin tarama, sıralama, durum
+        ├── draw_state.cr       # Render durumu struct
+        ├── file_manager.cr     # TUI olay döngüsü, ana koordinasyon
+        ├── file_op_handlers.cr # Dosya işlemleri (include)
+        ├── file_operations.cr  # Dosya/dizin oluşturma, silme
+        ├── file_service.cr     # Düşük seviye dosya işlemleri
+        ├── format_utils.cr     # Paylaşılan yardımcılar
+        ├── input_mode.cr       # Arama/yeniden adlandırma modu
+        ├── navigation_handlers.cr# Gezinme (include)
+        ├── search_engine.cr    # Bulanık arama + ripgrep
+        ├── terminal.cr         # crystal-term sarmalayıcı
+        ├── ui_renderer.cr      # Incremental redraw
+        └── view_handlers.cr    # Önizleme, shell (include)
 ```
 
 ### Mimari
