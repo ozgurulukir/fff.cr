@@ -21,21 +21,21 @@ module FFF
     end
 
     def max_items : Int32
-      @height - 2  # Leave room for status line + prompt line
+      @height - 2 # Leave room for status line + prompt line
     end
 
     def refresh_size
       size = Term::Screen.size
-      @height = size[0]  # rows
-      @width = size[1]   # cols
+      @height = size[0] # rows
+      @width = size[1]  # cols
     end
 
     def enter_tui
       refresh_size
       print Term::Cursor.hide
-      print "\e[?1049h"   # alternate screen buffer
-      print "\e[2J"       # clear
-      print "\e[1;1H"     # home
+      print "\e[?1049h" # alternate screen buffer
+      print "\e[2J"     # clear
+      print "\e[1;1H"   # home
       set_scroll_region
       update_window_title
       STDOUT.flush
@@ -47,7 +47,7 @@ module FFF
       print "\e[1;1H"
       print Term::Cursor.show
       reset_scroll_region
-      print "\e[?1049l"   # restore main screen
+      print "\e[?1049l" # restore main screen
       STDOUT.flush
     end
 
@@ -87,7 +87,7 @@ module FFF
     end
 
     def read_keypress : String?
-      @reader.read_keypress(raw: false)  # raw: false = actually use raw mode in term-reader
+      @reader.read_keypress(raw: false) # raw: false = actually use raw mode in term-reader
     rescue
       nil
     end

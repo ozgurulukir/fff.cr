@@ -6,6 +6,7 @@ module FFF
     getter current_dir : String
     getter list : Array(String)
     property list
+    getter full_list : Array(String)
     getter show_hidden : Bool
     getter sort_mode : Symbol
     getter sort_reverse : Bool
@@ -14,6 +15,7 @@ module FFF
       Dir.cd(start_dir)
       @current_dir = Dir.current
       @list = [] of String
+      @full_list = [] of String
       @show_hidden = (ENV["FFF_HIDDEN"]? == "1")
       @sort_mode = :name
       @sort_reverse = false
@@ -22,7 +24,7 @@ module FFF
     def read!
       @current_dir = Dir.current
       all_entries = Dir.entries(@current_dir)
-      
+
       dirs = [] of String
       files = [] of String
 
@@ -30,7 +32,7 @@ module FFF
         next if entry == "."
         next if entry == ".." && !@show_hidden
         next if !@show_hidden && entry.starts_with?('.')
-        
+
         path = File.join(@current_dir, entry)
         next unless File.exists?(path)
 
@@ -41,7 +43,8 @@ module FFF
         end
       end
 
-      @list = sort(dirs, files)
+      @full_list = sort(dirs, files)
+      @list = @full_list
     end
 
     def sort(dirs : Array(String), files : Array(String)) : Array(String)
@@ -86,9 +89,6 @@ module FFF
 
       Dir.cd(prev_dir) if Dir.exists?(prev_dir)
       read!
-
-      # Find and select the previous child
-      @list.index(prev_child)
       true
     end
 
@@ -119,11 +119,11 @@ module FFF
 
     def cycle_sort_mode
       @sort_mode = case @sort_mode
-      when :name then :size
-      when :size then :time
-      when :time then :name
-      else            :name
-      end
+                   when :name then :size
+                   when :size then :time
+                   when :time then :name
+                   else            :name
+                   end
       read!
     end
 

@@ -56,10 +56,10 @@ module FFF
 
     def new_file(dir : String, name : String) : String?
       return "Empty filename" if name.empty?
-      
+
       path = File.join(dir, name)
       return "File exists: #{name}" if File.exists?(path)
-      
+
       begin
         File.write(path, "")
         nil
@@ -70,10 +70,10 @@ module FFF
 
     def new_directory(dir : String, name : String) : String?
       return "Empty directory name" if name.empty?
-      
+
       path = File.join(dir, name)
       return "Directory exists: #{name}" if File.exists?(path)
-      
+
       begin
         Dir.mkdir(path)
         nil
@@ -99,12 +99,12 @@ module FFF
 
     def show_attributes(path : String) : String?
       return "No such file: #{path}" unless File.exists?(path)
-      
+
       info = File.info(path)
       type = File.directory?(path) ? "directory" : File.symlink?(path) ? "symlink" : "file"
       size = info.size
       perms = info.permissions.to_s
-      
+
       "Type: #{type}\nSize: #{human_size(size)}\nPermissions: #{perms}\nModified: #{info.modification_time}"
     rescue e : Exception
       e.message
@@ -137,7 +137,8 @@ module FFF
         File.write(temp_file, sources.map { |s| File.basename(s) }.join("\n"))
 
         # Open editor
-        system("#{editor} #{temp_file}")
+        editor_parts = editor.split
+        Process.run(editor_parts[0], editor_parts[1...] + [temp_file], input: STDIN, output: STDOUT, error: STDERR)
 
         # Read new names
         new_names = File.read(temp_file).lines.map(&.strip).reject(&.empty?)
@@ -164,12 +165,7 @@ module FFF
     end
 
     private def human_size(bytes : Int) : String
-      case bytes
-      when .<(1024)                then "#{bytes}B"
-      when .<(1024 * 1024)         then "#{(bytes / 1024.0).round(1).to_s.rstrip('0').rstrip('.')}K"
-      when .<(1024 * 1024 * 1024)  then "#{(bytes / (1024.0 * 1024.0)).round(1).to_s.rstrip('0').rstrip('.')}M"
-      else "#{(bytes / (1024.0 * 1024.0 * 1024.0)).round(1).to_s.rstrip('0').rstrip('.')}G"
-      end
+      FormatUtils.human_size(bytes)
     end
   end
 end

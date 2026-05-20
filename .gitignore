@@ -1,6 +1,6 @@
 # Binaries
 bin/
-fff
+/fff
 
 # Crystal
 .crystal/
@@ -30,3 +30,7 @@ coverage/
 # Temporary files
 *.tmp
 *.log
+
+# Agent tooling artifacts
+.antigravitycli/
+scripts/

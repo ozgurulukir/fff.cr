@@ -5,7 +5,7 @@ module FFF
   # InputMode - Handles interactive input modes (search, rename)
   class InputMode
     getter active : Bool
-    getter mode : Symbol  # :search, :rename, or :none
+    getter mode : Symbol # :search, :rename, or :none
     getter text : String
     getter original_list : Array(String)
 
@@ -35,17 +35,20 @@ module FFF
       return false unless @active
 
       case key
-      when "\e", "\r"  # ESC or Enter - input complete
+      when "\e", "escape"                     # ESC - cancel
         return true
-      when "\u0003", "\u007F"  # Ctrl+C or Backspace
+      when "\r", "\n", "enter"                # Enter - confirm
+        return true
+      when "\u0003"                           # Ctrl+C - cancel
+        return true
+      when "\u007F", "\b", "backspace"        # Backspace / DEL
         if @text.size > 0
           @text = @text[0...-1]
         end
-      when "\e[A", "\e[B"  # Up/Down arrows in search mode - ignore
+      when "\e[A", "\e[B", "up", "down"       # Up/Down arrows in search mode - ignore
         # Do nothing, let navigation handle these
       else
-        # Only accept printable characters
-        if key.size == 1 && key[0].ord >= 32 && key[0].ord <= 126
+        if key.bytesize > 0 && key.char_at(0).ord >= 32
           @text += key
         end
       end
@@ -91,18 +94,10 @@ module FFF
 
     def end(restore_original : Bool = true)
       @active = false
-      result = @text.dup
-      
-      if @mode == :search && restore_original
-        # Keep text for display but signal restore
-      end
-
       @mode = :none
       @text = ""
       @original_list.clear
       @old_name = ""
-      
-      result
     end
 
     def draw_header(width : Int32)
@@ -124,7 +119,7 @@ module FFF
 
     def cursor_position : Int32
       case @mode
-      when :search then 13 + @text.size  # "Search: " is 8 chars + space + cursor
+      when :search then 13 + @text.size # "Search: " is 8 chars + space + cursor
       when :rename then @term.height - 2
       else              0
       end

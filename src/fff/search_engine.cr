@@ -4,14 +4,14 @@ module FFF
     # Performs fuzzy matching on a list of paths based on filename
     def self.fuzzy_match(list : Array(String), query : String) : Array(String)
       return list if query.empty?
-      
+
       matches = [] of {String, Int32}
       list.each do |path|
         name = File.basename(path).downcase
         score = fuzzy_score(name, query.downcase)
         matches << {path, score} if score > 0
       end
-      
+
       matches.sort_by { |m| {-m[1], m[0]} }.map { |m| m[0] }
     end
 
@@ -19,7 +19,7 @@ module FFF
     def self.fuzzy_score(text : String, query : String) : Int32
       return 100 if query.empty?
       return 0 if query.size > text.size
-      
+
       # Kesin eşleşme
       return 1000 if text == query
       # Başlangıç eşleşmesi
@@ -48,12 +48,19 @@ module FFF
     # Ripgrep entegrasyonu - Dosya içeriğinde arama yapar
     def self.content_search(query : String, dir : String) : Array(String)
       return [] of String if query.size < 2
-      
-      # rg -l (list filenames) --max-count 1 (stop after first match in file)
-      cmd = "rg -l --max-count 1 \"#{query}\" \"#{dir}\""
-      output = `#{cmd} 2>/dev/null`.strip
-      
-      output.split("\n").reject(&.empty?)
+
+      output = IO::Memory.new
+      error = IO::Memory.new
+      status = Process.run(
+        "rg",
+        ["-l", "--max-count", "1", query, dir],
+        output: output,
+        error: error
+      )
+
+      return [] of String unless status.success?
+
+      output.to_s.strip.split("\n").reject(&.empty?)
     rescue
       [] of String
     end
