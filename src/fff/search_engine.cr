@@ -46,22 +46,61 @@ module FFF
     end
 
     # Ripgrep entegrasyonu - Dosya içeriğinde arama yapar
+    # Runs rg in a fiber with a 2-second timeout so the TUI never freezes.
     def self.content_search(query : String, dir : String) : Array(String)
       return [] of String if query.size < 2
 
-      output = IO::Memory.new
-      error = IO::Memory.new
-      status = Process.run(
-        "rg",
-        ["-l", "--max-count", "1", query, dir],
-        output: output,
-        error: error
-      )
+      result_chan = Channel(IO::Memory).new(1)
+      timeout_chan = Channel(Nil).new(1)
+      output_io = IO::Memory.new
+      error_io = IO::Memory.new
+      pipe_rd, pipe_wr = IO.pipe
+      pipe_err_rd, pipe_err_wr = IO.pipe
+      the_proc = uninitialized Process
 
-      rg_results = output.to_s.strip.split("\n").reject(&.empty?)
-      return [] of String if rg_results.empty?
+      # ── worker fiber ──────────────────────────────────────────────
+      # Runs rg and copies its stdout / stderr into memory.  Pipes are
+      # closed as soon as rg exits so the gets_to_end calls complete.
+      spawn do
+        the_proc = Process.new(
+          "rg", ["-l", "--max-count", "1", query, dir],
+          output: pipe_wr, error: pipe_err_wr
+        )
+        pipe_wr.close
+        pipe_err_wr.close
 
-      rg_results.map { |path| Path.new(path).absolute? ? path : ::File.join(dir, path) }
+        # Copy pipe data into the Memory objects.
+        output_io << pipe_rd.gets_to_end
+        error_io << pipe_err_rd.gets_to_end
+
+        # Signal completion.
+        result_chan.send(output_io)
+      rescue
+        result_chan.send(output_io)
+      end
+
+      # ── timeout guard ─────────────────────────────────────────────
+      # After 2 s we kill the process and close the read-ends of the
+      # pipes so the worker fiber can finish without leaking.
+      spawn do
+        sleep 2.seconds
+        Process.signal(Signal::TERM, the_proc.pid) rescue nil
+        pipe_rd.close rescue nil
+        pipe_err_rd.close rescue nil
+        timeout_chan.send(nil)
+      end
+
+      # ── first result wins ─────────────────────────────────────────
+      select
+      when output = result_chan.receive
+        timeout_chan.receive rescue nil
+        rg_text = output.to_s
+        rg_results = rg_text.strip.split("\n").reject(&.empty?)
+        return [] of String if rg_results.empty?
+        rg_results.map { |path| Path.new(path).absolute? ? path : ::File.join(dir, path) }
+      when ignored = timeout_chan.receive
+        [] of String
+      end
     rescue
       [] of String
     end
