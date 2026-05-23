@@ -3,14 +3,14 @@
 ## Öncelikli (🔴 Yüksek Etki / Düşük Çaba)
 
 ### ✅ 1. Loading Spinner
-- [x] **Durum:** Pending
+- [x] **Durum:** ✅ Done — commit 67ce274
 - **Dosya:** `src/fff/ui_renderer.cr` — `draw_all_lines`
 - **Açıklama:** Statik `"Loading..."` yerine dönen spinner karakterleri çiz. 10 karelik braille spinner (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`), zaman tabanlı animasyon.
 - **Çaba:** Küçük
 - **Bağımlılık:** Yok
 
 ### ✅ 2. Top Bar Zenginleştirme
-- [x] **Durum:** Pending
+- [x] **Durum:** ✅ Done — commit 67ce274
 - **Dosyalar:** `src/fff/draw_state.cr`, `src/fff/file_manager.cr`, `src/fff/ui_renderer.cr`
 - **Açıklama:** Top bar'a toplam dosya sayısı, gizli dosya sayısı, toplam boyut ekle. Örn: `~/proj (main)  47 files  12.4k  ↓`. `DirectoryManager`'da hesaplanır, `DrawState`'e alan eklenir.
 - **Çaba:** Orta
@@ -24,7 +24,7 @@
 - **Bağımlılık:** Yok
 
 ### ✅ 4. Fuzzy Highlight Geliştirme
-- [x] **Durum:** Pending
+- [x] **Durum:** ✅ Done — commit 67ce274
 - **Dosya:** `src/fff/ui_renderer.cr` — `draw_fuzzy_name`
 - **Açıklama:** Eşleşen karakterleri sadece renk değil, **kalın + altı çizili** yap. `Term::Color.truecolor_string` bold parametresi var mı kontrol et; yoksa ANSI `\e[1m` + `\e[4m` escape kodları ekle.
 - **Çaba:** Küçük
