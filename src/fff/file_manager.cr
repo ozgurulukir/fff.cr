@@ -145,7 +145,9 @@ module FFF
         sort_reverse: @dir_manager.sort_reverse,
         show_help: @show_help,
         git_branch: @git_branch,
-        git_status: @git_status
+        git_status: @git_status,
+        total_size: @dir_manager.total_size,
+        hidden_count: @dir_manager.hidden_count,
       )
       @renderer.redraw(state)
 

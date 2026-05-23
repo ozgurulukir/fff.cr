@@ -10,6 +10,8 @@ module FFF
     getter show_hidden : Bool
     getter sort_mode : Symbol
     getter sort_reverse : Bool
+    getter total_size : Int64
+    getter hidden_count : Int32
 
     def initialize(start_dir : String)
       Dir.cd(start_dir)
@@ -19,6 +21,8 @@ module FFF
       @show_hidden = (ENV["FFF_HIDDEN"]? == "1")
       @sort_mode = :name
       @sort_reverse = false
+      @total_size = 0_i64
+      @hidden_count = 0
     end
 
     def read!
@@ -27,6 +31,8 @@ module FFF
 
       dirs = [] of String
       files = [] of String
+      @hidden_count = 0
+      @total_size = 0_i64
 
       all_entries.each do |entry|
         next if entry == "."
@@ -40,7 +46,12 @@ module FFF
           dirs << path
         else
           files << path
+          if info = File.info?(path)
+            @total_size += info.size
+          end
         end
+
+        @hidden_count += 1 if entry.starts_with?('.')
       end
 
       @full_list = sort(dirs, files)

@@ -67,7 +67,13 @@ module FFF
 
       parts = [display_path]
       parts << "(#{state.git_branch})" unless state.git_branch.empty?
-      left = parts.join(" ")
+
+      # File count + total size badge
+      file_count = state.list.size
+      size_str = state.total_size > 0 ? FormatUtils.human_size(state.total_size) : "—"
+      parts << "#{file_count} files  #{size_str}"
+
+      left = parts.join("  ")
 
       right = if state.search_mode
                 before = state.search_term[0...state.cursor_pos]
@@ -75,7 +81,8 @@ module FFF
                 "Search: #{before}|#{after}"
               else
                 sort_indicator = state.sort_reverse ? " ↑" : " ↓"
-                "#{state.scroll + 1}/#{state.list.size}#{sort_indicator}"
+                hidden_note = state.hidden_count > 0 ? " (#{state.hidden_count} hidden)" : ""
+                "#{state.scroll + 1}/#{state.list.size}#{hidden_note}#{sort_indicator}"
               end
 
       avail = @term.width
@@ -142,8 +149,10 @@ module FFF
     private def draw_all_lines(list : Array(String), scroll : Int32, page_offset : Int32, marked : Set(String), search_mode : Bool, search_term : String, loading : Bool)
       if loading
         row = (@term.height / 2).to_i
-        @term.move_to(row, (@term.width / 2).to_i - 5)
-        print Term::Color.truecolor_string("Loading...", fore: Term::Color.color(:yellow))
+        col = (@term.width / 2).to_i - 7
+        @term.move_to(row, {col, 0}.max)
+        spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][(Time.utc.to_unix * 10 % 10).to_i]
+        print Term::Color.truecolor_string(" #{spinner} Loading…", fore: Term::Color.color(:yellow))
         return
       end
 
@@ -188,7 +197,7 @@ module FFF
       query_idx = 0
       name.each_char do |char|
         if query_idx < query.size && char.downcase == query[query_idx]
-          print Term::Color.truecolor_string(char.to_s, fore: Term::Color.color(:yellow), back: Term::Color.color(:black))
+          print Term::Color.truecolor_string(char.to_s, fore: Term::Color.color(:yellow), back: Term::Color.color(:black), bold: true, underline: true)
           query_idx += 1
         else
           print Term::Color.truecolor_string(char.to_s, fore: Term::Color.color(base_color))
