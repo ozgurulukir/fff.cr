@@ -99,8 +99,8 @@ module FFF
       @term.move_to(@term.height - 1, 0)
       print "\e[K"
 
-      parts = [] of String
-
+      # ── left: file info ────────────────────────────────────────
+      left_parts = [] of String
       if state.list.size > 0 && state.scroll < state.list.size
         path = state.list[state.scroll]
         name = File.basename(path)
@@ -114,19 +114,23 @@ module FFF
         if info
           size = FormatUtils.human_size(info.size)
           perms = permission_string(info)
-          parts << "#{name} | #{size} #{perms}"
+          left_parts << "#{name}  #{size} #{perms}"
         else
-          parts << name
+          left_parts << name
         end
       end
+      left = left_parts.join("")
+
+      # ── right: clipboard · marks · sort · git ──────────────────
+      right_parts = [] of String
 
       if state.clipboard_size > 0
         icon = state.clipboard_mode == :copy ? "📋" : "✂️"
-        parts << "#{icon}#{state.clipboard_size}"
+        right_parts << "#{icon}#{state.clipboard_size}"
       end
 
       if state.marked.size > 0
-        parts << "●#{state.marked.size}"
+        right_parts << "●#{state.marked.size}"
       end
 
       sort_label = case state.sort_mode
@@ -135,15 +139,30 @@ module FFF
                    else            "name"
                    end
       arrow = state.sort_reverse ? "↑" : "↓"
-      parts << "#{sort_label}#{arrow}"
+      right_parts << "#{sort_label}#{arrow}"
 
       unless state.git_status.empty?
-        parts << state.git_status
+        right_parts << colorize_git_status(state.git_status)
       end
 
-      line = parts.join(" | ")
-      line = line.ljust(@term.width)[0...@term.width]
+      right = right_parts.join("  ")
+      # pad right side so git status aligns to terminal right edge
+      line = left.ljust(@term.width - right.size - 1) + " " + right
+      line = line[0...@term.width]
+
       print Term::Color.truecolor_string(line, fore: Term::Color.color(:white), back: Term::Color.color(:black))
+    end
+
+    private def colorize_git_status(status : String) : String
+      status.chars.map do |c|
+        case c
+        when '+' then Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:green))
+        when '~' then Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:yellow))
+        when '?' then Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:cyan))
+        when '-' then Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:red))
+        else          Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:white))
+        end
+      end.join
     end
 
     private def draw_all_lines(list : Array(String), scroll : Int32, page_offset : Int32, marked : Set(String), search_mode : Bool, search_term : String, loading : Bool)
@@ -176,18 +195,30 @@ module FFF
       selected = (idx == scroll)
       is_marked = marked.includes?(path)
       color = get_file_color(path)
+
+      # Visual suffix: 📁 dir  ·  * executable  ·  @ symlink
+      suffix = if File.symlink?(path)
+                 "@"
+               elsif File.directory?(path)
+                 "/"
+               elsif File.info?(path).try(&.permissions.includes?(::File::Permissions::OtherExecute))
+                 "*"
+               else
+                 ""
+               end
+      display_name = name + suffix
       prefix = is_marked ? " ● " : "   "
 
       @term.move_to(row + 1, 0)
       if selected
-        line_text = "#{prefix}#{name}".ljust(@term.width)
+        line_text = "#{prefix}#{display_name}".ljust(@term.width)
         print Term::Color.truecolor_string(line_text, fore: Term::Color.color(:white), back: Term::Color.color(:blue))
       else
         print Term::Color.truecolor_string(prefix, fore: Term::Color.color(is_marked ? :yellow : :white))
         if search_mode && !search_term.empty? && !search_term.starts_with?('!')
-          draw_fuzzy_name(name, search_term.downcase, color)
+          draw_fuzzy_name(display_name, search_term.downcase, color)
         else
-          print Term::Color.truecolor_string(name, fore: Term::Color.color(color))
+          print Term::Color.truecolor_string(display_name, fore: Term::Color.color(color))
         end
         print "\e[K"
       end
