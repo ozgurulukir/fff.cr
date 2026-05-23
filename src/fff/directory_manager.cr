@@ -34,24 +34,22 @@ module FFF
       @hidden_count = 0
       @total_size = 0_i64
 
-      all_entries.each do |entry|
-        next if entry == "."
-        next if entry == ".." && !@show_hidden
-        next if !@show_hidden && entry.starts_with?('.')
+       all_entries.each do |entry|
+         next if entry == "." || entry == ".."
+         next if !@show_hidden && entry.starts_with?('.')
 
         path = File.join(@current_dir, entry)
         next unless File.exists?(path)
 
         if File.directory?(path)
           dirs << path
-        else
-          files << path
-          if info = File.info?(path)
-            @total_size += info.size
-          end
-        end
-
-        @hidden_count += 1 if entry.starts_with?('.')
+         else
+           files << path
+           if info = File.info?(path)
+             @total_size += info.size
+           end
+           @hidden_count += 1 if entry.starts_with?('.')
+         end
       end
 
       @full_list = sort(dirs, files)

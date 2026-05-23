@@ -2,9 +2,11 @@ require "file"
 require "file_utils"
 require "process"
 require "signal"
+require "time"
 require "./terminal"
 require "./config"
 require "./directory_manager"
+require "./draw_state"
 require "./ui_renderer"
 require "./input_mode"
 require "./file_operations"
@@ -20,37 +22,41 @@ module FFF
     include FileOpHandlers
     include ViewHandlers
 
-    @term : Terminal
-    @config : Config
-    @dir_manager : DirectoryManager
-    @renderer : UIRenderer
-    @input_mode : InputMode
-    @file_ops : FileOperations
+     # ── Public access (used by tests & handler mixins) ────────────────────────
+    # read/write
+    property scroll           : Int32
+    property page_offset      : Int32
+    property marked           : Set(String)
+    property clipboard        : Array(String)
+    property clipboard_mode   : Symbol
+    property dir_manager      : DirectoryManager
+    property input_mode       : InputMode
+    property error_msg        : String?
+    property error_expires    : Time?
+    property loading          : Bool
+    property show_help        : Bool
+    property git_branch       : String
+    property git_status       : String
+    property force_full_redraw : Bool
+     # read/write
+     property renderer         : UIRenderer
+     getter term
+     getter prev_scroll        : Int32
+    getter prev_page_offset   : Int32
+    getter config             : Config
+    getter fff_level          : Int32
+    getter running            : Bool
+    getter picker_mode        : Bool
+    getter git_dir_cache      : String
+    getter file_ops           : FileOperations
+    getter prev_dir           : String?
+    getter prev_child         : String?
+    getter prev_list_size     : Int32
 
-    @scroll : Int32
-    @page_offset : Int32
-    @marked : Set(String)
-    @clipboard : Array(String)
-    @clipboard_mode : Symbol
-    @running : Bool
-    @prev_dir : String?
-    @prev_child : String?
-    @error_msg : String?
-    @error_expires : Time?
-    @prev_scroll : Int32
-    @prev_page_offset : Int32
-    @fff_level : Int32
-    @picker_mode : Bool
-    @loading : Bool
-    @prev_list_size : Int32
-    @force_full_redraw : Bool
-    @show_help : Bool
-    @git_branch : String
-    @git_status : String
-    @git_dir_cache : String
+    # ── Private state not exposed publicly ────────────────────────────────────
 
-    def initialize(@config : Config, start_dir : String, @picker_mode = false)
-      @term = Terminal.new
+    def initialize(@config : Config, start_dir : String, @picker_mode = false, term : Terminal? = nil)
+      @term = term || Terminal.new
       @dir_manager = DirectoryManager.new(start_dir)
       @renderer = UIRenderer.new(@term, @config)
       @input_mode = InputMode.new(@term)
@@ -99,11 +105,11 @@ module FFF
       end
     end
 
-    private def ensure_dirs
+    def ensure_dirs
       FileUtils.mkdir_p(File.join(ENV["HOME"], ".cache", "fff")) if @config.cd_on_exit
     end
 
-    private def handle_resize
+    def handle_resize
       @term.refresh_size
       max = @term.max_items
       @scroll = {@scroll, @dir_manager.list.size - 1}.min if @dir_manager.list.size > 0
@@ -112,7 +118,7 @@ module FFF
       redraw(true)
     end
 
-    private def redraw(full = false)
+    def redraw(full = false)
       check_error_expiry
 
       list_changed = @dir_manager.list.size != @prev_list_size
@@ -120,7 +126,7 @@ module FFF
 
       update_git_branch
 
-      full_draw = full || @force_full_redraw || @input_mode.active || list_changed || !@error_msg.nil? || @loading || @show_help
+      full_draw = full || @force_full_redraw || @input_mode.active || list_changed || !@error_msg.nil? || @loading || @show_help || @prev_page_offset != @page_offset
       @force_full_redraw = false
 
       state = DrawState.new(
@@ -155,7 +161,7 @@ module FFF
       @prev_page_offset = @page_offset
     end
 
-    private def update_git_branch
+    def update_git_branch
       dir = @dir_manager.current_dir
       @git_dir_cache ||= ""
       if @git_dir_cache == dir
@@ -179,7 +185,7 @@ module FFF
       @git_status = ""
     end
 
-    private def update_git_status(dir : String)
+    def update_git_status(dir : String)
       output = IO::Memory.new
       error = IO::Memory.new
       status = Process.run("git", ["status", "--porcelain"], output: output, error: error, chdir: dir)
@@ -216,7 +222,7 @@ module FFF
       @git_status = parts.join(" ")
     end
 
-    private def check_error_expiry
+    def check_error_expiry
       if expires = @error_expires
         if Time.utc > expires
           @error_msg = nil
@@ -225,7 +231,7 @@ module FFF
       end
     end
 
-    private def event_loop
+    def event_loop
       while @running
         redraw
 
@@ -238,7 +244,7 @@ module FFF
       perform_shutdown
     end
 
-    private def route_keypress(key : String)
+    def route_keypress(key : String)
       if @input_mode.active
         handle_input_mode(key)
       else
@@ -246,13 +252,13 @@ module FFF
       end
     end
 
-    private def perform_shutdown
+    def perform_shutdown
       @term.leave_tui
       save_cd_on_exit if @config.cd_on_exit && !@picker_mode
       write_picker_file if @picker_mode
     end
 
-    private def handle_input_mode(key : String)
+    def handle_input_mode(key : String)
       if @show_help
         @show_help = false
         @force_full_redraw = true
@@ -281,13 +287,13 @@ module FFF
       end
     end
 
-    private def handle_search_complete
+    def handle_search_complete
       @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
       clamp_scroll
       @input_mode.end(false)
     end
 
-    private def handle_rename_complete
+    def handle_rename_complete
       if @scroll < @dir_manager.list.size
         old_path = @dir_manager.list[@scroll]
         error = @input_mode.apply_rename(old_path)
@@ -297,11 +303,11 @@ module FFF
       @input_mode.end
     end
 
-    private def live_search
+    def live_search
       @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
     end
 
-    private def handle_key(key : String)
+    def handle_key(key : String)
       if @show_help
         @show_help = false
         @force_full_redraw = true
@@ -350,13 +356,13 @@ module FFF
       end
     end
 
-    private def start_search
+    def start_search
       @dir_manager.list = @dir_manager.full_list.dup
       @input_mode.start_search(@dir_manager.list)
       @force_full_redraw = true
     end
 
-    private def start_rename
+    def start_rename
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
@@ -366,7 +372,7 @@ module FFF
       @force_full_redraw = true
     end
 
-    private def with_tui_restored(&)
+    def with_tui_restored(&)
       @term.leave_tui
       yield
     ensure
@@ -374,7 +380,7 @@ module FFF
       @force_full_redraw = true
     end
 
-    private def text_file?(path : String) : Bool
+    def text_file?(path : String) : Bool
       return false if File.directory?(path)
 
       target = File.symlink?(path) ? File.realpath(path) : path
@@ -386,7 +392,7 @@ module FFF
       text_exts.includes?(ext) || mime_is_text?(path)
     end
 
-    private def mime_is_text?(path : String) : Bool
+    def mime_is_text?(path : String) : Bool
       output = IO::Memory.new
       status = Process.run("file", ["--mime-type", path], output: output, error: STDERR)
       status.success? && output.to_s.includes?("text/")
@@ -394,31 +400,31 @@ module FFF
       false
     end
 
-    private def open_in_editor(path : String)
+    def open_in_editor(path : String)
       with_tui_restored { Process.run(@config.editor, [path], input: STDIN, output: STDOUT, error: STDERR) }
     end
 
-    private def open_with_opener(path : String)
+    def open_with_opener(path : String)
       with_tui_restored { Process.run(@config.opener, [path], input: STDIN, output: STDOUT, error: STDERR) }
     end
 
-    private def marked_or_current : Array(String)
+    def marked_or_current : Array(String)
       return @marked.to_a if @marked.size > 0
       return [] of String if @dir_manager.list.empty?
       return [] of String if @scroll >= @dir_manager.list.size
       [@dir_manager.list[@scroll]]
     end
 
-    private def quit
+    def quit
       @running = false
     end
 
-    private def save_cd_on_exit
+    def save_cd_on_exit
       last_file = File.join(ENV["HOME"], ".cache", "fff", "opened_file")
       File.write(last_file, @dir_manager.current_dir)
     end
 
-    private def write_picker_file
+    def write_picker_file
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
@@ -426,22 +432,21 @@ module FFF
       File.write(last_file, @dir_manager.list[@scroll])
     end
 
-    private def toggle_help
+    def toggle_help
       @show_help = !@show_help
       @force_full_redraw = true
     end
 
-    private def clamp_scroll
+    def clamp_scroll
       if @dir_manager.list.size > 0 && @scroll >= @dir_manager.list.size
         @scroll = @dir_manager.list.size - 1
       end
     end
 
-    private def show_error(message : String?)
+    def show_error(message : String?)
       return if message.nil? || message.empty?
-
       @error_msg = message
-      @error_expires = Time.utc + 2.seconds
+      @error_expires = Time.utc + Time::Span.new(seconds: 2)
     end
   end
 end

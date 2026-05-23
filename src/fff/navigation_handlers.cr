@@ -1,42 +1,42 @@
 module FFF
   module NavigationHandlers
-    private def cursor_up
+    def cursor_up
       return if @dir_manager.list.empty?
       @scroll = {@scroll - 1, 0}.max
       adjust_page_offset
     end
 
-    private def cursor_down
+    def cursor_down
       return if @dir_manager.list.empty?
       @scroll = {@scroll + 1, @dir_manager.list.size - 1}.min
       adjust_page_offset
     end
 
-    private def page_up
+    def page_up
       return if @dir_manager.list.empty?
       @scroll = {@scroll - @term.max_items, 0}.max
       adjust_page_offset
     end
 
-    private def page_down
+    def page_down
       return if @dir_manager.list.empty?
       @scroll = {@scroll + @term.max_items, @dir_manager.list.size - 1}.min
       adjust_page_offset
     end
 
-    private def go_top
+    def go_top
       return if @dir_manager.list.empty?
       @scroll = 0
       @page_offset = 0
     end
 
-    private def go_bottom
+    def go_bottom
       return if @dir_manager.list.empty?
       @scroll = @dir_manager.list.size - 1
       adjust_page_offset
     end
 
-    private def adjust_page_offset
+    def adjust_page_offset
       max = @term.max_items
       if @scroll < @page_offset
         @page_offset = @scroll
@@ -45,7 +45,7 @@ module FFF
       end
     end
 
-    private def go_parent
+    def go_parent
       return unless @dir_manager.go_parent
 
       if child = @prev_child
@@ -55,13 +55,13 @@ module FFF
       @page_offset = 0
     end
 
-    private def go_home
+    def go_home
       @dir_manager.go_home
       @scroll = 0
       @page_offset = 0
     end
 
-    private def go_prev
+    def go_prev
       return unless @dir_manager.go_prev(@prev_dir, @prev_child)
 
       if prev_child = @prev_child
@@ -71,7 +71,7 @@ module FFF
       @page_offset = 0
     end
 
-    private def go_to_dir
+    def go_to_dir
       dest = with_tui_restored { @term.ask("Go to directory: ") }
 
       return if dest.nil? || dest.empty?
@@ -87,14 +87,14 @@ module FFF
       @page_offset = 0
     end
 
-    private def go_to_trash
+    def go_to_trash
       trash_dir = File.join(ENV["HOME"], ".local", "share", "fff", "trash")
       return unless @dir_manager.go_to_trash(trash_dir)
       @scroll = 0
       @page_offset = 0
     end
 
-    private def jump_to_bookmark(key : String)
+    def jump_to_bookmark(key : String)
       path = @config.favorites[key]?
       return if path.nil?
 

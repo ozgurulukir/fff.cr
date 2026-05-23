@@ -159,6 +159,19 @@ make format     # crystal tool format
 make lint       # ameba static analysis
 ```
 
+### Running Tests
+
+```bash
+make test           # all specs
+crystal spec spec/integration/navigation_integration_spec.cr
+crystal spec spec/integration/advanced_integration_spec.cr
+```
+
+#### Test Architecture
+- **91 unit tests** across 6 modules (config, directory_manager, file_service, input_mode, search_engine, ui_renderer)
+- **40 integration tests** across 2 suites (navigation: 30, advanced: 10) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
+- Both specs run headless; no terminal or display required
+
 ### Patches
 
 The project patches several `crystal-term` shard bugs in `lib/` after `shards install`. See `AGENTS.md` for details.

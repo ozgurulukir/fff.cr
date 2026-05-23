@@ -116,11 +116,14 @@ module FFF
 
       begin
         info = File.info(path)
-        if info.permissions.includes?(::File::Permissions::OtherExecute)
-          File.chmod(path, info.permissions.value & ~::File::Permissions::OtherExecute.value)
+        has_exec = info.permissions.includes?(::File::Permissions::OwnerExecute) ||
+                    info.permissions.includes?(::File::Permissions::GroupExecute) ||
+                    info.permissions.includes?(::File::Permissions::OtherExecute)
+        if has_exec
+          Process.run("chmod", ["-x", path])
           "Removed executable bit"
         else
-          File.chmod(path, info.permissions.value | ::File::Permissions::OtherExecute.value)
+          Process.run("chmod", ["+x", path])
           "Added executable bit"
         end
       rescue e : Exception

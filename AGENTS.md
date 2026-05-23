@@ -152,3 +152,30 @@ In search and rename modes:
 - **Redraw**: Optimized double-buffered incremental drawing loop.
 - **Lazy Content Search**: Live search queries only update fuzzy file list scanning. Expensive content queries (triggered via `!`) are deferred until the user presses **Enter**, preventing TUI lag and freezes while typing.
 
+## Test Infrastructure & Lessons Learned
+
+### MockTerminal — No `instance_variable_get/set` in Crystal
+Crystal lacks Ruby-style `instance_variable_get/set`. All test-visible state must be exposed via `property`/`getter` declarations. `FileManager` exposes `scroll`, `page_offset`, `marked`, `clipboard`, `error_msg`, `renderer`, `dir_manager`, `input_mode`, and `error_expires`. Handler methods (`NavigationHandlers`, `FileOpHandlers`, `ViewHandlers`) are declared `def` instead of `private def` to allow test invocation.
+
+### MockTerminal Construction
+Both integration specs use `MockTerminal < FFF::Terminal` with an internal `@read_buffer` key queue (overrides `read_keypress`) and `@answer_queue` prompt queue. `FileManager.initialize` accepts an optional `term : Terminal?` parameter for injection. The advanced spec previously used a standalone class with struct-based input — refactored to subclass `FFF::Terminal` to avoid type-acceptance issues in inheritance-sensitive methods.
+
+### `File.chmod` Bitwise Operations Broken (Crystal 1.20.1)
+`File.chmod(Int32, Path)` with union-type or permission bitwise OR fails at compile time. **Fix**: `Process.run("chmod", ["+x"/"-x", path])` used in both `file_operations.cr` and all specs that manipulate permissions.
+
+### `File.executable?` Deprecated
+Crystal 1.20 deprecates `File.executable?`. **Fix**: `File::Info.executable?(path)` — class method that opens and checks the bit internally.
+
+### `Process.kill` Deprecated
+`Process.kill(signal, pid)` is removed. **Fix**: `Process.signal(Signal::TERM, pid)` (and `Signal::KILL` for forceful terminations).
+
+### `dir.entries` Double-Filtering Bug (`.`/`..` + Hidden)
+`Dir.entries` returns `"."` and `".."`. If both are filtered first and `hidden_count` runs afterward, `"."` and `".."` match `starts_with?('.')` → hidden count inflated by 2. **Fix**: filter `"."` + `".."` in a single guard before `hidden_count` increment; `@hidden_count += 1` was also moved inside the `else` branch so directories are not counted in `hidden_count` (only regular files carry that metadata).
+
+### `make clean` Removes `bin/` Directory
+`Makefile.clean` uses `rm -rf bin/` which removes the directory itself, causing `make build` linker to fail on subsequent invocation. **Workaround**: `mkdir -p bin` before `make build`.
+
+### Build Order Matters
+`make build` → new binary replaces `bin/fff` atomically. Always rebuild (`make clean` + `make build`) after renaming `property` declarations that affect layout, since incremental builds may not link correctly after struct field order changes.
+
+

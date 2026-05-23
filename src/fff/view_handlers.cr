@@ -1,6 +1,6 @@
 module FFF
   module ViewHandlers
-    private def preview_file
+    def preview_file
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
@@ -18,7 +18,7 @@ module FFF
       end
     end
 
-    private def external_preview(path : String) : Bool
+    def external_preview(path : String) : Bool
       if bat = Process.find_executable("bat")
         with_tui_restored { Process.run(bat, ["--paging=always", path], input: STDIN, output: STDOUT, error: STDERR) }
         true
@@ -30,7 +30,7 @@ module FFF
       end
     end
 
-    private def builtin_preview(path : String)
+    def builtin_preview(path : String)
       @term.leave_tui
       if File.directory?(path)
         puts "Directory: #{File.basename(path)}"
@@ -61,7 +61,7 @@ module FFF
       @force_full_redraw = true
     end
 
-    private def show_attributes
+    def show_attributes
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
@@ -79,7 +79,7 @@ module FFF
       @force_full_redraw = true
     end
 
-    private def spawn_shell
+    def spawn_shell
       @fff_level += 1
       ENV["FFF_LEVEL"] = @fff_level.to_s
 

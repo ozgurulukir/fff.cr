@@ -1,6 +1,6 @@
 module FFF
   module FileOpHandlers
-    private def enter_item
+    def enter_item
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
@@ -20,7 +20,7 @@ module FFF
       end
     end
 
-    private def new_file
+    def new_file
       name = with_tui_restored { @term.ask("New file name: ") }
 
       return if name.nil? || name.empty?
@@ -30,7 +30,7 @@ module FFF
       @dir_manager.read!
     end
 
-    private def new_directory
+    def new_directory
       name = with_tui_restored { @term.ask("New directory name: ") }
 
       return if name.nil? || name.empty?
@@ -40,7 +40,7 @@ module FFF
       @dir_manager.read!
     end
 
-    private def rename_item
+    def rename_item
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
@@ -66,7 +66,7 @@ module FFF
       end
     end
 
-    private def bulk_rename
+    def bulk_rename
       sources = marked_or_current
       error = with_tui_restored { @file_ops.bulk_rename(sources, @config.editor) }
 
@@ -75,7 +75,7 @@ module FFF
       @dir_manager.read!
     end
 
-    private def create_symlink
+    def create_symlink
       sources = marked_or_current
       error = @file_ops.create_symlink(sources, @dir_manager.current_dir)
 
@@ -84,7 +84,7 @@ module FFF
       @dir_manager.read!
     end
 
-    private def toggle_mark
+    def toggle_mark
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
@@ -96,7 +96,7 @@ module FFF
       end
     end
 
-    private def toggle_mark_all
+    def toggle_mark_all
       if @marked.size == @dir_manager.list.size
         @marked.clear
       else
@@ -104,17 +104,17 @@ module FFF
       end
     end
 
-    private def yank_files
+    def yank_files
       @clipboard = marked_or_current
       @clipboard_mode = :copy if @clipboard.size > 0
     end
 
-    private def cut_files
+    def cut_files
       @clipboard = marked_or_current
       @clipboard_mode = :cut if @clipboard.size > 0
     end
 
-    private def paste_files
+    def paste_files
       return if @clipboard.empty?
 
       error = @file_ops.paste_files(@clipboard, @dir_manager.current_dir, @clipboard_mode)
@@ -124,7 +124,7 @@ module FFF
       @dir_manager.read!
     end
 
-    private def delete_files
+    def delete_files
       sources = marked_or_current
       return if sources.empty?
 
@@ -140,7 +140,7 @@ module FFF
       @dir_manager.read!
     end
 
-    private def toggle_executable
+    def toggle_executable
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
