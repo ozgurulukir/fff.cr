@@ -17,7 +17,7 @@
 - **Bağımlılık:** Yok
 
 ### ✅ 3. Status Bar Sectioning
-- [ ] **Durum:** Pending
+- [x] **Durum:** ✅ Done — commit 614a711
 - **Dosya:** `src/fff/ui_renderer.cr` — `draw_status`
 - **Açıklama:** Sol tarafta dosya adı + meta, sağda clipboard + mark + git durumu. Zaten `|` ile ayrılıyor, sağ tarafı `ljust` ile sağa yasla.
 - **Çaba:** Orta
@@ -34,14 +34,14 @@
 
 ## Orta Öncelik (🟡 Orta Etki / Orta Çaba)
 
-### 5. Directory/Symlink Görsel Ayırıcıları
-- [ ] **Durum:** Pending
+### ✅ 5. Directory/Symlink Görsel Ayırıcıları
+- [x] **Durum:** ✅ Done — commit 614a711
 - **Dosya:** `src/fff/ui_renderer.cr` — `draw_line`
 - **Açıklama:** Klasörler için `📁`, çalıştırılabilir dosyalar için `*` ekle. Mevcut `/` (dir) ve `@` (symlink) korunsun.
 - **Çaba:** Orta
 
-### 6. Git Status Renk Kodlaması
-- [ ] **Durum:** Pending
+### ✅ 6. Git Status Renk Kodlaması
+- [x] **Durum:** ✅ Done — commit 614a711
 - **Dosya:** `src/fff/ui_renderer.cr` — `draw_status`
 - **Açıklama:** `+` (staged) → green, `~` (modified) → yellow, `?` (untracked) → cyan, `-` (deleted) → red.
 - **Çaba:** Orta
