@@ -10,7 +10,7 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 - **Fast**: `LS_COLORS` caching, optimized incremental render loop, no flicker
 - **Navigable Search**: Fuzzy filename filtering + ripgrep content search (`!` prefix), all while keeping cursor navigation live. `←`/`→` to move within the search query, `Backspace`/`Delete` to edit.
 - **File Operations**: Copy, move, delete (trash), rename, bulk rename, symlink
-- **Smart Preview**: `bat` → `less` → builtin fallback chain; file attributes via `stat`
+- **Smart Preview**: `bat` → `less` → builtin fallback chain; file attributes via `File::Info`/`stat`
 - **Picker Mode**: `-p` flag writes selection to `~/.cache/fff/opened_file` for external tool integration
 - **Secure**: All external commands via `Process.run` (no shell injection), pre-operation writability checks
 - **Customizable**: Full keybinding control via environment variables or `~/.config/fff/config.json`
@@ -99,7 +99,7 @@ Press `i` to preview a file. The preview chain tries:
 
 1. `bat --paging=always` — syntax-highlighted, scrollable
 2. `less` — paged, searchable
-3. Built-in — first 50 lines for plain text
+3. Built-in — plain text with full scroll support
 
 Directories always use the built-in preview.
 
