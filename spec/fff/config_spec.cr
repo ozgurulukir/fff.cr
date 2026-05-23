@@ -36,30 +36,39 @@ describe FFF::Config do
     end
   end
 
-  describe ".parse_ls_colors" do
+  describe "#parse_ls_colors" do
     it "parses extension-based LS_COLORS" do
       SpecHelper.mock_ls_colors({
         "*.txt" => "01;33",
         "*.md"  => "01;34",
       }) do
-        ls_colors = FFF::Config.parse_ls_colors(ENV["LS_COLORS"] || "")
+        config = FFF::Config.new
+        ls_colors = config.ls_colors
         ls_colors["txt"].should eq(:yellow)
         ls_colors["md"].should eq(:blue)
       end
     end
 
     it "handles empty LS_COLORS" do
-      ls_colors = FFF::Config.parse_ls_colors("")
-      ls_colors.should be_empty
+      original = ENV["LS_COLORS"]?
+      ENV["LS_COLORS"] = ""
+      config = FFF::Config.new
+      ENV["LS_COLORS"] = original if original
+      config.ls_colors.should be_empty
     end
 
     it "handles malformed LS_COLORS" do
-      colors = "*.txt=01;33:invalid:*.md=01;34"
-      ls_colors = FFF::Config.parse_ls_colors(colors)
-
-      ls_colors["txt"].should eq(:yellow)
-      ls_colors["md"].should eq(:blue)
-      ls_colors.keys.should_not contain("invalid")
+      SpecHelper.mock_ls_colors({
+        "*.txt" => "01;33",
+        "invalid" => "xxx",
+        "*.md"  => "01;34",
+      }) do
+        config = FFF::Config.new
+        ls_colors = config.ls_colors
+        ls_colors["txt"].should eq(:yellow)
+        ls_colors["md"].should eq(:blue)
+        ls_colors.keys.should_not contain("invalid")
+      end
     end
   end
 

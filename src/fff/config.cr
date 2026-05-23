@@ -45,6 +45,44 @@ module FFF
     getter favorites : Hash(String, String)
     getter bookmarks : Hash(String, String)
 
+    # ── Phase 14: key binding defaults — single source of truth ──
+    # key_* ivar = ENV[env]? || json_get(json, *json_keys) || default
+    # Order mirrors this table. Add new keys here + getter + key_bindings entry.
+    KEY_DEFAULTS = {
+      up:        ["FFF_KEY_UP",         %w[keys up],         "k"],
+      down:      ["FFF_KEY_DOWN",       %w[keys down],       "j"],
+      enter:     ["FFF_KEY_ENTER",      %w[keys enter],      "l"],
+      quit:      ["FFF_KEY_QUIT",       %w[keys quit],       "q"],
+      search:    ["FFF_KEY_SEARCH",     %w[keys search],     "/"],
+      parent:    ["FFF_KEY_PARENT",     %w[keys parent],     "h"],
+      mark:      ["FFF_KEY_MARK",       %w[keys mark],       " "],
+      mark_all:  ["FFF_KEY_MARK_ALL",   %w[keys mark_all],   "m"],
+      copy:      ["FFF_KEY_COPY",       %w[keys copy],       "y"],
+      move:      ["FFF_KEY_MOVE",       %w[keys move],       "v"],
+      delete:    ["FFF_KEY_DELETE",     %w[keys delete],     "d"],
+      new_dir:   ["FFF_KEY_NEW_DIR",    %w[keys new_dir],    "n"],
+      paste:     ["FFF_KEY_PASTE",      %w[keys paste],      "p"],
+      preview:   ["FFF_KEY_PREVIEW",    %w[keys preview],    "i"],
+      page_up:   ["FFF_KEY_PAGE_UP",    %w[keys page_up],    "\e[5~"],
+      page_down: ["FFF_KEY_PAGE_DOWN",  %w[keys page_down],  "\e[6~"],
+      top:       ["FFF_KEY_TOP",        %w[keys top],        "g"],
+      bottom:    ["FFF_KEY_BOTTOM",     %w[keys bottom],     "G"],
+      rename:    ["FFF_KEY_RENAME",     %w[keys rename],     "r"],
+      shell:     ["FFF_KEY_SHELL",      %w[keys shell],      "s"],
+      hidden:    ["FFF_KEY_HIDDEN",     %w[keys hidden],     "."],
+      home:      ["FFF_KEY_HOME",       %w[keys home],       "~"],
+      prev:      ["FFF_KEY_PREVIOUS",   %w[keys previous],   "-"],
+      refresh:   ["FFF_KEY_REFRESH",    %w[keys refresh],    "e"],
+      mkfile:    ["FFF_KEY_MKFILE",     %w[keys mkfile],     "f"],
+      attributes:["FFF_KEY_ATTRIBUTES", %w[keys attributes], "x"],
+      executable:["FFF_KEY_EXECUTABLE", %w[keys executable], "X"],
+      go_dir:    ["FFF_KEY_GO_DIR",     %w[keys go_dir],     ":"],
+      go_trash:  ["FFF_KEY_GO_TRASH",   %w[keys go_trash],   "t"],
+      bulk_rename:["FFF_KEY_BULK_RENAME",%w[keys bulk_rename],"b"],
+      symlink:   ["FFF_KEY_SYMLINK",    %w[keys symlink],    "S"],
+      help:      ["FFF_KEY_HELP",       %w[keys help],       "?"],
+    }
+
     def initialize
       config_path = File.join(ENV["HOME"], ".config", "fff", "config.json")
       json = if File.exists?(config_path)
@@ -136,45 +174,6 @@ module FFF
         end
       end
       bookmarks
-    end
-
-    def self.parse_ls_colors(colors : String) : Hash(String, Symbol)
-      result = Hash(String, Symbol).new
-
-      colors.split(':').each do |entry|
-        next if entry.empty?
-        parts = entry.split('=')
-        next if parts.size != 2
-        key, value = parts
-
-        next unless key.starts_with?("*.")
-        ext = key[2..].downcase
-
-        color = parse_ls_color_class(value)
-        result[ext] = color if color
-      end
-
-      result
-    end
-
-    private def self.parse_ls_color_class(code : String) : Symbol?
-      case code
-      when /01;31/, /31;01/ then :red
-      when /01;32/, /32;01/ then :green
-      when /01;33/, /33;01/ then :yellow
-      when /01;34/, /34;01/ then :blue
-      when /01;35/, /35;01/ then :magenta
-      when /01;36/, /36;01/ then :cyan
-      when /01;37/, /37;01/ then :white
-      when "31"             then :red
-      when "32"             then :green
-      when "33"             then :yellow
-      when "34"             then :blue
-      when "35"             then :magenta
-      when "36"             then :cyan
-      when "37"             then :white
-      else                       nil
-      end
     end
 
     private def parse_ls_colors : Hash(String, Symbol)
