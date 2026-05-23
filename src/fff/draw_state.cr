@@ -21,6 +21,7 @@ module FFF
     getter show_help : Bool
     getter git_branch : String
     getter git_status : String
+    getter cursor_pos : Int32
 
     def initialize(
       @scroll : Int32,
@@ -44,6 +45,7 @@ module FFF
       @show_help : Bool = false,
       @git_branch : String = "",
       @git_status : String = "",
+      @cursor_pos : Int32 = 0,
     )
     end
   end

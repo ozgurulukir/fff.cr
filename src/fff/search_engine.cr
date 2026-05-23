@@ -58,9 +58,10 @@ module FFF
         error: error
       )
 
-      return [] of String unless status.success?
+      rg_results = output.to_s.strip.split("\n").reject(&.empty?)
+      return [] of String if rg_results.empty?
 
-      output.to_s.strip.split("\n").reject(&.empty?)
+      rg_results.map { |path| Path.new(path).absolute? ? path : ::File.join(dir, path) }
     rescue
       [] of String
     end

@@ -292,21 +292,93 @@ describe FFF::InputMode do
     end
   end
 
-  describe "#draw_prompt" do
-    it "prints rename prompt" do
+  describe "#cursor_pos" do
+    it "starts at end of text in rename mode" do
       term = FFF::Terminal.new
       input_mode = FFF::InputMode.new(term)
-      input_mode.start_rename("old.txt")
-      input_mode.draw_prompt(80)
-    end
-  end
+      input_mode.start_rename("hello.txt")
 
-  describe "#draw_header" do
-    it "prints search header" do
+      input_mode.cursor_pos.should eq(9)
+    end
+
+    it "moves left with left arrow" do
       term = FFF::Terminal.new
       input_mode = FFF::InputMode.new(term)
-      input_mode.start_search([] of String)
-      input_mode.draw_header(80)
+      input_mode.start_rename("hello.txt")
+
+      input_mode.handle_key("\e[D")
+      input_mode.cursor_pos.should eq(8)
+
+      input_mode.handle_key("\e[D")
+      input_mode.cursor_pos.should eq(7)
+    end
+
+    it "moves right with right arrow" do
+      term = FFF::Terminal.new
+      input_mode = FFF::InputMode.new(term)
+      input_mode.start_rename("hello.txt")
+      3.times { input_mode.handle_key("\e[D") }
+
+      input_mode.cursor_pos.should eq(6)
+
+      input_mode.handle_key("\e[C")
+      input_mode.cursor_pos.should eq(7)
+    end
+
+    it "stays at 0 when moving left at start" do
+      term = FFF::Terminal.new
+      input_mode = FFF::InputMode.new(term)
+      input_mode.start_rename("hi")
+
+      5.times { input_mode.handle_key("\e[D") }
+      input_mode.cursor_pos.should eq(0)
+    end
+
+    it "stays at end when moving right at end" do
+      term = FFF::Terminal.new
+      input_mode = FFF::InputMode.new(term)
+      input_mode.start_rename("hi")
+
+      5.times { input_mode.handle_key("\e[C") }
+      input_mode.cursor_pos.should eq(2)
+    end
+
+    it "inserts text at cursor position" do
+      term = FFF::Terminal.new
+      input_mode = FFF::InputMode.new(term)
+      input_mode.start_rename("hllo.txt")
+
+      7.times { input_mode.handle_key("\e[D") }
+      input_mode.handle_key("e")
+
+      input_mode.text.should eq("hello.txt")
+      input_mode.cursor_pos.should eq(2)
+    end
+
+    it "deletes character before cursor with backspace" do
+      term = FFF::Terminal.new
+      input_mode = FFF::InputMode.new(term)
+      input_mode.start_rename("hello.txt")
+
+      input_mode.handle_key("\b")
+      input_mode.text.should eq("hello.tx")
+      input_mode.cursor_pos.should eq(8)
+
+      input_mode.handle_key("\b")
+      input_mode.text.should eq("hello.t")
+      input_mode.cursor_pos.should eq(7)
+    end
+
+    it "deletes character at cursor with delete key" do
+      term = FFF::Terminal.new
+      input_mode = FFF::InputMode.new(term)
+      input_mode.start_rename("hello.txt")
+
+      input_mode.handle_key("\e[D")
+      input_mode.handle_key("\e[3~")
+
+      input_mode.text.should eq("hello.tx")
+      input_mode.cursor_pos.should eq(8)
     end
   end
 end

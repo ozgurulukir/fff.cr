@@ -16,13 +16,13 @@ src/fff.cr          # Application entry point (FFF::Application + ARGV parsing)
 src/fff/
   config.cr         # Environment variable & LS_COLORS configuration
   directory_manager.cr# Directory reader, sorting mechanisms, and state manager
-  draw_state.cr     # DrawState struct — bundles 16 render params into one object
+   draw_state.cr     # DrawState struct — bundles 19 render params into one object
   file_manager.cr   # Core coordinator: event loop & high-level TUI router (~322 lines)
   file_op_handlers.cr# Extracted file operation methods (included by FileManager)
   file_operations.cr# Specialized file/directory creation and operations
   file_service.cr   # Low-level filesystem helpers with writability checks
   format_utils.cr   # Shared utilities (human_size) used across modules
-  input_mode.cr     # Event controller for search/rename keystrokes and escape handling
+   input_mode.cr     # Search/rename text input with cursor control, insert/delete editing
   navigation_handlers.cr# Extracted navigation methods (included by FileManager)
   search_engine.cr  # Fuzzy search engine & ripgrep integration (Process.run, no shell)
   terminal.cr       # Direct terminal ANSI control & cursor mapping
@@ -67,9 +67,9 @@ These are fixed via `sed` in `lib/` after `shards install`. Patches are **not** 
 - **Fix**: change `@output.as(IO::FileDescriptor).sync = buffering` to `@output.as(IO::FileDescriptor).sync = buffering || false`
 
 ### 2. `term-reader` — `get_codes` ESC loop hangs
-- **File**: `lib/term-reader/src/term-reader.cr:154-158`
-- **Bug**: `condition` lambda matches `\[27\]` (standalone ESC) against all escape code prefixes, entering an unnecessary nonblocking read loop. The nonblocking read can hang or return stale data.
-- **Fix**: wrap condition body in `codes.last != 27 && (...)` so ESC byte immediately terminates reading.
+- **File**: `lib/term-reader/src/reader/console.cr:28-30`
+- **Bug**: `@input.blocking = !nonblock` doesn't reliably make `read_char` nonblocking on TTY, causing the escape code detection loop to hang.
+- **Fix**: replace `@input.blocking = !nonblock` with a fiber-based timeout using `Channel(Char?)` + `spawn { sleep 5.milliseconds }` race. If no data arrives within 5ms, returns nil instead of blocking. This avoids the nonblocking IO that Crystal doesn't support on TTY.
 
 ### 3. `term-prompt` — `Regex.escape` type mismatch
 - **File**: `lib/term-prompt/src/prompt/confirm_question.cr:95`
@@ -105,14 +105,15 @@ make run                          # build + run
 | Key | Action | Key | Action |
 |---|---|---|---|
 | `j`/`k` | Down/Up | `l`/`h` | Enter/Parent |
-| `q` | Quit | `/` | Search (Navigable) |
-| `space` | Mark file | `m` | Mark all |
-| `y` | Yank (copy) | `v` | Cut (move) |
-| `p` | Paste | `d` | Delete (to trash) |
-| `n` | New directory | `f` | New file |
-| `r` | Rename | `b` | Bulk Rename |
-| `i` | Preview (`bat`→`less`→builtin) | `s` | Spawn shell |
-| `g` / `G` | Top / Bottom | `↑` / `↓` | Cursor up / down |
+| `q` | Quit | `?` | Help overlay |
+| `/` | Search | `space` | Mark file |
+| `m` | Mark all | `y` | Yank (copy) |
+| `v` | Cut (move) | `p` | Paste |
+| `d` | Delete (to trash) | `n` | New directory |
+| `f` | New file | `r` | Rename |
+| `b` | Bulk Rename | `i` | Preview (`bat`→`less`→builtin) |
+| `s` | Spawn shell | `g` / `G` | Top / Bottom |
+| `↑` / `↓` | Cursor up / down | `PgUp` / `PgDn` | Page up / down |
 | `.` | Toggle hidden | `t` | Go to trash |
 | `x` | Attributes | `X` | Toggle executable |
 | `:` | Go to directory | `~` | Home directory |
@@ -120,9 +121,14 @@ make run                          # build + run
 | `S` | Symlink | `=` / `+` | Cycle sort / Reverse |
 | `1-9` | Favorites | | |
 
+In search and rename modes:
+| `←` / `→` | Move cursor | `Home` / `End` | Jump start/end |
+| `Backspace` | Delete before cursor | `Delete` | Delete at cursor |
+
 ## Terminal Handling
 
 - **Search Mode**: Navigable. `j/k` work while filter is active.
+- **Cursor Editing**: Both search and rename modes support `←`/`→` cursor movement, `Home`/`End`, `Backspace`/`Delete`, and insert-at-cursor typing.
 - **Incremental & State Redraws**: Uses dynamic `@force_full_redraw` to force clean clears only when transitioning into or out of search/rename modes. Normal state changes redraw incrementally to eliminate TUI flickering.
 - **Color Caching**: Results cached by file path only (removed stale width dependency).
 - **Scroll Region**: `\e[1;{max_items}r` keeps status line fixed.
@@ -134,6 +140,7 @@ make run                          # build + run
 
 - **Bulk Rename**: Mark files → `b` → edit in `$EDITOR`.
 - **Rename Abort Safety**: Safe Escape key cancellation during renames terminates the workflow cleanly without applying unintended edits.
+- **Cursor Editing**: Rename mode supports cursor movement, insert-at-cursor, backspace/delete, Home/End.
 - **Trash**: Moves to `~/.local/share/fff/trash` with conflict resolution.
 - **Write Checks**: Proactive `File::Info.writable?` checks before mutation.
 - **Picker Mode**: `-p` flag writes selection to `~/.cache/fff/opened_file`.

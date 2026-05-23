@@ -35,4 +35,6 @@ coverage/
 # Agent tooling artifacts
 .antigravitycli/
 .agents/
+.opencode/
+.code-tandem/
 scripts/

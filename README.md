@@ -8,7 +8,7 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 ## Features
 
 - **Fast**: `LS_COLORS` caching, optimized incremental render loop, no flicker
-- **Navigable Search**: Fuzzy filename filtering + ripgrep content search (`!` prefix), all while keeping cursor navigation live
+- **Navigable Search**: Fuzzy filename filtering + ripgrep content search (`!` prefix), all while keeping cursor navigation live. `←`/`→` to move within the search query, `Backspace`/`Delete` to edit.
 - **File Operations**: Copy, move, delete (trash), rename, bulk rename, symlink
 - **Smart Preview**: `bat` → `less` → builtin fallback chain; file attributes via `stat`
 - **Picker Mode**: `-p` flag writes selection to `~/.cache/fff/opened_file` for external tool integration
@@ -48,19 +48,22 @@ fff -p                 # picker mode (writes to opened_file cache)
 | Key | Action | Key | Action |
 |---|---|---|---|
 | `j`/`k` | Down/Up | `l`/`h` | Enter/Parent |
-| `q` | Quit | `/` | Search |
-| `space` | Mark | `m` | Mark all |
-| `y`/`v` | Copy/Cut | `p` | Paste |
-| `d` | Delete (trash) | `t` | Go to trash |
-| `n` | New dir | `f` | New file |
-| `r` | Rename | `b` | Bulk rename |
-| `i` | Preview | `x` | Attributes |
-| `X` | Toggle executable | `s` | Spawn shell |
-| `g`/`G` | Top/Bottom | `↑`/`↓` | Cursor |
+| `q` | Quit | `?` | Help overlay |
+| `/` | Search (Navigable) | `space` | Mark |
+| `m` | Mark all | `y`/`v` | Copy/Cut |
+| `p` | Paste | `d` | Delete (trash) |
+| `t` | Go to trash | `n` | New dir |
+| `f` | New file | `r` | Rename |
+| `b` | Bulk rename | `i` | Preview |
+| `x` | Attributes | `X` | Toggle executable |
+| `s` | Spawn shell | `g`/`G` | Top/Bottom |
+| `↑`/`↓` | Cursor | `PgUp`/`PgDn` | Page up/down |
 | `.` | Toggle hidden | `~` | Home |
 | `-` | Previous dir | `e` | Refresh |
 | `=` / `+` | Cycle sort / Reverse | `:` | Go to dir |
 | `S` | Symlink | `1-9` | Favorites |
+
+In search and rename modes, `←`/`→` move within the input text, `Backspace`/`Delete` edit, `Home`/`End` jump to start/end.
 
 All bindings are configurable via `FFF_KEY_*` environment variables.
 
@@ -142,7 +145,7 @@ Directories always use the built-in preview.
 - **FFF::FileManager** — event loop and TUI router; includes `NavigationHandlers`, `FileOpHandlers`, `ViewHandlers`
 - **FFF::FileOperations** — file/directory creation, deletion, copying
 - **FFF::FileService** — low-level `copy`/`move`/`trash`/`symlink` with writability checks
-- **FFF::InputMode** — search/rename keystroke handler
+- **FFF::InputMode** — search/rename text input with cursor control and editing
 - **FFF::SearchEngine** — fuzzy filename matching + ripgrep content search
 - **FFF::Terminal** — `crystal-term` shard wrapper
 - **FFF::UIRenderer** — incremental, flicker-free drawing

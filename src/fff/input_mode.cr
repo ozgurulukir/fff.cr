@@ -2,17 +2,18 @@ require "./search_engine"
 require "./terminal"
 
 module FFF
-  # InputMode - Handles interactive input modes (search, rename)
   class InputMode
     getter active : Bool
-    getter mode : Symbol # :search, :rename, or :none
+    getter mode : Symbol
     getter text : String
+    getter cursor_pos : Int32
     getter original_list : Array(String)
 
     def initialize(@term : Terminal)
       @active = false
       @mode = :none
       @text = ""
+      @cursor_pos = 0
       @original_list = [] of String
       @old_name = ""
     end
@@ -21,6 +22,7 @@ module FFF
       @mode = :search
       @active = true
       @text = ""
+      @cursor_pos = 0
       @original_list = current_list.dup
     end
 
@@ -28,6 +30,7 @@ module FFF
       @mode = :rename
       @active = true
       @text = old_name
+      @cursor_pos = old_name.size
       @old_name = old_name
     end
 
@@ -35,21 +38,36 @@ module FFF
       return false unless @active
 
       case key
-      when "\e", "escape" # ESC - cancel
+      when "\e", "escape"
         return true
-      when "\r", "\n", "enter" # Enter - confirm
+      when "\r", "\n", "enter"
         return true
-      when "\u0003" # Ctrl+C - cancel
+      when "\u0003"
         return true
-      when "\u007F", "\b", "backspace" # Backspace / DEL
-        if @text.size > 0
-          @text = @text[0...-1]
+      when "\u007F", "\b", "backspace"
+        if @cursor_pos > 0
+          @text = @text[0...@cursor_pos - 1] + @text[@cursor_pos..]
+          @cursor_pos -= 1
         end
-      when "\e[A", "\e[B", "up", "down" # Up/Down arrows in search mode - ignore
-        # Do nothing, let navigation handle these
+      when "\e[A", "\e[B", "up", "down"
+        # ignore up/down in rename mode
+        return false if @mode == :rename
+      when "\e[D", "left"
+        @cursor_pos -= 1 if @cursor_pos > 0
+      when "\e[C", "right"
+        @cursor_pos += 1 if @cursor_pos < @text.size
+      when "\e[H", "home"
+        @cursor_pos = 0
+      when "\e[F", "end"
+        @cursor_pos = @text.size
+      when "\e[3~", "delete"
+        if @cursor_pos < @text.size
+          @text = @text[0...@cursor_pos] + @text[@cursor_pos + 1..]
+        end
       else
         if key.bytesize > 0 && key.char_at(0).ord >= 32
-          @text += key
+          @text = @text[0...@cursor_pos] + key + @text[@cursor_pos..]
+          @cursor_pos += 1
         end
       end
 
@@ -61,7 +79,6 @@ module FFF
       return @original_list if @text.empty?
 
       if @text.starts_with?('!')
-        # Content search via ripgrep
         dir = Dir.current
         query = @text[1..-1]
         return @original_list if query.empty?
@@ -69,7 +86,6 @@ module FFF
         matches = SearchEngine.content_search(query, dir)
         @original_list.select { |path| matches.includes?(path) }
       else
-        # Fuzzy filename search
         SearchEngine.fuzzy_match(list, @text)
       end
     end
@@ -96,30 +112,14 @@ module FFF
       @active = false
       @mode = :none
       @text = ""
+      @cursor_pos = 0
       @original_list.clear
       @old_name = ""
     end
 
-    def draw_header(width : Int32)
-      return unless @mode == :search
-      @term.move_to(0, 0)
-      print "\e[K"
-      prompt = "Search: #{@text}_"
-      prompt = prompt.ljust(width)[0...width]
-      print Term::Color.truecolor_string(prompt, fore: Term::Color.color(:yellow), back: Term::Color.color(:blue))
-    end
-
-    def draw_prompt(width : Int32)
-      return unless @mode == :rename
-      @term.move_to(@term.height - 2, 0)
-      prompt = "Rename to: #{@text}_"
-      prompt = prompt.ljust(width)[0...width]
-      print Term::Color.truecolor_string(prompt, fore: Term::Color.color(:yellow), back: Term::Color.color(:blue))
-    end
-
     def cursor_position : Int32
       case @mode
-      when :search then 13 + @text.size # "Search: " is 8 chars + space + cursor
+      when :search then 13 + @text.size
       when :rename then @term.height - 2
       else              0
       end

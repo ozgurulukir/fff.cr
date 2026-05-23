@@ -132,6 +132,7 @@ module FFF
         search_term: @input_mode.text,
         rename_mode: @input_mode.mode == :rename,
         rename_new_name: @input_mode.text,
+        cursor_pos: @input_mode.cursor_pos,
         prev_scroll: @prev_scroll,
         prev_page_offset: @prev_page_offset,
         current_dir: @dir_manager.current_dir,
@@ -229,13 +230,21 @@ module FFF
         key = @term.read_keypress
         break if key.nil?
 
-        if @input_mode.active
-          handle_input_mode(key)
-        else
-          handle_key(key)
-        end
+        route_keypress(key)
       end
 
+      perform_shutdown
+    end
+
+    private def route_keypress(key : String)
+      if @input_mode.active
+        handle_input_mode(key)
+      else
+        handle_key(key)
+      end
+    end
+
+    private def perform_shutdown
       @term.leave_tui
       save_cd_on_exit if @config.cd_on_exit && !@picker_mode
       write_picker_file if @picker_mode
@@ -248,6 +257,7 @@ module FFF
         return
       end
 
+      # ESC/Ctrl+C: cancel current mode
       if key == "\e" || key == "escape" || key == "\u0003" || (key.bytesize == 1 && key.char_at(0).ord == 27)
         @dir_manager.list = @input_mode.original_list.dup
         @input_mode.end
@@ -259,24 +269,34 @@ module FFF
 
       if complete
         if @input_mode.mode == :search
-          @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
-          clamp_scroll
-          @input_mode.end(false)
+          handle_search_complete
         elsif @input_mode.mode == :rename
-          if @scroll < @dir_manager.list.size
-            old_path = @dir_manager.list[@scroll]
-            error = @input_mode.apply_rename(old_path)
-            show_error(error) if error
-            @dir_manager.read!
-          end
-          @input_mode.end
+          handle_rename_complete
         end
         @force_full_redraw = true
       else
-        if @input_mode.mode == :search && !@input_mode.text.starts_with?('!')
-          @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
-        end
+        live_search if @input_mode.mode == :search && !@input_mode.text.starts_with?('!')
       end
+    end
+
+    private def handle_search_complete
+      @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
+      clamp_scroll
+      @input_mode.end(false)
+    end
+
+    private def handle_rename_complete
+      if @scroll < @dir_manager.list.size
+        old_path = @dir_manager.list[@scroll]
+        error = @input_mode.apply_rename(old_path)
+        show_error(error) if error
+        @dir_manager.read!
+      end
+      @input_mode.end
+    end
+
+    private def live_search
+      @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
     end
 
     private def handle_key(key : String)

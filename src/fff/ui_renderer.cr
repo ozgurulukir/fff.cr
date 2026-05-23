@@ -42,7 +42,7 @@ module FFF
       else
         draw_status(state)
         draw_error(state.error_msg, @term.width)
-        draw_rename_prompt(state.rename_new_name, @term.width) if state.rename_mode
+        draw_rename_prompt(state.rename_new_name, state.cursor_pos, @term.width) if state.rename_mode
         place_cursor(state)
       end
 
@@ -70,7 +70,9 @@ module FFF
       left = parts.join(" ")
 
       right = if state.search_mode
-                "Search: #{state.search_term}_"
+                before = state.search_term[0...state.cursor_pos]
+                after = state.search_term[state.cursor_pos..]
+                "Search: #{before}|#{after}"
               else
                 sort_indicator = state.sort_reverse ? " ↑" : " ↓"
                 "#{state.scroll + 1}/#{state.list.size}#{sort_indicator}"
@@ -201,9 +203,11 @@ module FFF
       print Term::Color.truecolor_string(msg, fore: Term::Color.color(:red), back: Term::Color.color(:blue))
     end
 
-    private def draw_rename_prompt(new_name : String, width : Int32)
+    private def draw_rename_prompt(new_name : String, cursor_pos : Int32, width : Int32)
       @term.move_to(@term.height - 2, 0)
-      prompt = "Rename to: #{new_name}_"
+      before = new_name[0...cursor_pos]
+      after = new_name[cursor_pos..]
+      prompt = "Rename to: #{before}|#{after}"
       prompt = prompt.ljust(width)[0...width]
       print Term::Color.truecolor_string(prompt, fore: Term::Color.color(:yellow), back: Term::Color.color(:blue))
     end
@@ -273,6 +277,10 @@ module FFF
     private def place_cursor(state : DrawState)
       if state.search_mode
         @term.move_to(0, @term.width - 1)
+      elsif state.rename_mode
+        col = 11 + state.cursor_pos
+        col = {@term.width - 1, col}.min
+        @term.move_to(@term.height - 2, col)
       end
     end
 
