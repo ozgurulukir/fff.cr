@@ -173,22 +173,27 @@ module FFF
       }
 
       # pad right side so git status aligns to terminal right edge
-      line = String.build { |s| s << left.ljust(@term.width - right.size - 1) << ' ' << right }
+      gap = @term.width - left.size - right.size - 1
+      gap = {gap, 0}.max
+      line = String.build { |s| s << left << " " * gap << right }
       line = line[0...@term.width]
 
       print Term::Color.truecolor_string(line, fore: Term::Color.color(:white), back: Term::Color.color(:black))
     end
 
     private def colorize_git_status(status : String) : String
-      status.chars.map do |c|
-        case c
-        when '+' then Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:green))
-        when '~' then Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:yellow))
-        when '?' then Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:cyan))
-        when '-' then Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:red))
-        else          Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:white))
+      String.build do |s|
+        status.each_char do |c|
+          color = case c
+                  when '+' then Term::Color.color(:green)
+                  when '~' then Term::Color.color(:yellow)
+                  when '?' then Term::Color.color(:cyan)
+                  when '-' then Term::Color.color(:red)
+                  else          Term::Color.color(:white)
+                  end
+          s << Term::Color.truecolor_string(String.build { |buf| buf << c }, fore: color)
         end
-      end.join
+      end
     end
 
     private def draw_all_lines(list : Array(String), scroll : Int32, page_offset : Int32, marked : Set(String), search_mode : Bool, search_term : String, loading : Bool)
