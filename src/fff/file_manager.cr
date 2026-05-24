@@ -186,9 +186,9 @@ module FFF
     end
 
     def update_git_status(dir : String)
-      output = IO::Memory.new
-      error = IO::Memory.new
-      status = Process.run("git", ["status", "--porcelain"], output: output, error: error, chdir: dir)
+      out_io = IO::Memory.new
+      err_io = IO::Memory.new
+      status = Process.run("git", ["status", "--porcelain"], output: out_io, error: err_io, chdir: dir)
       unless status.success?
         @git_status = ""
         return
@@ -199,7 +199,7 @@ module FFF
       untracked = 0
       deleted = 0
 
-      output.to_s.each_line do |line|
+      out_io.to_s.each_line do |line|
         next if line.empty?
         if line.starts_with?("??")
           untracked += 1
@@ -214,12 +214,12 @@ module FFF
         end
       end
 
-      parts = [] of String
-      parts << "+#{staged}" if staged > 0
-      parts << "~#{modified}" if modified > 0
-      parts << "?#{untracked}" if untracked > 0
-      parts << "-#{deleted}" if deleted > 0
-      @git_status = parts.join(" ")
+      @git_status = String.build { |s|
+        s << "+#{staged}" if staged > 0
+        s << " ~#{modified}" if modified > 0
+        s << " ?#{untracked}" if untracked > 0
+        s << " -#{deleted}" if deleted > 0
+      }
     end
 
     def check_error_expiry
@@ -380,16 +380,21 @@ module FFF
       @force_full_redraw = true
     end
 
+    TEXT_EXTS = {
+      ".txt", ".cr", ".sh", ".py", ".js", ".ts", ".json", ".yaml", ".yml",
+      ".md", ".html", ".css", ".xml", ".rb", ".go", ".rs", ".c", ".h",
+      ".cpp", ".hpp", ".java", ".php", ".swift", ".kt",
+    }
+
+    EMPTY_STRING_ARRAY = [] of String
+
     def text_file?(path : String) : Bool
       return false if File.directory?(path)
 
       target = File.symlink?(path) ? File.realpath(path) : path
       ext = File.extname(target).downcase
-      text_exts = [".txt", ".cr", ".sh", ".py", ".js", ".ts", ".json", ".yaml", ".yml",
-                   ".md", ".html", ".css", ".xml", ".rb", ".go", ".rs", ".c", ".h",
-                   ".cpp", ".hpp", ".java", ".php", ".swift", ".kt"]
 
-      text_exts.includes?(ext) || mime_is_text?(path)
+      TEXT_EXTS.includes?(ext) || mime_is_text?(path)
     end
 
     def mime_is_text?(path : String) : Bool
@@ -410,8 +415,8 @@ module FFF
 
     def marked_or_current : Array(String)
       return @marked.to_a if @marked.size > 0
-      return [] of String if @dir_manager.list.empty?
-      return [] of String if @scroll >= @dir_manager.list.size
+      return EMPTY_STRING_ARRAY if @dir_manager.list.empty?
+      return EMPTY_STRING_ARRAY if @scroll >= @dir_manager.list.size
       [@dir_manager.list[@scroll]]
     end
 

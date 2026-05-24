@@ -9,6 +9,32 @@ module FFF
     @color_cache : Hash(String, Symbol)
     @prev_path : String
 
+    HELP_LINES = [
+      "───── Navigation ─────",
+      " j/k  Down/Up          h/l  Parent/Enter",
+      " g/G  Top/Bottom       PgUp/PgDn  Page",
+      " .    Toggle hidden    -    Previous dir",
+      " ~    Home             :    Go to dir",
+      " t    Trash            e    Refresh",
+      "",
+      "───── File Ops ───────",
+      " SPACE  Mark           m    Mark all",
+      " y  Copy               v    Cut",
+      " p  Paste              d    Delete (trash)",
+      " r  Rename             b    Bulk rename",
+      " n  New dir            f    New file",
+      " S  Symlink            x    Attributes",
+      " X  Toggle executable",
+      "",
+      "───── Misc ───────────",
+      " /  Search             i  Preview",
+      " s  Shell              =  Cycle sort",
+      " +  Reverse sort       1-9  Favorites",
+      " q  Quit               ?  This help",
+    ]
+
+    SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
     def initialize(@term : Terminal, @config : Config)
       @color_cache = Hash(String, Symbol).new
       @prev_path = ""
@@ -65,15 +91,16 @@ module FFF
       home = ENV["HOME"]
       display_path = home && dir.starts_with?(home) ? "~#{dir[home.size..]}" : dir
 
-      parts = [display_path]
-      parts << "(#{state.git_branch})" unless state.git_branch.empty?
-
-      # File count + total size badge
+      git_badge = state.git_branch.empty? ? "" : "(#{state.git_branch})"
       file_count = state.list.size
       size_str = state.total_size > 0 ? FormatUtils.human_size(state.total_size) : "—"
-      parts << "#{file_count} files  #{size_str}"
+      file_badge = "#{file_count} files  #{size_str}"
 
-      left = parts.join("  ")
+      left = String.build { |s|
+        s << display_path
+        s << "  " << git_badge unless git_badge.empty?
+        s << "  " << file_badge
+      }
 
       right = if state.search_mode
                 before = state.search_term[0...state.cursor_pos]
@@ -89,7 +116,7 @@ module FFF
       left = left[0...{avail - right.size - 1, 0}.max] if left.size + right.size + 1 > avail
       gap = avail - left.size - right.size
       gap = 0 if gap < 0
-      line = left + " " * gap + right
+      line = String.build { |s| s << left << " " * gap << right }
       line = line[0...avail]
 
       print Term::Color.truecolor_string(line, fore: Term::Color.color(:white), back: Term::Color.color(:blue))
@@ -100,54 +127,53 @@ module FFF
       print "\e[K"
 
       # ── left: file info ────────────────────────────────────────
-      left_parts = [] of String
       if state.list.size > 0 && state.scroll < state.list.size
         path = state.list[state.scroll]
         name = File.basename(path)
         if File.directory?(path)
-          name = name + "/"
+          name = "#{name}/"
         elsif File.symlink?(path)
-          name = name + "@"
+          name = "#{name}@"
         end
 
         info = File.info?(path)
         if info
           size = FormatUtils.human_size(info.size)
           perms = permission_string(info)
-          left_parts << "#{name}  #{size} #{perms}"
+          left = String.build { |s| s << name << "  " << size << " " << perms }
         else
-          left_parts << name
+          left = name
         end
+      else
+        left = ""
       end
-      left = left_parts.join("")
 
       # ── right: clipboard · marks · sort · git ──────────────────
-      right_parts = [] of String
+      right = String.build { |s|
+        if state.clipboard_size > 0
+          icon = state.clipboard_mode == :copy ? "📋" : "✂️"
+          s << icon << state.clipboard_size.to_s
+        end
 
-      if state.clipboard_size > 0
-        icon = state.clipboard_mode == :copy ? "📋" : "✂️"
-        right_parts << "#{icon}#{state.clipboard_size}"
-      end
+        if state.marked.size > 0
+          s << "●" << state.marked.size.to_s unless state.clipboard_size > 0
+        end
 
-      if state.marked.size > 0
-        right_parts << "●#{state.marked.size}"
-      end
+        sort_label = case state.sort_mode
+                     when :size then "size"
+                     when :time then "time"
+                     else            "name"
+                     end
+        arrow = state.sort_reverse ? "↑" : "↓"
+        s << " " << sort_label << arrow
 
-      sort_label = case state.sort_mode
-                   when :size then "size"
-                   when :time then "time"
-                   else            "name"
-                   end
-      arrow = state.sort_reverse ? "↑" : "↓"
-      right_parts << "#{sort_label}#{arrow}"
+        unless state.git_status.empty?
+          s << "  " << colorize_git_status(state.git_status)
+        end
+      }
 
-      unless state.git_status.empty?
-        right_parts << colorize_git_status(state.git_status)
-      end
-
-      right = right_parts.join("  ")
       # pad right side so git status aligns to terminal right edge
-      line = left.ljust(@term.width - right.size - 1) + " " + right
+      line = String.build { |s| s << left.ljust(@term.width - right.size - 1) << ' ' << right }
       line = line[0...@term.width]
 
       print Term::Color.truecolor_string(line, fore: Term::Color.color(:white), back: Term::Color.color(:black))
@@ -156,11 +182,11 @@ module FFF
     private def colorize_git_status(status : String) : String
       status.chars.map do |c|
         case c
-        when '+' then Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:green))
-        when '~' then Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:yellow))
-        when '?' then Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:cyan))
-        when '-' then Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:red))
-        else          Term::Color.truecolor_string(c.to_s, fore: Term::Color.color(:white))
+        when '+' then Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:green))
+        when '~' then Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:yellow))
+        when '?' then Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:cyan))
+        when '-' then Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:red))
+        else          Term::Color.truecolor_string(String.build { |s| s << c }, fore: Term::Color.color(:white))
         end
       end.join
     end
@@ -170,7 +196,7 @@ module FFF
         row = (@term.height / 2).to_i
         col = (@term.width / 2).to_i - 7
         @term.move_to(row, {col, 0}.max)
-        spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"][(Time.utc.to_unix * 10 % 10).to_i]
+        spinner = SPINNER_FRAMES[(Time.utc.to_unix * 10 % 10).to_i]
         print Term::Color.truecolor_string(" #{spinner} Loading…", fore: Term::Color.color(:yellow))
         return
       end
@@ -206,7 +232,7 @@ module FFF
                else
                  ""
                end
-      display_name = name + suffix
+      display_name = "#{name}#{suffix}"
       prefix = is_marked ? " ● " : "   "
 
       @term.move_to(row + 1, 0)
@@ -228,10 +254,10 @@ module FFF
       query_idx = 0
       name.each_char do |char|
         if query_idx < query.size && char.downcase == query[query_idx]
-          print Term::Color.truecolor_string(char.to_s, fore: Term::Color.color(:yellow), back: Term::Color.color(:black), bold: true, underline: true)
+          print Term::Color.truecolor_string(String.build { |s| s << char }, fore: Term::Color.color(:yellow), back: Term::Color.color(:black), bold: true, underline: true)
           query_idx += 1
         else
-          print Term::Color.truecolor_string(char.to_s, fore: Term::Color.color(base_color))
+          print Term::Color.truecolor_string(String.build { |s| s << char }, fore: Term::Color.color(base_color))
         end
       end
     end
@@ -253,47 +279,27 @@ module FFF
     end
 
     private def draw_help_overlay
-      lines = [
-        "───── Navigation ─────",
-        " j/k  Down/Up          h/l  Parent/Enter",
-        " g/G  Top/Bottom       PgUp/PgDn  Page",
-        " .    Toggle hidden    -    Previous dir",
-        " ~    Home             :    Go to dir",
-        " t    Trash            e    Refresh",
-        "",
-        "───── File Ops ───────",
-        " SPACE  Mark           m    Mark all",
-        " y  Copy               v    Cut",
-        " p  Paste              d    Delete (trash)",
-        " r  Rename             b    Bulk rename",
-        " n  New dir            f    New file",
-        " S  Symlink            x    Attributes",
-        " X  Toggle executable",
-        "",
-        "───── Misc ───────────",
-        " /  Search             i  Preview",
-        " s  Shell              =  Cycle sort",
-        " +  Reverse sort       1-9  Favorites",
-        " q  Quit               ?  This help",
-      ]
-
-      max_w = lines.max_of?(&.size) || 50
+      max_w = HELP_LINES.max_of?(&.size) || 50
       box_w = {max_w + 4, @term.width - 4}.min
-      box_h = lines.size + 2
+      box_h = HELP_LINES.size + 2
       start_row = {(@term.height - box_h) // 2, 0}.max
       start_col = {(@term.width - box_w) // 2, 0}.max
+
+      top_border = "╭" + "─" * box_w + "╮"
+      bot_border = "╰" + "─" * box_w + "╯"
 
       (0...box_h).each do |r|
         @term.move_to(start_row + r, start_col)
         print "\e[K"
         if r == 0
-          print Term::Color.truecolor_string("╭" + "─" * box_w + "╮", fore: Term::Color.color(:cyan), back: Term::Color.color(:black))
+          print Term::Color.truecolor_string(top_border, fore: Term::Color.color(:cyan), back: Term::Color.color(:black))
         elsif r == box_h - 1
-          print Term::Color.truecolor_string("╰" + "─" * box_w + "╯", fore: Term::Color.color(:cyan), back: Term::Color.color(:black))
+          print Term::Color.truecolor_string(bot_border, fore: Term::Color.color(:cyan), back: Term::Color.color(:black))
         else
-          text = lines[r - 1]? || ""
+          text = HELP_LINES[r - 1]? || ""
           text = text[0...box_w].ljust(box_w)
-          print Term::Color.truecolor_string("│ " + text + " │", fore: Term::Color.color(:white), back: Term::Color.color(:black))
+          line_body = String.build { |s| s << "│ " << text << " │" }
+          print Term::Color.truecolor_string(line_body, fore: Term::Color.color(:white), back: Term::Color.color(:black))
         end
       end
 

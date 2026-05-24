@@ -68,7 +68,8 @@ module FFF
       sources.each do |src|
         verify_exists!(src)
         name = File.basename(src)
-        dest = File.join(dest_dir, "#{name}.lnk")
+        dest_base = File.join(dest_dir, "#{name}.lnk")
+        dest = dest_base
 
         i = 1
         while File.exists?(dest)

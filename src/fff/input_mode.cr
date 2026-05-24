@@ -46,7 +46,7 @@ module FFF
         return true
       when "\u007F", "\b", "backspace"
         if @cursor_pos > 0
-          @text = @text[0...@cursor_pos - 1] + @text[@cursor_pos..]
+          @text = String.build { |s| s << @text[0...@cursor_pos - 1] << @text[@cursor_pos..] }
           @cursor_pos -= 1
         end
       when "\e[A", "\e[B", "up", "down"
@@ -62,11 +62,11 @@ module FFF
         @cursor_pos = @text.size
       when "\e[3~", "delete"
         if @cursor_pos < @text.size
-          @text = @text[0...@cursor_pos] + @text[@cursor_pos + 1..]
+          @text = String.build { |s| s << @text[0...@cursor_pos] << @text[@cursor_pos + 1..] }
         end
       else
         if key.bytesize > 0 && key.char_at(0).ord >= 32
-          @text = @text[0...@cursor_pos] + key + @text[@cursor_pos..]
+          @text = String.build { |s| s << @text[0...@cursor_pos] << key << @text[@cursor_pos..] }
           @cursor_pos += 1
         end
       end
