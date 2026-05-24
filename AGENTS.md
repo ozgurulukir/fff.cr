@@ -151,6 +151,11 @@ In search and rename modes:
 - **LS_COLORS**: Parsed once and cached in `Config`.
 - **Redraw**: Optimized double-buffered incremental drawing loop.
 - **Lazy Content Search**: Live search queries only update fuzzy file list scanning. Expensive content queries (triggered via `!`) are deferred until the user presses **Enter**, preventing TUI lag and freezes while typing.
+- **Hot-path string building**: `draw_status`, `draw_topbar`, `draw_help_overlay` use `String.build` instead of `parts = [] + join`.
+- **Per-char rendering**: `draw_fuzzy_name` and `colorize_git_status` use `String.build { |s| s << char }` instead of `char.to_s`.
+- **Anti-patterns avoided**:
+  - `.ljust()` + `[0...n]` slice pair → replaced with single `String.build` + gap math
+  - `.chars.map { ... }.join` → replaced with `String.build` + `.each_char`
 
 ## Test Infrastructure & Lessons Learned
 
@@ -177,5 +182,23 @@ Crystal 1.20 deprecates `File.executable?`. **Fix**: `File::Info.executable?(pat
 
 ### Build Order Matters
 `make build` → new binary replaces `bin/fff` atomically. Always rebuild (`make clean` + `make build`) after renaming `property` declarations that affect layout, since incremental builds may not link correctly after struct field order changes.
+
+### Search Mode Navigation — Mode-Specific Key Routing
+Arama modunda (`/`) `j`/`k`/`↑`/`↓` tuşları text input'e değil navigasyon handler'larına yönlendirilmelidir. **Fix**: `InputMode`'da `navigating : Bool` flag eklendi; up/down search modunda `@navigating = true` yapılıyor, `FileManager.handle_input_mode` bu bayrağı yakalayıp `cursor_up`/`cursor_down` çağırıyor, `live_search` atlanıyor. `InputMode.handle_key` hala `false` döndürüyor (text input tarafı "tamamlama" olarak görmüyor).
+
+### `draw_status` Hot-Path: Avoid `.ljust` + `[0...n]` Slice Pair
+`.ljust` zaten yeni bir string kopyası üretir, sonra `[0...n]` yine yeni bir kopya üretir → her frame'de iki gereksiz allocation. **Fix**: `String.build { |s| s << left << " " * gap << right }` ile tek adımda birleştir, gap hesaplamasını doğrudan yap.
+
+### `colorize_git_status`: Avoid `.chars.map(...).join` Anti-Pattern
+`.chars.map { ... }.join` her karakter için bir Array<String> elementi oluşturur, sonra tümünü tekrar birleştirir. **Fix**: `String.build do |s| status.each_char { |c| s << colored_char } end` — per-char `String.build` ile doğrudan yaz, ara Array oluşturma.
+
+### Crystal Macro `previous_def` in Submodules
+`include` edilen modüllerde (ör. `NavigationHandlers`) `getter`/`property` macro'ları `FileManager`'ın scope'unda çalışır. Alt modülde ivar tanımlamak için `def initialize` içinde `@ivar = value` kullan — bu, üst modüldeki macro ile oluşturulan getter'ları tetikler. `@ivar = nil` tipini tetikleyerek nilability uyarısı verebilir, ancak doğruysa sorun değil.
+
+### Crystal 1.20 `String#[]` Slice-Copy Semantics
+`str[a...b]` her zaman yeni bir string kopyası üretir. Hot-path'lerde (ör. `draw_line` her karakter) bunu `String.build { |s| s << char }` ile değiştir. Tek seferlik işlerde (ESC tespit, config parsing) etkisi yoktur, scoped doğrudan içinde doğal iterasyon kullan.
+
+### Crystal `getter` vs `property` in Test Context
+Crystal'da `getter` sadece okunur, `property` okunur+yazılır. Test'lerde mock injection veya state reset için `property` kullan. `FileManager.renderer` örneği: önce `getter` idi, test'de mock renderer set edilemedi → `property`'a çevrildi.
 
 
