@@ -8,6 +8,7 @@ module FFF
     getter text : String
     getter cursor_pos : Int32
     getter original_list : Array(String)
+    getter navigating : Bool
 
     def initialize(@term : Terminal)
       @active = false
@@ -16,6 +17,7 @@ module FFF
       @cursor_pos = 0
       @original_list = [] of String
       @old_name = ""
+      @navigating = false
     end
 
     def start_search(current_list : Array(String))
@@ -24,6 +26,7 @@ module FFF
       @text = ""
       @cursor_pos = 0
       @original_list = current_list.dup
+      @navigating = false
     end
 
     def start_rename(old_name : String)
@@ -32,9 +35,11 @@ module FFF
       @text = old_name
       @cursor_pos = old_name.size
       @old_name = old_name
+      @navigating = false
     end
 
     def handle_key(key : String) : Bool
+      @navigating = false
       return false unless @active
 
       case key
@@ -50,8 +55,11 @@ module FFF
           @cursor_pos -= 1
         end
       when "\e[A", "\e[B", "up", "down"
-        # ignore up/down in rename mode
-        return false if @mode == :rename
+        if @mode == :rename
+          return false
+        elsif @mode == :search
+          @navigating = true
+        end
       when "\e[D", "left"
         @cursor_pos -= 1 if @cursor_pos > 0
       when "\e[C", "right"
@@ -115,6 +123,7 @@ module FFF
       @cursor_pos = 0
       @original_list.clear
       @old_name = ""
+      @navigating = false
     end
 
     def cursor_position : Int32

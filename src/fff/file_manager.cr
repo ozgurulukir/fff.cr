@@ -275,19 +275,25 @@ module FFF
 
       complete = @input_mode.handle_key(key)
 
-      if complete
-        if @input_mode.mode == :search
-          handle_search_complete
-        elsif @input_mode.mode == :rename
-          handle_rename_complete
-        end
-        @force_full_redraw = true
-      else
-        live_search if @input_mode.mode == :search && !@input_mode.text.starts_with?('!')
+      if @input_mode.navigating
+        cursor_up if key == "\e[A" || key == "up"
+        cursor_down if key == "\e[B" || key == "down"
+        return
       end
-    end
 
-    def handle_search_complete
+      if complete
+      if @input_mode.mode == :search
+        handle_search_complete
+      elsif @input_mode.mode == :rename
+        handle_rename_complete
+      end
+      @force_full_redraw = true
+    else
+      live_search if @input_mode.mode == :search && !@input_mode.text.starts_with?('!')
+    end
+  end
+
+  def handle_search_complete
       @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
       clamp_scroll
       @input_mode.end(false)

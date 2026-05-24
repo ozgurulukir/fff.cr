@@ -46,6 +46,13 @@
 - **Açıklama:** `+` (staged) → green, `~` (modified) → yellow, `?` (untracked) → cyan, `-` (deleted) → red.
 - **Çaba:** Orta
 
+### 5. Arama Modunda Navigasyon (j/k/↑/↓)
+- [x] **Durum:** ✅ Done — çalışıyor, testler geçiyor
+- **Dosyalar:** `src/fff/file_manager.cr` (`handle_input_mode`), `src/fff/input_mode.cr` (`handle_key`)
+- **Açıklama:** Arama modunda (`/`) filtreleme yaparken `j`/`k`/`↑`/`↓` ile filtrelenmiş liste üzerinde gezilebilsin. `InputMode.handle_key` up/down'ı search modunda `false` dönerken `navigating` bayrağını `true` yapar; `FileManager.handle_input_mode` bunu yakalayıp `cursor_up`/`cursor_down` çağırır.
+- **Çaba:** Küçük
+- **Bağımlılık:** Yok
+
 ### 7. Error Auto-expire Animasyonu
 - [ ] **Durum:** Pending
 - **Dosya:** `src/fff/ui_renderer.cr` — `draw_error`
