@@ -60,6 +60,10 @@ class MockTerminal < FFF::Terminal
     false
   end
 
+  def confirm_inline(message : String) : Bool
+    false
+  end
+
   def keypress(message : String)
     nil
   end

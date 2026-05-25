@@ -226,4 +226,21 @@ end
 - `\e[K` ile satır temizlenir, geri dönerken boş satır bırakılmaz
 - `confirm?` (term-prompt tabanlı, TUI'dan çıkar) hala mevcut, `confirm_inline` yeni TUI içi alternatiftir
 
+## Prompt Inline Pattern (TUI içi text input)
 
+`ask` (term-prompt tabanlı, TUI'dan çıkar) yerine `prompt_inline` kullanılır. TUI'dan çıkmadan en altına sarı prompt çizer, kullanıcı girdisini alır:
+
+```crystal
+def prompt_inline(message : String, default : String? = nil) : String?
+  # default: kullanıcı boş geçerse döndürülecek değer
+  # ← → Home End Backspace Delete Esc desteklenir
+  # nil → iptal, String? → giriş veya default
+end
+```
+
+- `Esc` → `nil` döndürür (iptal)
+- `Enter` boş → `default` döndürür, dolu → girilen değeri döndürür
+- Arrow keys: `←`/`→` cursor hareketi, `Home`/`End` uçtan uca
+- Kullanılan handler'lar: `new_file`, `new_directory`, `rename_item`, `go_to_dir`
+
+Mock test'leri için `MockTerminal`'da `prompt_inline` override edilmelidir — `@answer_queue`'dan cevap çeker, boşsa `nil` döndürür.

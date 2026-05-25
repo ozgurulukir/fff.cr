@@ -58,6 +58,15 @@ class MockTerminal < FFF::Terminal
     !@answer_queue.empty? ? @answer_queue.shift == "y" : false
   end
 
+  def confirm_inline(message : String) : Bool
+    !@answer_queue.empty? ? @answer_queue.shift == "y" : false
+  end
+
+  # Mock prompt_inline: consume from answer queue, return nil if empty (no TTY).
+  def prompt_inline(message : String, default : String? = nil) : String?
+    !@answer_queue.empty? ? @answer_queue.shift : nil
+  end
+
   # Enqueue keys to be returned by read_keypress (simulates user input).
   def queue_keys(*keys : String)
     @read_buffer.concat(keys)
@@ -510,11 +519,11 @@ describe FFF::FileManager do
       begin
         SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
 
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
+        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
         dm = fm.dir_manager
         dm.list.size.should eq(1)
 
-        _term.queue_answers("new_dir")
+        term.queue_answers("new_dir")
         fm.new_directory
         dm.list.any? { |p| File.basename(p) == "new_dir" }.should be_true
       ensure
@@ -527,11 +536,11 @@ describe FFF::FileManager do
       begin
         SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
 
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
+        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
         dm = fm.dir_manager
         dm.list.size.should eq(1)
 
-        _term.queue_answers("new_file.txt")
+        term.queue_answers("new_file.txt")
         fm.new_file
         dm.list.any? { |p| File.basename(p) == "new_file.txt" }.should be_true
       ensure
@@ -548,7 +557,8 @@ describe FFF::FileManager do
         path = SpecHelper.create_temp_file(temp_dir, "script.sh", "#!/bin/bash\necho hi")
         Process.run("chmod", ["u-x", path])
 
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
+        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
+        term.queue_answers("y")  # confirm_inline: approve toggle
         fm.scroll = 0
         fm.toggle_executable
         File::Info.executable?(path).should be_true
@@ -563,7 +573,8 @@ describe FFF::FileManager do
         path = SpecHelper.create_temp_file(temp_dir, "script.sh", "#!/bin/bash\necho hi")
         Process.run("chmod", ["u+x", path])
 
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
+        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
+        term.queue_answers("y", "y")  # two confirm_inline approvals
         fm.scroll = 0
         fm.toggle_executable # off
         fm.toggle_executable # on again

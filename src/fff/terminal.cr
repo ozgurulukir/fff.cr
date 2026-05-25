@@ -127,6 +127,70 @@ module FFF
       @prompt.yes?(message) || false
     end
 
+    # TUI içi inline text prompt — TUI'dan çıkmadan en altına soru çizer,
+    # kullanıcı girdisini alır, Enter/Esc ile sonlandırır.
+    # default: kullanıcı boş geçerse döndürülecek değer
+    def prompt_inline(message : String, default : String? = nil) : String?
+      row = @height - 2
+      col = 0
+      text = default.to_s
+      cursor = text.size
+
+      draw_prompt(row, col, message, text, cursor)
+
+      loop do
+        key = @reader.read_keypress(raw: false) rescue nil
+
+        case key
+        when "\e", "escape", nil
+          return nil
+        when "\r", "\n", "enter"
+          return text.empty? ? default : text
+        when "\u0003"
+          return nil
+        when "\u007F", "\b", "backspace"
+          if cursor > 0
+            text = text[0...cursor - 1] + text[cursor..]
+            cursor -= 1
+            draw_prompt(row, col, message, text, cursor)
+          end
+        when "\e[3~", "delete"
+          if cursor < text.size
+            text = text[0...cursor] + text[cursor + 1..]
+            draw_prompt(row, col, message, text, cursor)
+          end
+        when "\e[D", "left"
+          cursor -= 1 if cursor > 0
+          draw_prompt(row, col, message, text, cursor)
+        when "\e[C", "right"
+          cursor += 1 if cursor < text.size
+          draw_prompt(row, col, message, text, cursor)
+        when "\e[H", "home"
+          cursor = 0
+          draw_prompt(row, col, message, text, cursor)
+        when "\e[F", "end"
+          cursor = text.size
+          draw_prompt(row, col, message, text, cursor)
+        else
+          if key && key.bytesize > 0 && key.char_at(0).ord >= 32
+            text = text[0...cursor] + key + text[cursor..]
+            cursor += 1
+            draw_prompt(row, col, message, text, cursor)
+          end
+        end
+      end
+    end
+
+    private def draw_prompt(row : Int32, col : Int32, message : String, text : String, cursor : Int32)
+      move_to(row, col)
+      print "\e[K"
+      prompt = "#{message} #{text}"
+      print Term::Color.truecolor_string(prompt, fore: Term::Color.color(:yellow), back: Term::Color.color(:blue))
+      # Position cursor after the text
+      move_to(row, col + 1 + text.size)
+      STDOUT.flush
+    end
+
     def keypress(message : String)
       @prompt.keypress(message)
     end

@@ -72,7 +72,7 @@ module FFF
     end
 
     def go_to_dir
-      dest = with_tui_restored { @term.ask("Go to directory: ") }
+      dest = @term.prompt_inline("Go to directory:")
 
       return if dest.nil? || dest.empty?
 
@@ -85,6 +85,10 @@ module FFF
       @dir_manager.read!
       @scroll = 0
       @page_offset = 0
+
+      @marked = Set(String).new
+      @error_msg = nil
+      @force_full_redraw = true
     end
 
     def go_to_trash

@@ -9,6 +9,8 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 
 - **Fast**: `LS_COLORS` caching, optimized incremental render loop, no flicker
 - **Navigable Search**: Fuzzy filename filtering + ripgrep content search (`!` prefix), all while keeping cursor navigation live. `←`/`→` to move within the search query, `Backspace`/`Delete` to edit.
+- **Inline Prompts**: New file/directory, rename, and go-to-dir inputs stay inside the TUI — no full-screen dialog pop-out.
+- **Inline Confirm**: Delete and permission-toggle confirmations stay inside the TUI with a `[y/N]` prompt at the bottom.
 - **File Operations**: Copy, move, delete (trash), rename, bulk rename, symlink
 - **Smart Preview**: `bat` → `less` → builtin fallback chain; file attributes via `File::Info`/`stat`
 - **Picker Mode**: `-p` flag writes selection to `~/.cache/fff/opened_file` for external tool integration

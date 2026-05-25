@@ -21,8 +21,7 @@ module FFF
     end
 
     def new_file
-      name = with_tui_restored { @term.ask("New file name: ") }
-
+      name = @term.prompt_inline("New file name:")
       return if name.nil? || name.empty?
 
       error = @file_ops.new_file(@dir_manager.current_dir, name)
@@ -31,8 +30,7 @@ module FFF
     end
 
     def new_directory
-      name = with_tui_restored { @term.ask("New directory name: ") }
-
+      name = @term.prompt_inline("New directory name:")
       return if name.nil? || name.empty?
 
       error = @file_ops.new_directory(@dir_manager.current_dir, name)
@@ -46,7 +44,7 @@ module FFF
 
       old_path = @dir_manager.list[@scroll]
       old_name = File.basename(old_path)
-      new_name = with_tui_restored { @term.ask("Rename to: ", old_name) }
+      new_name = @term.prompt_inline("Rename to:", old_name)
 
       return if new_name.nil? || new_name == old_name
 
@@ -117,6 +115,11 @@ module FFF
     def paste_files
       return if @clipboard.empty?
 
+      if @clipboard_mode == :cut
+        confirm = @term.confirm_inline("Move #{@clipboard.size} item(s)? ")
+        return unless confirm
+      end
+
       error = @file_ops.paste_files(@clipboard, @dir_manager.current_dir, @clipboard_mode)
       show_error(error) if error
 
@@ -145,6 +148,19 @@ module FFF
       return if @scroll >= @dir_manager.list.size
 
       path = @dir_manager.list[@scroll]
+      name = File.basename(path)
+
+      info = File.info?(path)
+      return show_error("Cannot check permissions") if info.nil?
+
+      has_exec = info.permissions.includes?(::File::Permissions::OwnerExecute) ||
+                  info.permissions.includes?(::File::Permissions::GroupExecute) ||
+                  info.permissions.includes?(::File::Permissions::OtherExecute)
+      action = has_exec ? "Remove execute" : "Add execute"
+
+      confirm = @term.confirm_inline("#{action} from '#{name}'? ")
+      return unless confirm
+
       error = @file_ops.toggle_executable(path)
       show_error(error) if error
     end
