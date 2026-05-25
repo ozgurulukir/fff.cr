@@ -201,4 +201,29 @@ Arama modunda (`/`) `j`/`k`/`↑`/`↓` tuşları text input'e değil navigasyon
 ### Crystal `getter` vs `property` in Test Context
 Crystal'da `getter` sadece okunur, `property` okunur+yazılır. Test'lerde mock injection veya state reset için `property` kullan. `FileManager.renderer` örneği: önce `getter` idi, test'de mock renderer set edilemedi → `property`'a çevrildi.
 
+## Inline Confirm Pattern (TUI içi y/n onayı)
+
+Confirm/yes-no soruları TUI ekranından çıkmadan, ekranın en altına sarı renkli `[y/N]` prompt'u çizilerek gerçekleştirilir. `with_tui_restored` (TUI'dan çık → ana ekrana dön → prompt → TUI'ya geri dön → full redraw) yerine `confirm_inline` kullanılır:
+
+```crystal
+def confirm_inline(message : String) : Bool
+  row = @height - 2
+  move_to(row, 0)
+  print "\e[K"
+  print Term::Color.truecolor_string("#{message} [y/N] ", fore: :yellow, back: :blue)
+  STDOUT.flush
+  loop do
+    key = @reader.read_keypress(raw: false) rescue nil
+    case key
+    when "y", "Y" then clear_prompt(row); return true
+    when "n", "N", "\e", nil then clear_prompt(row); return false
+    end
+  end
+end
+```
+
+- Prompt, TUI durumunu korur, ekran tamamen silinmez
+- `\e[K` ile satır temizlenir, geri dönerken boş satır bırakılmaz
+- `confirm?` (term-prompt tabanlı, TUI'dan çıkar) hala mevcut, `confirm_inline` yeni TUI içi alternatiftir
+
 

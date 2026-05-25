@@ -53,6 +53,13 @@
 - **Çaba:** Küçük
 - **Bağımlılık:** Yok
 
+### 6. Inline Confirm (TUI içi y/n onay sorusu)
+- [x] **Durum:** ✅ Done — çalışıyor, testler geçiyor
+- **Dosyalar:** `src/fff/terminal.cr` (`confirm_inline`), `src/fff/file_op_handlers.cr` (`delete_files`)
+- **Açıklama:** Silme onayı TUI'dan çıkmadan ekranın en altına sarı `[y/N]` prompt'u çizer. y/N enter'a basınca prompt temizlenir, işlem devam eder. Ekran tamamen silinmez, TUI çıktısı kaybolmaz.
+- **Çaba:** Orta
+- **Bağımlılık:** Yok
+
 ### 7. Error Auto-expire Animasyonu
 - [ ] **Durum:** Pending
 - **Dosya:** `src/fff/ui_renderer.cr` — `draw_error`

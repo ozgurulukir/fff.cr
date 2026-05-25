@@ -130,7 +130,7 @@ module FFF
 
       trash_dir = File.join(ENV["HOME"], ".local", "share", "fff", "trash")
 
-      confirm = with_tui_restored { @term.confirm?("Delete #{sources.size} item(s)? ") }
+      confirm = @term.confirm_inline("Delete #{sources.size} item(s)? ")
       return unless confirm
 
       error = @file_ops.delete_files(sources, trash_dir)

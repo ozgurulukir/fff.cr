@@ -96,6 +96,33 @@ module FFF
       @prompt.ask(message) || ""
     end
 
+    def confirm_inline(message : String) : Bool
+      row = @height - 2
+      col = 0
+
+      move_to(row, col)
+      print "\e[K"
+      prompt = "#{message} [y/N] "
+      print Term::Color.truecolor_string(prompt, fore: Term::Color.color(:yellow), back: Term::Color.color(:blue))
+      STDOUT.flush
+
+      loop do
+        key = @reader.read_keypress(raw: false) rescue nil
+        case key
+        when "y", "Y"
+          move_to(row, col)
+          print "\e[K"
+          STDOUT.flush
+          return true
+        when "n", "N", "\e", nil
+          move_to(row, col)
+          print "\e[K"
+          STDOUT.flush
+          return false
+        end
+      end
+    end
+
     def confirm?(message : String) : Bool
       @prompt.yes?(message) || false
     end
