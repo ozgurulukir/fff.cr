@@ -62,12 +62,15 @@ module FFF
     end
 
     def go_prev
+      old_prev = @prev_dir
       return unless @dir_manager.go_prev(@prev_dir, @prev_child)
 
       if prev_child = @prev_child
         found_idx = @dir_manager.find_child(prev_child)
         @scroll = found_idx if found_idx
       end
+      @prev_dir = old_prev
+      @prev_child = nil
       @page_offset = 0
     end
 
@@ -92,7 +95,7 @@ module FFF
     end
 
     def go_to_trash
-      trash_dir = File.join(ENV["HOME"], ".local", "share", "fff", "trash")
+      trash_dir = @config.trash_dir
       return unless @dir_manager.go_to_trash(trash_dir)
       @scroll = 0
       @page_offset = 0

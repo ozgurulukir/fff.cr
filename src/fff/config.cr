@@ -49,42 +49,42 @@ module FFF
     # key_* ivar = ENV[env]? || json_get(json, *json_keys) || default
     # Order mirrors this table. Add new keys here + getter + key_bindings entry.
     KEY_DEFAULTS = {
-      up:        ["FFF_KEY_UP",         %w[keys up],         "k"],
-      down:      ["FFF_KEY_DOWN",       %w[keys down],       "j"],
-      enter:     ["FFF_KEY_ENTER",      %w[keys enter],      "l"],
-      quit:      ["FFF_KEY_QUIT",       %w[keys quit],       "q"],
-      search:    ["FFF_KEY_SEARCH",     %w[keys search],     "/"],
-      parent:    ["FFF_KEY_PARENT",     %w[keys parent],     "h"],
-      mark:      ["FFF_KEY_MARK",       %w[keys mark],       " "],
-      mark_all:  ["FFF_KEY_MARK_ALL",   %w[keys mark_all],   "m"],
-      copy:      ["FFF_KEY_COPY",       %w[keys copy],       "y"],
-      move:      ["FFF_KEY_MOVE",       %w[keys move],       "v"],
-      delete:    ["FFF_KEY_DELETE",     %w[keys delete],     "d"],
-      new_dir:   ["FFF_KEY_NEW_DIR",    %w[keys new_dir],    "n"],
-      paste:     ["FFF_KEY_PASTE",      %w[keys paste],      "p"],
-      preview:   ["FFF_KEY_PREVIEW",    %w[keys preview],    "i"],
-      page_up:   ["FFF_KEY_PAGE_UP",    %w[keys page_up],    "\e[5~"],
-      page_down: ["FFF_KEY_PAGE_DOWN",  %w[keys page_down],  "\e[6~"],
-      top:       ["FFF_KEY_TOP",        %w[keys top],        "g"],
-      bottom:    ["FFF_KEY_BOTTOM",     %w[keys bottom],     "G"],
-      rename:    ["FFF_KEY_RENAME",     %w[keys rename],     "r"],
-      shell:     ["FFF_KEY_SHELL",      %w[keys shell],      "s"],
-      hidden:    ["FFF_KEY_HIDDEN",     %w[keys hidden],     "."],
-      home:      ["FFF_KEY_HOME",       %w[keys home],       "~"],
-      prev:      ["FFF_KEY_PREVIOUS",   %w[keys previous],   "-"],
-      refresh:   ["FFF_KEY_REFRESH",    %w[keys refresh],    "e"],
-      mkfile:    ["FFF_KEY_MKFILE",     %w[keys mkfile],     "f"],
-      attributes:["FFF_KEY_ATTRIBUTES", %w[keys attributes], "x"],
-      executable:["FFF_KEY_EXECUTABLE", %w[keys executable], "X"],
-      go_dir:    ["FFF_KEY_GO_DIR",     %w[keys go_dir],     ":"],
-      go_trash:  ["FFF_KEY_GO_TRASH",   %w[keys go_trash],   "t"],
-      bulk_rename:["FFF_KEY_BULK_RENAME",%w[keys bulk_rename],"b"],
-      symlink:   ["FFF_KEY_SYMLINK",    %w[keys symlink],    "S"],
-      help:      ["FFF_KEY_HELP",       %w[keys help],       "?"],
+      up:          ["FFF_KEY_UP", %w[keys up], "k"],
+      down:        ["FFF_KEY_DOWN", %w[keys down], "j"],
+      enter:       ["FFF_KEY_ENTER", %w[keys enter], "l"],
+      quit:        ["FFF_KEY_QUIT", %w[keys quit], "q"],
+      search:      ["FFF_KEY_SEARCH", %w[keys search], "/"],
+      parent:      ["FFF_KEY_PARENT", %w[keys parent], "h"],
+      mark:        ["FFF_KEY_MARK", %w[keys mark], " "],
+      mark_all:    ["FFF_KEY_MARK_ALL", %w[keys mark_all], "m"],
+      copy:        ["FFF_KEY_COPY", %w[keys copy], "y"],
+      move:        ["FFF_KEY_MOVE", %w[keys move], "v"],
+      delete:      ["FFF_KEY_DELETE", %w[keys delete], "d"],
+      new_dir:     ["FFF_KEY_NEW_DIR", %w[keys new_dir], "n"],
+      paste:       ["FFF_KEY_PASTE", %w[keys paste], "p"],
+      preview:     ["FFF_KEY_PREVIEW", %w[keys preview], "i"],
+      page_up:     ["FFF_KEY_PAGE_UP", %w[keys page_up], "\e[5~"],
+      page_down:   ["FFF_KEY_PAGE_DOWN", %w[keys page_down], "\e[6~"],
+      top:         ["FFF_KEY_TOP", %w[keys top], "g"],
+      bottom:      ["FFF_KEY_BOTTOM", %w[keys bottom], "G"],
+      rename:      ["FFF_KEY_RENAME", %w[keys rename], "r"],
+      shell:       ["FFF_KEY_SHELL", %w[keys shell], "s"],
+      hidden:      ["FFF_KEY_HIDDEN", %w[keys hidden], "."],
+      home:        ["FFF_KEY_HOME", %w[keys home], "~"],
+      prev:        ["FFF_KEY_PREVIOUS", %w[keys previous], "-"],
+      refresh:     ["FFF_KEY_REFRESH", %w[keys refresh], "e"],
+      mkfile:      ["FFF_KEY_MKFILE", %w[keys mkfile], "f"],
+      attributes:  ["FFF_KEY_ATTRIBUTES", %w[keys attributes], "x"],
+      executable:  ["FFF_KEY_EXECUTABLE", %w[keys executable], "X"],
+      go_dir:      ["FFF_KEY_GO_DIR", %w[keys go_dir], ":"],
+      go_trash:    ["FFF_KEY_GO_TRASH", %w[keys go_trash], "t"],
+      bulk_rename: ["FFF_KEY_BULK_RENAME", %w[keys bulk_rename], "b"],
+      symlink:     ["FFF_KEY_SYMLINK", %w[keys symlink], "S"],
+      help:        ["FFF_KEY_HELP", %w[keys help], "?"],
     }
 
     def initialize
-      config_path = File.join(ENV["HOME"], ".config", "fff", "config.json")
+      config_path = File.join(HOME, ".config", "fff", "config.json")
       json = if File.exists?(config_path)
                begin
                  JSON.parse(File.read(config_path))
@@ -97,9 +97,9 @@ module FFF
 
       @editor = ENV["EDITOR"]? || json_get(json, "editor") || "vi"
       @opener = ENV["FFF_OPENER"]? || json_get(json, "opener") || default_opener
-      @trash_dir = ENV["FFF_TRASH"]? || json_get(json, "trash_dir") || File.join(ENV["HOME"], ".local", "share", "fff", "trash")
+      @trash_dir = ENV["FFF_TRASH"]? || json_get(json, "trash_dir") || File.join(HOME, ".local", "share", "fff", "trash")
       @cd_on_exit = (ENV["FFF_CD_ON_EXIT"]? == "1") || (json_get(json, "cd_on_exit") == "true")
-      @cd_file = ENV["FFF_CD_FILE"]? || json_get(json, "cd_file") || File.join(ENV["HOME"], ".cache", "fff", ".fff_d")
+      @cd_file = ENV["FFF_CD_FILE"]? || json_get(json, "cd_file") || File.join(HOME, ".cache", "fff", ".fff_d")
       @ls_colors = parse_ls_colors
       @key_up = ENV["FFF_KEY_UP"]? || json_get(json, "keys", "up") || "k"
       @key_down = ENV["FFF_KEY_DOWN"]? || json_get(json, "keys", "down") || "j"
@@ -148,7 +148,9 @@ module FFF
     end
 
     private def default_opener
-      case `uname`.strip
+      output = IO::Memory.new
+      Process.run("uname", output: output)
+      case output.to_s.strip
       when "Darwin" then "open"
       else               "xdg-open"
       end
@@ -217,8 +219,10 @@ module FFF
       end
     end
 
+    @key_bindings_cache : Hash(String, String)?
+
     def key_bindings : Hash(String, String)
-      {
+      @key_bindings_cache ||= {
         "j" => @key_down, "k" => @key_up, "h" => @key_parent, "l" => @key_enter,
         "q" => @key_quit, "/" => @key_search, " " => @key_mark, "m" => @key_mark_all,
         "y" => @key_copy, "v" => @key_move, "p" => @key_paste, "d" => @key_delete,

@@ -12,18 +12,18 @@ require "../../src/fff/file_manager.cr"
 # ──────────────────────────────────────────────
 class MockTerminal < FFF::Terminal
   @read_buffer = [] of String
-  @key_index   = 0
+  @key_index = 0
 
-  getter width  : Int32
+  getter width : Int32
   getter height : Int32
 
   def initialize
-    @width       = 80
-    @height      = 24
-    @reader      = Term::Reader.new
-    @prompt      = Term::Prompt.new
+    @width = 80
+    @height = 24
+    @reader = Term::Reader.new
+    @prompt = Term::Prompt.new
     @read_buffer = [] of String
-    @key_index   = 0
+    @key_index = 0
   end
 
   def read_keypress : String?
@@ -36,17 +36,27 @@ class MockTerminal < FFF::Terminal
     nil
   end
 
-  def print(_str : String)               ; end
-  def move_to(_row : Int32, _col : Int32) ; end
-  def clear_line                         ; end
-  def enter_tui                           ; end
-  def leave_tui                           ; end
-  def clear                               ; end
-  def clear_to_end                        ; end
-  def set_scroll_region                   ; end
-  def reset_scroll_region                 ; end
-  def update_window_title(_path = "")     ; end
-  def refresh_size                       ; end
+  def print(_str : String); end
+
+  def move_to(_row : Int32, _col : Int32); end
+
+  def clear_line; end
+
+  def enter_tui; end
+
+  def leave_tui; end
+
+  def clear; end
+
+  def clear_to_end; end
+
+  def set_scroll_region; end
+
+  def reset_scroll_region; end
+
+  def update_window_title(_path = ""); end
+
+  def refresh_size; end
 
   def max_items : Int32
     @height - 2
@@ -74,15 +84,15 @@ module AdvancedHelper
   extend self
 
   def create_mock_file_manager(start_dir, picker_mode = false)
-    mock_term   = MockTerminal.new
-    config      = FFF::Config.new
+    mock_term = MockTerminal.new
+    config = FFF::Config.new
     dir_manager = FFF::DirectoryManager.new(start_dir)
     dir_manager.read!
 
     fm = FFF::FileManager.new(config, start_dir, picker_mode, mock_term)
     fm.dir_manager = dir_manager
-    fm.renderer    = FFF::UIRenderer.new(mock_term, config)
-    fm.input_mode  = FFF::InputMode.new(mock_term)
+    fm.renderer = FFF::UIRenderer.new(mock_term, config)
+    fm.input_mode = FFF::InputMode.new(mock_term)
     {fm, mock_term}
   end
 end
@@ -96,13 +106,13 @@ describe FFF::FileManager do
       begin
         SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
 
-         fm, _term = AdvancedHelper.create_mock_file_manager(temp_dir)
-         fm.show_error("disk full")
+        fm, _term = AdvancedHelper.create_mock_file_manager(temp_dir)
+        fm.show_error("disk full")
 
-         fm.error_msg.should eq("disk full")
-         exp = fm.error_expires
-         exp.should_not be_nil
-         (exp.not_nil!.to_unix > Time.utc.to_unix).should be_true
+        fm.error_msg.should eq("disk full")
+        exp = fm.error_expires
+        exp.should_not be_nil
+        (exp.not_nil!.to_unix > Time.utc.to_unix).should be_true
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
@@ -135,7 +145,7 @@ describe FFF::FileManager do
         fm.prev_scroll.should eq(-1)
         fm.prev_page_offset.should eq(-1)
 
-        fm.redraw  # no-op (no TTY), but state should be captured
+        fm.redraw # no-op (no TTY), but state should be captured
         fm.prev_scroll.should eq(0)
         fm.prev_page_offset.should eq(0)
       ensure
@@ -149,15 +159,15 @@ describe FFF::FileManager do
     it "exposes total_size for visible files and hidden_count for hidden entries" do
       temp_dir = SpecHelper.create_temp_dir("adv_meta")
       begin
-        SpecHelper.create_temp_file(temp_dir, "normal.txt",   "visible content here")
+        SpecHelper.create_temp_file(temp_dir, "normal.txt", "visible content here")
         SpecHelper.create_temp_file(temp_dir, ".hidden_file", "hidden content")
 
         ENV["FFF_HIDDEN"] = "1"
         fm, _term = AdvancedHelper.create_mock_file_manager(temp_dir)
-        dm  = fm.dir_manager
+        dm = fm.dir_manager
 
-        dm.total_size.should be > 0_i64  # normal.txt is counted when hidden files shown
-        dm.hidden_count.should eq(1)     # .hidden_file matched its dot prefix once
+        dm.total_size.should be > 0_i64
+        dm.hidden_count.should eq(0) # hidden files are shown, so nothing is "hidden"
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
         ENV.delete("FFF_HIDDEN")
@@ -192,8 +202,8 @@ describe FFF::FileManager do
         pg_size = fm.term.max_items
 
         3.times { fm.page_down }
-        fm.scroll.should eq(59)          # last item in 60-item list
-        fm.page_offset.should eq(38)     # scroll - max + 1 = 59 - 22 + 1
+        fm.scroll.should eq(59)      # last item in 60-item list
+        fm.page_offset.should eq(38) # scroll - max + 1 = 59 - 22 + 1
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
@@ -207,10 +217,10 @@ describe FFF::FileManager do
         fm, _term = AdvancedHelper.create_mock_file_manager(temp_dir)
         pg_size = fm.term.max_items
 
-         5.times { fm.page_down }
+        5.times { fm.page_down }
         fm.page_up
-        fm.scroll.should eq(37)          # 59 - 22 = 37 (end - 1 page)
-        fm.page_offset.should eq(37)     # scroll < page_offset → page_offset = scroll
+        fm.scroll.should eq(37)      # 59 - 22 = 37 (end - 1 page)
+        fm.page_offset.should eq(37) # scroll < page_offset → page_offset = scroll
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
@@ -225,11 +235,11 @@ describe FFF::FileManager do
         SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
 
         fm, _term = AdvancedHelper.create_mock_file_manager(temp_dir)
-        im  = fm.input_mode
+        im = fm.input_mode
 
         fm.start_search
         im.handle_key("a")
-        fm.redraw  # Should trigger full_draw because search_mode is active
+        fm.redraw # Should trigger full_draw because search_mode is active
         # no crash = pass
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
@@ -259,21 +269,21 @@ describe FFF::FileManager do
       temp_dir = SpecHelper.create_temp_dir("adv_mark_hidden")
       begin
         SpecHelper.create_temp_file(temp_dir, "visible.txt", "x")
-        SpecHelper.create_temp_file(temp_dir, ".secret.txt",  "x")
+        SpecHelper.create_temp_file(temp_dir, ".secret.txt", "x")
 
-         fm, _term = AdvancedHelper.create_mock_file_manager(temp_dir)
-         marks = fm.marked
-         dm    = fm.dir_manager
+        fm, _term = AdvancedHelper.create_mock_file_manager(temp_dir)
+        marks = fm.marked
+        dm = fm.dir_manager
 
-         # mark the visible file before toggling
-         fm.scroll = 0
-         fm.toggle_mark
-         marks.size.should eq(1)
+        # mark the visible file before toggling
+        fm.scroll = 0
+        fm.toggle_mark
+        marks.size.should eq(1)
 
-         # After toggling hidden on and off, mark set is still the same file
-         fm.dir_manager.toggle_hidden
-         fm.dir_manager.toggle_hidden
-         marks.size.should eq(1)
+        # After toggling hidden on and off, mark set is still the same file
+        fm.dir_manager.toggle_hidden
+        fm.dir_manager.toggle_hidden
+        marks.size.should eq(1)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end

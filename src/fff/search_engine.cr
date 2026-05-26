@@ -50,17 +50,14 @@ module FFF
     def self.content_search(query : String, dir : String) : Array(String)
       return [] of String if query.size < 2
 
+      proc_chan = Channel(Process).new(1)
       result_chan = Channel(IO::Memory).new(1)
       timeout_chan = Channel(Nil).new(1)
       output_io = IO::Memory.new
       error_io = IO::Memory.new
       pipe_rd, pipe_wr = IO.pipe
       pipe_err_rd, pipe_err_wr = IO.pipe
-      the_proc = uninitialized Process
 
-      # ── worker fiber ──────────────────────────────────────────────
-      # Runs rg and copies its stdout / stderr into memory.  Pipes are
-      # closed as soon as rg exits so the gets_to_end calls complete.
       spawn do
         the_proc = Process.new(
           "rg", ["-l", "--max-count", "1", query, dir],
@@ -68,29 +65,26 @@ module FFF
         )
         pipe_wr.close
         pipe_err_wr.close
+        proc_chan.send(the_proc)
 
-        # Copy pipe data into the Memory objects.
         output_io << pipe_rd.gets_to_end
         error_io << pipe_err_rd.gets_to_end
 
-        # Signal completion.
         result_chan.send(output_io)
       rescue
         result_chan.send(output_io)
       end
 
-      # ── timeout guard ─────────────────────────────────────────────
-      # After 2 s we kill the process and close the read-ends of the
-      # pipes so the worker fiber can finish without leaking.
       spawn do
         sleep 2.seconds
+        the_proc = proc_chan.receive
         Process.signal(Signal::TERM, the_proc.pid) rescue nil
         pipe_rd.close rescue nil
         pipe_err_rd.close rescue nil
+        the_proc.wait rescue nil
         timeout_chan.send(nil)
       end
 
-      # ── first result wins ─────────────────────────────────────────
       select
       when output = result_chan.receive
         timeout_chan.receive rescue nil

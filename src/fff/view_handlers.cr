@@ -54,7 +54,7 @@ module FFF
       end
       print "Press any key to continue..."
       STDOUT.flush
-      STDIN.raw(&.read_char)
+      STDIN.raw(&.read_char) if STDIN.tty?
       print "\n"
       STDOUT.flush
       @term.enter_tui
@@ -72,7 +72,7 @@ module FFF
       puts result
       print "Press any key to continue..."
       STDOUT.flush
-      STDIN.raw(&.read_char)
+      STDIN.raw(&.read_char) if STDIN.tty?
       print "\n"
       STDOUT.flush
       @term.enter_tui

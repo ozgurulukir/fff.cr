@@ -131,7 +131,7 @@ module FFF
       sources = marked_or_current
       return if sources.empty?
 
-      trash_dir = File.join(ENV["HOME"], ".local", "share", "fff", "trash")
+      trash_dir = @config.trash_dir
 
       confirm = @term.confirm_inline("Delete #{sources.size} item(s)? ")
       return unless confirm
@@ -154,8 +154,8 @@ module FFF
       return show_error("Cannot check permissions") if info.nil?
 
       has_exec = info.permissions.includes?(::File::Permissions::OwnerExecute) ||
-                  info.permissions.includes?(::File::Permissions::GroupExecute) ||
-                  info.permissions.includes?(::File::Permissions::OtherExecute)
+                 info.permissions.includes?(::File::Permissions::GroupExecute) ||
+                 info.permissions.includes?(::File::Permissions::OtherExecute)
       action = has_exec ? "Remove execute" : "Add execute"
 
       confirm = @term.confirm_inline("#{action} from '#{name}'? ")

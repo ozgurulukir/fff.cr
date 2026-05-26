@@ -22,36 +22,36 @@ module FFF
     include FileOpHandlers
     include ViewHandlers
 
-     # ── Public access (used by tests & handler mixins) ────────────────────────
+    # ── Public access (used by tests & handler mixins) ────────────────────────
     # read/write
-    property scroll           : Int32
-    property page_offset      : Int32
-    property marked           : Set(String)
-    property clipboard        : Array(String)
-    property clipboard_mode   : Symbol
-    property dir_manager      : DirectoryManager
-    property input_mode       : InputMode
-    property error_msg        : String?
-    property error_expires    : Time?
-    property loading          : Bool
-    property show_help        : Bool
-    property git_branch       : String
-    property git_status       : String
+    property scroll : Int32
+    property page_offset : Int32
+    property marked : Set(String)
+    property clipboard : Array(String)
+    property clipboard_mode : Symbol
+    property dir_manager : DirectoryManager
+    property input_mode : InputMode
+    property error_msg : String?
+    property error_expires : Time?
+    property loading : Bool
+    property show_help : Bool
+    property git_branch : String
+    property git_status : String
     property force_full_redraw : Bool
-     # read/write
-     property renderer         : UIRenderer
-     getter term
-     getter prev_scroll        : Int32
-    getter prev_page_offset   : Int32
-    getter config             : Config
-    getter fff_level          : Int32
-    getter running            : Bool
-    getter picker_mode        : Bool
-    getter git_dir_cache      : String
-    getter file_ops           : FileOperations
-    getter prev_dir           : String?
-    getter prev_child         : String?
-    getter prev_list_size     : Int32
+    # read/write
+    property renderer : UIRenderer
+    getter term
+    getter prev_scroll : Int32
+    getter prev_page_offset : Int32
+    getter config : Config
+    getter fff_level : Int32
+    getter running : Bool
+    getter picker_mode : Bool
+    getter git_dir_cache : String
+    getter file_ops : FileOperations
+    getter prev_dir : String?
+    getter prev_child : String?
+    getter prev_list_size : Int32
 
     # ── Private ivar type declarations ─────────────────────────────────────────
 
@@ -81,7 +81,7 @@ module FFF
       @error_expires = nil
       @prev_scroll = -1
       @prev_page_offset = -1
-      @fff_level = (ENV["FFF_LEVEL"]?.try(&.to_i) || 0)
+      @fff_level = (ENV["FFF_LEVEL"]?.try(&.to_i?) || 0)
       @loading = false
       @prev_list_size = -1
       @force_full_redraw = false
@@ -95,50 +95,50 @@ module FFF
       # so every binding including page_up/down can live in the hash.
       @key_handlers = Hash(String, Proc(Nil)).new
       # Navigation
-      @key_handlers["j"]     = ->{ cursor_down }
-      @key_handlers["\e[B"]  = ->{ cursor_down }  # ↓-arrow
-      @key_handlers["k"]     = ->{ cursor_up }
-      @key_handlers["\e[A"]  = ->{ cursor_up }    # ↑-arrow
-      @key_handlers["h"]     = ->{ go_parent }
-      @key_handlers["\e[D"]  = ->{ go_parent }    # ←-arrow
-      @key_handlers["l"]     = ->{ enter_item }
-      @key_handlers["\e[C"]  = ->{ enter_item }   # →-arrow
-      @key_handlers["G"]     = ->{ go_bottom }
-      @key_handlers["g"]     = ->{ go_top }
+      @key_handlers["j"] = -> { cursor_down }
+      @key_handlers["\e[B"] = -> { cursor_down } # ↓-arrow
+      @key_handlers["k"] = -> { cursor_up }
+      @key_handlers["\e[A"] = -> { cursor_up } # ↑-arrow
+      @key_handlers["h"] = -> { go_parent }
+      @key_handlers["\e[D"] = -> { go_parent } # ←-arrow
+      @key_handlers["l"] = -> { enter_item }
+      @key_handlers["\e[C"] = -> { enter_item } # →-arrow
+      @key_handlers["G"] = -> { go_bottom }
+      @key_handlers["g"] = -> { go_top }
       # File ops
-      @key_handlers[" "]     = ->{ toggle_mark }
-      @key_handlers["m"]     = ->{ toggle_mark_all }
-      @key_handlers["y"]     = ->{ yank_files }
-      @key_handlers["v"]     = ->{ cut_files }
-      @key_handlers["p"]     = ->{ paste_files }
-      @key_handlers["d"]     = ->{ delete_files }
-      @key_handlers["n"]     = ->{ new_directory }
-      @key_handlers["f"]     = ->{ new_file }
-      @key_handlers["r"]     = ->{ start_rename }
-      @key_handlers["b"]     = ->{ bulk_rename }
-      @key_handlers["i"]     = ->{ preview_file }
-      @key_handlers["S"]     = ->{ create_symlink }
-      @key_handlers["X"]     = ->{ toggle_executable }
+      @key_handlers[" "] = -> { toggle_mark }
+      @key_handlers["m"] = -> { toggle_mark_all }
+      @key_handlers["y"] = -> { yank_files }
+      @key_handlers["v"] = -> { cut_files }
+      @key_handlers["p"] = -> { paste_files }
+      @key_handlers["d"] = -> { delete_files }
+      @key_handlers["n"] = -> { new_directory }
+      @key_handlers["f"] = -> { new_file }
+      @key_handlers["r"] = -> { start_rename }
+      @key_handlers["b"] = -> { bulk_rename }
+      @key_handlers["i"] = -> { preview_file }
+      @key_handlers["S"] = -> { create_symlink }
+      @key_handlers["X"] = -> { toggle_executable }
       # View / system
-      @key_handlers["s"]     = ->{ spawn_shell }
-      @key_handlers["/"]     = ->{ start_search }
-      @key_handlers["."]     = ->{ @dir_manager.toggle_hidden }
-      @key_handlers["t"]     = ->{ go_to_trash }
-      @key_handlers["x"]     = ->{ show_attributes }
-      @key_handlers[":"]     = ->{ go_to_dir }
-      @key_handlers["~"]     = ->{ @dir_manager.go_home }
-      @key_handlers["-"]     = ->{ go_prev }
-      @key_handlers["e"]     = ->{ @dir_manager.refresh! }
-      @key_handlers["="]     = ->{ @dir_manager.cycle_sort_mode }
-      @key_handlers["+"]     = ->{ @dir_manager.toggle_sort_reverse }
-      @key_handlers["?"]     = ->{ toggle_help }
-      @key_handlers["q"]     = ->{ quit }
+      @key_handlers["s"] = -> { spawn_shell }
+      @key_handlers["/"] = -> { start_search }
+      @key_handlers["."] = -> { @dir_manager.toggle_hidden }
+      @key_handlers["t"] = -> { go_to_trash }
+      @key_handlers["x"] = -> { show_attributes }
+      @key_handlers[":"] = -> { go_to_dir }
+      @key_handlers["~"] = -> { @dir_manager.go_home }
+      @key_handlers["-"] = -> { go_prev }
+      @key_handlers["e"] = -> { @dir_manager.refresh! }
+      @key_handlers["="] = -> { @dir_manager.cycle_sort_mode }
+      @key_handlers["+"] = -> { @dir_manager.toggle_sort_reverse }
+      @key_handlers["?"] = -> { toggle_help }
+      @key_handlers["q"] = -> { quit }
       # Dynamic page keys (resolved from @config at init time)
-      @key_handlers[@config.key_page_up]   = ->{ page_up }
-      @key_handlers[@config.key_page_down] = ->{ page_down }
+      @key_handlers[@config.key_page_up] = -> { page_up }
+      @key_handlers[@config.key_page_down] = -> { page_down }
       # Bookmarks (digit → jump_to_bookmark, digit captured by closure)
       (1..9).each do |d|
-        @key_handlers[d.to_s] = ->{ jump_to_bookmark(d.to_s) }
+        @key_handlers[d.to_s] = -> { jump_to_bookmark(d.to_s) }
       end
     end
 
@@ -157,7 +157,6 @@ module FFF
       Signal::QUIT.trap { quit }
       Signal::WINCH.trap { handle_resize }
 
-      at_exit { @term.leave_tui if @running }
       ENV["FFF_LEVEL"] = @fff_level.to_s
 
       ensure_dirs
@@ -165,15 +164,16 @@ module FFF
       @dir_manager.read!
       event_loop
     rescue e : Exception
-      @term.leave_tui
       STDERR.puts "fff error: #{e.message}"
       if ENV["FFF_DEBUG"]? == "1"
         STDERR.puts e.backtrace.join("\n")
       end
+    ensure
+      @term.leave_tui
     end
 
     def ensure_dirs
-      FileUtils.mkdir_p(File.join(ENV["HOME"], ".cache", "fff")) if @config.cd_on_exit
+      FileUtils.mkdir_p(File.join(HOME, ".cache", "fff")) if @config.cd_on_exit
     end
 
     def handle_resize
@@ -245,7 +245,6 @@ module FFF
       else
         @git_branch = ""
         @git_status = ""
-        @git_dir_cache = ""
       end
     rescue e : Exception
       @git_branch = ""
@@ -320,7 +319,6 @@ module FFF
     end
 
     def perform_shutdown
-      @term.leave_tui
       save_cd_on_exit if @config.cd_on_exit && !@picker_mode
       write_picker_file if @picker_mode
     end
@@ -360,23 +358,23 @@ module FFF
       end
     end
 
-  def handle_search_complete
-    @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
-    clamp_scroll
-    @input_mode.end(false)
-  end
-
-  def handle_rename_complete
-    if @scroll < @dir_manager.list.size
-      old_path = @dir_manager.list[@scroll]
-      error = @input_mode.apply_rename(old_path)
-      show_error(error) if error
-      @dir_manager.read!
+    def handle_search_complete
+      @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
+      clamp_scroll
+      @input_mode.end(false)
     end
-    @input_mode.end
-  end
 
-  def live_search
+    def handle_rename_complete
+      if @scroll < @dir_manager.list.size
+        old_path = @dir_manager.list[@scroll]
+        error = @input_mode.apply_rename(old_path)
+        show_error(error) if error
+        @dir_manager.read!
+      end
+      @input_mode.end
+    end
+
+    def live_search
       @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
     end
 
@@ -462,15 +460,14 @@ module FFF
     end
 
     def save_cd_on_exit
-      last_file = File.join(ENV["HOME"], ".cache", "fff", "opened_file")
-      File.write(last_file, @dir_manager.current_dir)
+      last_file = File.join(HOME, ".cache", "fff", "opened_file")
     end
 
     def write_picker_file
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
-      last_file = File.join(ENV["HOME"], ".cache", "fff", "opened_file")
+      last_file = File.join(HOME, ".cache", "fff", "opened_file")
       File.write(last_file, @dir_manager.list[@scroll])
     end
 
