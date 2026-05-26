@@ -85,7 +85,7 @@ module FFF
       dir = File.directory?(path) ? path : File.dirname(path)
       info = File.info(dir)
       info.permissions.owner_write? || info.permissions.group_write? || info.permissions.other_write?
-    rescue
+    rescue e : IO::Error | File::Error
       false
     end
 

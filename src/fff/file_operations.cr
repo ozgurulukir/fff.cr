@@ -34,7 +34,7 @@ module FFF
           FileService.move(sources, dest_dir)
         end
         nil
-      rescue e : Exception
+      rescue e : IO::Error | File::Error
         e.message
       end
     end
@@ -49,7 +49,7 @@ module FFF
       begin
         FileService.trash(sources, trash_dir)
         nil
-      rescue e : Exception
+      rescue e : IO::Error | File::Error
         e.message
       end
     end
@@ -63,7 +63,7 @@ module FFF
       begin
         File.write(path, "")
         nil
-      rescue e : Exception
+      rescue e : IO::Error | File::Error
         e.message
       end
     end
@@ -77,7 +77,7 @@ module FFF
       begin
         Dir.mkdir(path)
         nil
-      rescue e : Exception
+      rescue e : IO::Error | File::Error
         e.message
       end
     end
@@ -92,7 +92,7 @@ module FFF
       begin
         FileService.create_symlink(sources, dest_dir)
         nil
-      rescue e : Exception
+      rescue e : IO::Error | File::Error
         e.message
       end
     end
@@ -126,7 +126,7 @@ module FFF
           Process.run("chmod", ["+x", path])
           "Added executable bit"
         end
-      rescue e : Exception
+      rescue e : IO::Error | File::Error
         e.message
       end
     end
@@ -160,7 +160,7 @@ module FFF
         end
 
         nil
-      rescue e : Exception
+      rescue e : IO::Error | File::Error
         e.message
       ensure
         File.delete(temp_file) if File.exists?(temp_file)

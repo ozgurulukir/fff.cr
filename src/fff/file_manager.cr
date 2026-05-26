@@ -180,7 +180,7 @@ module FFF
         @git_status = ""
         @git_dir_cache = ""
       end
-    rescue
+    rescue e : Exception
       @git_branch = ""
       @git_status = ""
     end
@@ -407,7 +407,7 @@ module FFF
       output = IO::Memory.new
       status = Process.run("file", ["--mime-type", path], output: output, error: STDERR)
       status.success? && output.to_s.includes?("text/")
-    rescue
+    rescue e : Exception
       false
     end
 

@@ -492,6 +492,74 @@ describe FFF::FileManager do
     end
   end
 
+  # ── Delete files ──────────────────────────────────────────────────────────
+  describe "delete_files" do
+    it "sends marked files to trash" do
+      temp_dir = SpecHelper.create_temp_dir("fm_df")
+      begin
+        path = SpecHelper.create_temp_file(temp_dir, "to_trash.txt", "bye")
+
+        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
+        trash_dir = File.join(ENV["HOME"], ".local", "share", "fff", "trash")
+
+        fm.marked = Set{path}
+        fm.scroll = 0
+        term.queue_answers("y")  # confirm_inline: approve delete
+        fm.delete_files
+
+        File.exists?(path).should be_false
+        trash_contents = Dir.children(trash_dir)
+        trash_contents.any? { |f| f.includes?("to_trash") }.should be_true
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+        if home = ENV["HOME"]?
+          trash_dir = File.join(home, ".local", "share", "fff", "trash")
+          FileUtils.rm_rf(trash_dir) if File.exists?(trash_dir)
+        end
+      end
+    end
+
+    it "returns nil when no files marked" do
+      temp_dir = SpecHelper.create_temp_dir("fm_df_nomark")
+      begin
+        SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
+
+        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
+        fm.delete_files.should be_nil
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  # ── Paste files ───────────────────────────────────────────────────────────
+  describe "paste_files" do
+    it "copies files from clipboard to current directory (copy mode)" do
+      src_dir = SpecHelper.create_temp_dir("fm_pf_src")
+      dst_dir = SpecHelper.create_temp_dir("fm_pf_dst")
+      begin
+        src_file = SpecHelper.create_temp_file(src_dir, "copy_me.txt", "content")
+
+        fm, term = IntegrationHelper.create_test_file_manager(src_dir)
+        fm.clipboard = [src_file]
+        fm.clipboard_mode = :copy
+
+        # Switch FM to destination directory
+        fm.dir_manager = FFF::DirectoryManager.new(dst_dir)
+        fm.dir_manager.read!
+
+        term.queue_answers("y")  # confirm_inline for copy mode if needed
+        fm.paste_files
+
+        dest_file = File.join(dst_dir, "copy_me.txt")
+        File.exists?(dest_file).should be_true
+      ensure
+        SpecHelper.cleanup_temp_dir(src_dir)
+        SpecHelper.cleanup_temp_dir(dst_dir)
+      end
+    end
+  end
+
   # ── Rename ─────────────────────────────────────────────────────────────────
   describe "start_rename" do
     it "enters rename input mode" do
