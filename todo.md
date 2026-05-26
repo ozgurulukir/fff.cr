@@ -1,89 +1,73 @@
-# UI/UX Bump — fff File Manager
+# todo.md — fff File Manager
 
-## Öncelikli (🔴 Yüksek Etki / Düşük Çaba)
-
-### ✅ 1. Loading Spinner
-- [x] **Durum:** ✅ Done — commit 67ce274
-- **Dosya:** `src/fff/ui_renderer.cr` — `draw_all_lines`
-- **Açıklama:** Statik `"Loading..."` yerine dönen spinner karakterleri çiz. 10 karelik braille spinner (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`), zaman tabanlı animasyon.
-- **Çaba:** Küçük
-- **Bağımlılık:** Yok
-
-### ✅ 2. Top Bar Zenginleştirme
-- [x] **Durum:** ✅ Done — commit 67ce274
-- **Dosyalar:** `src/fff/draw_state.cr`, `src/fff/file_manager.cr`, `src/fff/ui_renderer.cr`
-- **Açıklama:** Top bar'a toplam dosya sayısı, gizli dosya sayısı, toplam boyut ekle. Örn: `~/proj (main)  47 files  12.4k  ↓`. `DirectoryManager`'da hesaplanır, `DrawState`'e alan eklenir.
-- **Çaba:** Orta
-- **Bağımlılık:** Yok
-
-### ✅ 3. Status Bar Sectioning
-- [x] **Durum:** ✅ Done — commit 614a711
-- **Dosya:** `src/fff/ui_renderer.cr` — `draw_status`
-- **Açıklama:** Sol tarafta dosya adı + meta, sağda clipboard + mark + git durumu. Zaten `|` ile ayrılıyor, sağ tarafı `ljust` ile sağa yasla.
-- **Çaba:** Orta
-- **Bağımlılık:** Yok
-
-### ✅ 4. Fuzzy Highlight Geliştirme
-- [x] **Durum:** ✅ Done — commit 67ce274
-- **Dosya:** `src/fff/ui_renderer.cr` — `draw_fuzzy_name`
-- **Açıklama:** Eşleşen karakterleri sadece renk değil, **kalın + altı çizili** yap. `Term::Color.truecolor_string` bold parametresi var mı kontrol et; yoksa ANSI `\e[1m` + `\e[4m` escape kodları ekle.
-- **Çaba:** Küçük
-- **Bağımlılık:** Yok
+## BFG Score: 93/100 (Dep=100 · Coup=95 · Cog=95 · Arch=100 · Test=95 · Qual=77)
 
 ---
 
-## Orta Öncelik (🟡 Orta Etki / Orta Çaba)
+## 🔴 High Priority
 
-### ✅ 5. Directory/Symlink Görsel Ayırıcıları
-- [x] **Durum:** ✅ Done — commit 614a711
-- **Dosya:** `src/fff/ui_renderer.cr` — `draw_line`
-- **Açıklama:** Klasörler için `📁`, çalıştırılabilir dosyalar için `*` ekle. Mevcut `/` (dir) ve `@` (symlink) korunsun.
-- **Çaba:** Orta
+### TODO-1 ✅ DONE | Replace bare `rescue` — `file_operations.cr` (×8)
+- **Prior:** 🔴 High | **Çaba:** Orta | **Commit:** bac8031
+- **Dosya:** `src/fff/file_operations.cr` — lines 37/52/66/80/95/109/129/163
+- **Remedy:** `rescue e : Exception` → `rescue e : IO::Error | File::Error`
 
-### ✅ 6. Git Status Renk Kodlaması
-- [x] **Durum:** ✅ Done — commit 614a711
-- **Dosya:** `src/fff/ui_renderer.cr` — `draw_status`
-- **Açıklama:** `+` (staged) → green, `~` (modified) → yellow, `?` (untracked) → cyan, `-` (deleted) → red.
-- **Çaba:** Orta
+### TODO-2 ✅ DONE | Replace bare `rescue` — `file_service.cr` + `file_manager.cr`
+- **Prior:** 🔴 High | **Çaba:** Küçük | **Commit:** bac8031
+- **file_service.cr:88** — bare `rescue` → `rescue e : IO::Error | File::Error`
+- **file_manager.cr:183** — bare `rescue` in `update_git_branch` → `rescue e : Exception`
+- **file_manager.cr:410** — bare `rescue` in `mime_is_text?` → `rescue e : Exception`
 
-### 5. Arama Modunda Navigasyon (j/k/↑/↓)
-- [x] **Durum:** ✅ Done — çalışıyor, testler geçiyor
-- **Dosyalar:** `src/fff/file_manager.cr` (`handle_input_mode`), `src/fff/input_mode.cr` (`handle_key`)
-- **Açıklama:** Arama modunda (`/`) filtreleme yaparken `j`/`k`/`↑`/`↓` ile filtrelenmiş liste üzerinde gezilebilsin. `InputMode.handle_key` up/down'ı search modunda `false` dönerken `navigating` bayrağını `true` yapar; `FileManager.handle_input_mode` bunu yakalayıp `cursor_up`/`cursor_down` çağırır.
-- **Çaba:** Küçük
-- **Bağımlılık:** Yok
+### TODO-3 ✅ DONE | Add direct tests for `delete_files` + `paste_files`
+- **Prior:** 🟡 Medium | **Çaba:** Orta | **Commit:** bac8031
+- **Dosyalar:** `spec/integration/navigation_integration_spec.cr`
+- **Added:** 3 new integration tests (`delete_files sends marked files to trash`, `returns nil when no files marked`, `paste_files copies files from clipboard to current directory (copy mode)`)
+- Total suite: 131 → **134 examples**
 
-### 6. Inline Confirm (TUI içi y/n onay sorusu)
-- [x] **Durum:** ✅ Done — çalışıyor, testler geçiyor
-- **Dosyalar:** `src/fff/terminal.cr` (`confirm_inline`), `src/fff/file_op_handlers.cr` (`delete_files`)
-- **Açıklama:** Silme onayı TUI'dan çıkmadan ekranın en altına sarı `[y/N]` prompt'u çizer. y/N enter'a basınca prompt temizlenir, işlem devam eder. Ekran tamamen silinmez, TUI çıktısı kaybolmaz.
-- **Çaba:** Orta
-- **Bağımlılık:** Yok
+### TODO-5 | Extract `route_keypress` / `handle_key` from `file_manager.cr`
+- **Prior:** 🟡 Medium | **Çaba:** Orta
+- **Dosyalar:** `src/fff/file_manager.cr:316` (`handle_key` 78-line MATCH), `src/fff/file_manager.cr` (463 LOC total)
+- **Bulgu:** `handle_key` has 30 branches in a single MATCH; every new key binding requires editing this function (FIND-5).
+- **Remedy:** Break MATCH into per-action method group or a key-registry struct.
 
-### 7. Error Auto-expire Animasyonu
-- [ ] **Durum:** Pending
-- **Dosya:** `src/fff/ui_renderer.cr` — `draw_error`
-- **Açıklama:** Hata mesajı 2sn sonra ani kaybolmaktan ziyade kademeli sil (fade-out).
-- **Çaba:** Orta
+### TODO-6 🔄 IN PROGRESS | Colorize git branch name in `draw_topbar`
+- **Prior:** 🟡 Medium | **Çaba:** Küçük
+- **Dosya:** `src/fff/ui_renderer.cr:94`
+- **Status:** ANSI-magenta color applied; truncation math uses raw visible width (line 129)
+- **TESTING:** Build passes — final render correctness depends on runtime terminal width
+
+### TODO-7a | Split `file_operations.cr` (174 LOC)
+- **Prior:** 🟢 Low | **Çaba:** Yüksek
+- **Dosya:** `src/fff/file_operations.cr`
+- **Bulgu:** 174 LOC concentrating all file-creation, deletion, rename logic in one module (FIND-7).
+- **Remedy:** Split into `file_creation.cr`, `file_deletion.cr`, `file_rename.cr`.
+
+### TODO-7b | Split `config.cr` (271 LOC)
+- **Prior:** 🟢 Low | **Çaba:** Yüksek
+- **Dosya:** `src/fff/config.cr`
+- **Bulgu:** Env-var parsing, LS_COLORS cache, JSON config all in one (FIND-8).
+- **Remedy:** Split into `env_config.cr`, `ls_colors_parser.cr`, `config_cache.cr`.
 
 ---
 
-## Düşük Öncelik (🟢 Düşük Etki / Yüksek Çaba)
+## ✅ Previously Done (UI/UX items 1–10)
 
-### 8. Multi-column Layout
-- [ ] **Durum:** Pending
-- **Dosyalar:** `src/fff/ui_renderer.cr`, `src/fff/draw_state.cr`, `src/fff/directory_manager.cr`
-- **Açıklama:** Terminal genişliğine göre dosyaları 2-3 sütuna yerleştir.
-- **Çaba:** Yüksek
+| # | Item | Commit |
+|---|------|--------|
+| 1 | Loading Spinner | 67ce274 |
+| 2 | Top Bar Zenginleştirme | 67ce274 |
+| 3 | Status Bar Sectioning | 614a711 |
+| 4 | Fuzzy Highlight (bold+underline) | 67ce274 |
+| 5 | Directory/Symlink görsel ayırıcıları | 614a711 |
+| 6 | Git Status Renk Kodlaması | 614a711 |
+| 7 | Arama Modunda Navigasyon (j/k/↑/↓) | 7313b59 |
+| 8 | Inline Confirm (TUI içi y/n onay) | a542d6d / 4ef328e |
+| 9 | Inline Prompts (new/rename/go-to-dir) | 4ef328e |
+| 10 | Perf cleanup (String.build, .ljust) | 6d1e1dd |
 
-### 9. File Type Badges
-- [ ] **Durum:** Pending
-- **Dosya:** `src/fff/ui_renderer.cr` — `draw_line`
-- **Açıklama:** `.cr` → `[CRYSTAL]`, `.json` → `[JSON]` gibi küçük etiketler.
-- **Çaba:** Yüksek
+---
 
-### 10. Cursor Trail / Highlight Flash
-- [ ] **Durum:** Pending
-- **Dosya:** `src/fff/ui_renderer.cr` — `redraw`, `draw_line`
-- **Açıklama:** Yukarı/aşağı hareket ederken eski satırı kısa süre farklı renkle göster.
-- **Çaba:** Yüksek
+## BFG Trend
+| Date | Overall | Dep | Coup | Cog | Arch | Test | Qual |
+|------|---------|-----|------|-----|------|------|------|
+| now | **93/100** | 100 | 95 | 95 | 100 | 95 | 77 |
+| prev | 91/100 | 100 | 95 | 85 | 85 | 95 | 85 |

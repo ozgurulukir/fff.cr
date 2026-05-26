@@ -91,16 +91,10 @@ module FFF
       home = ENV["HOME"]
       display_path = home && dir.starts_with?(home) ? "~#{dir[home.size..]}" : dir
 
-      git_badge = state.git_branch.empty? ? "" : "(#{state.git_branch})"
+      git_branch = state.git_branch
       file_count = state.list.size
       size_str = state.total_size > 0 ? FormatUtils.human_size(state.total_size) : "—"
       file_badge = "#{file_count} files  #{size_str}"
-
-      left = String.build { |s|
-        s << display_path
-        s << "  " << git_badge unless git_badge.empty?
-        s << "  " << file_badge
-      }
 
       right = if state.search_mode
                 before = state.search_term[0...state.cursor_pos]
@@ -113,11 +107,40 @@ module FFF
               end
 
       avail = @term.width
-      left = left[0...{avail - right.size - 1, 0}.max] if left.size + right.size + 1 > avail
-      gap = avail - left.size - right.size
+
+      # Build raw visible text (no ANSI), truncate, then colorize branch — avoids
+      # ANSI-escape bytes corrupting the truncation math.
+      if git_branch.empty?
+        raw_left = String.build { |s| s << display_path << "  " << file_badge }
+      else
+        raw_left = String.build { |s| s << display_path << "  (#{git_branch})  " << file_badge }
+      end
+
+      if raw_left.size + right.size + 1 > avail
+        raw_left = raw_left[0...{avail - right.size - 1, 0}.max]
+      end
+
+      left = if !git_branch.empty? && raw_left.includes?("(#{git_branch})")
+               cb = Term::Color.truecolor_string("(#{git_branch})", fore: Term::Color.color(:magenta))
+               raw_left.sub("(#{git_branch})", cb)
+             else
+               raw_left
+             end
+
+      # raw_left for gap math (visible width); left for terminal output (with ANSI)
+      gap = avail - raw_left.size - right.size
       gap = 0 if gap < 0
-      line = String.build { |s| s << left << " " * gap << right }
-      line = line[0...avail]
+      raw_line = raw_left + " " * gap + right
+      raw_line = raw_line[0...avail]
+      # Re-apply color to branch in the possibly-truncated raw line
+      left = if !git_branch.empty? && raw_line.includes?("(#{git_branch})")
+               cb = Term::Color.truecolor_string("(#{git_branch})", fore: Term::Color.color(:magenta))
+               raw_line.sub("(#{git_branch})", cb)
+              else
+                raw_line
+              end
+
+      line = left
 
       print Term::Color.truecolor_string(line, fore: Term::Color.color(:white), back: Term::Color.color(:blue))
     end
