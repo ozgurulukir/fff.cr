@@ -84,6 +84,16 @@ module FFF
       @git_dir_cache = ""
     end
 
+    # Key groupings (reference only — dispatch is in handle_key case/when).
+    # Adding a new binding: add the key to the relevant group, then add a `when`
+    # clause in handle_key — same single dispatch location as before, better docs.
+    KEY_GROUPS = {
+      "Navigation"  => ["j", "k", "h", "l", "G", "g", "\e[A", "\e[B", "\e[C", "\e[D"],
+      "File ops"    => [" ", "m", "y", "v", "p", "d", "n", "f", "r", "b", "i", "S", "X"],
+      "View/system" => ["s", "/", ".", "t", "x", ":", "~", "-", "e", "=", "+", "?", "q"],
+      "Bookmarks"   => ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+    }
+
     def run
       Signal::INT.trap { quit }
       Signal::TERM.trap { quit }
@@ -323,6 +333,7 @@ module FFF
       key = @config.key_bindings[key]? || key
 
       case key
+      # ── Navigation ───────────────────────────────────────────────────────
       when "j", "\e[B"           then cursor_down
       when "k", "\e[A"           then cursor_up
       when @config.key_page_up   then page_up
@@ -331,6 +342,7 @@ module FFF
       when "l", "\e[C"           then enter_item
       when "G"                   then go_bottom
       when "g"                   then go_top
+      # ── File ops ──────────────────────────────────────────────────────────
       when " "                   then toggle_mark
       when "m"                   then toggle_mark_all
       when "y"                   then yank_files
@@ -342,21 +354,23 @@ module FFF
       when "r"                   then start_rename
       when "b"                   then bulk_rename
       when "i"                   then preview_file
+      when "S"                   then create_symlink
+      when "X"                   then toggle_executable
+      # ── View / system ─────────────────────────────────────────────────────
       when "s"                   then spawn_shell
       when "/"                   then start_search
       when "."                   then @dir_manager.toggle_hidden
       when "t"                   then go_to_trash
       when "x"                   then show_attributes
-      when "X"                   then toggle_executable
       when ":"                   then go_to_dir
       when "~"                   then @dir_manager.go_home
       when "-"                   then go_prev
       when "e"                   then @dir_manager.refresh!
-      when "S"                   then create_symlink
       when "="                   then @dir_manager.cycle_sort_mode
       when "+"                   then @dir_manager.toggle_sort_reverse
       when "?"                   then toggle_help
       when "q"                   then quit
+      # ── Bookmarks ─────────────────────────────────────────────────────────
       when "1", "2", "3", "4", "5", "6", "7", "8", "9"
         jump_to_bookmark(key)
       end

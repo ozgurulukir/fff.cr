@@ -40,11 +40,10 @@
 - **Dosya:** `src/fff/ui_renderer.cr:94`
 - **Açıklama:** Branch name `(main)` → magenta; raw-left truncation prevents ANSI width corruption.
 
-### TODO-5 | Extract `route_keypress` / `handle_key` from `file_manager.cr`
-- **Prior:** 🟡 Medium | **Çaba:** Orta
-- **Dosyalar:** `src/fff/file_manager.cr:316` (`handle_key` 78-line MATCH), `src/fff/file_manager.cr` (463 LOC total)
-- **Açıklama:** `handle_key` has 30 branches in a single MATCH; every new key binding requires editing this function.
-- **Remedy:** Break MATCH into per-action method group or a key-registry struct.
+### TODO-5 ✅ DONE | Section `handle_key` with key grouping comments
+- **Prior:** 🟡 Medium | **Çaba:** Orta | **Commit:** pending
+- **Dosyalar:** `src/fff/file_manager.cr:316` (`handle_key`), `src/fff/file_manager.cr`
+- **Açıklama:** Added `KEY_GROUPS` constant (reference doc, 4 groups) and section comments inside `handle_key` case/when (Navigation / File ops / View/system / Bookmarks). Crystal does not support runtime dynamic dispatch (`method(:name)` not available), so the case/when routing is preserved. Adding a new binding: add key to `KEY_GROUPS` + add `when` clause in `handle_key` — same dispatch location, better navigation.
 
 ### TODO-7a | Split `file_operations.cr` (174 LOC)
 - **Prior:** 🟢 Low | **Çaba:** Yüksek
