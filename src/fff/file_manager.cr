@@ -53,7 +53,14 @@ module FFF
     getter prev_child         : String?
     getter prev_list_size     : Int32
 
-    # ── Private state not exposed publicly ────────────────────────────────────
+    # ── Private ivar type declarations ─────────────────────────────────────────
+
+    # Key → handler dispatch table.
+    # Built in initialize() using instance-method closures:
+    #   ->{ cursor_down } captures self at init time, becomes Proc(Nil).
+    # KEY_GROUPS (below) is the central registry — adding a binding = add
+    # to KEY_GROUPS + one line here.
+    @key_handlers : Hash(String, Proc(Nil))
 
     def initialize(@config : Config, start_dir : String, @picker_mode = false, term : Terminal? = nil)
       @term = term || Terminal.new
@@ -82,11 +89,61 @@ module FFF
       @git_branch = ""
       @git_status = ""
       @git_dir_cache = ""
+
+      # Build key → handler dispatch table (run once at startup)
+      # All keys resolved here use @config values (already set by this point),
+      # so every binding including page_up/down can live in the hash.
+      @key_handlers = Hash(String, Proc(Nil)).new
+      # Navigation
+      @key_handlers["j"]     = ->{ cursor_down }
+      @key_handlers["\e[B"]  = ->{ cursor_down }  # ↓-arrow
+      @key_handlers["k"]     = ->{ cursor_up }
+      @key_handlers["\e[A"]  = ->{ cursor_up }    # ↑-arrow
+      @key_handlers["h"]     = ->{ go_parent }
+      @key_handlers["\e[D"]  = ->{ go_parent }    # ←-arrow
+      @key_handlers["l"]     = ->{ enter_item }
+      @key_handlers["\e[C"]  = ->{ enter_item }   # →-arrow
+      @key_handlers["G"]     = ->{ go_bottom }
+      @key_handlers["g"]     = ->{ go_top }
+      # File ops
+      @key_handlers[" "]     = ->{ toggle_mark }
+      @key_handlers["m"]     = ->{ toggle_mark_all }
+      @key_handlers["y"]     = ->{ yank_files }
+      @key_handlers["v"]     = ->{ cut_files }
+      @key_handlers["p"]     = ->{ paste_files }
+      @key_handlers["d"]     = ->{ delete_files }
+      @key_handlers["n"]     = ->{ new_directory }
+      @key_handlers["f"]     = ->{ new_file }
+      @key_handlers["r"]     = ->{ start_rename }
+      @key_handlers["b"]     = ->{ bulk_rename }
+      @key_handlers["i"]     = ->{ preview_file }
+      @key_handlers["S"]     = ->{ create_symlink }
+      @key_handlers["X"]     = ->{ toggle_executable }
+      # View / system
+      @key_handlers["s"]     = ->{ spawn_shell }
+      @key_handlers["/"]     = ->{ start_search }
+      @key_handlers["."]     = ->{ @dir_manager.toggle_hidden }
+      @key_handlers["t"]     = ->{ go_to_trash }
+      @key_handlers["x"]     = ->{ show_attributes }
+      @key_handlers[":"]     = ->{ go_to_dir }
+      @key_handlers["~"]     = ->{ @dir_manager.go_home }
+      @key_handlers["-"]     = ->{ go_prev }
+      @key_handlers["e"]     = ->{ @dir_manager.refresh! }
+      @key_handlers["="]     = ->{ @dir_manager.cycle_sort_mode }
+      @key_handlers["+"]     = ->{ @dir_manager.toggle_sort_reverse }
+      @key_handlers["?"]     = ->{ toggle_help }
+      @key_handlers["q"]     = ->{ quit }
+      # Dynamic page keys (resolved from @config at init time)
+      @key_handlers[@config.key_page_up]   = ->{ page_up }
+      @key_handlers[@config.key_page_down] = ->{ page_down }
+      # Bookmarks (digit → jump_to_bookmark, digit captured by closure)
+      (1..9).each do |d|
+        @key_handlers[d.to_s] = ->{ jump_to_bookmark(d.to_s) }
+      end
     end
 
-    # Key groupings (reference only — dispatch is in handle_key case/when).
-    # Adding a new binding: add the key to the relevant group, then add a `when`
-    # clause in handle_key — same single dispatch location as before, better docs.
+    # Key groupings (reference only — dispatch is in @key_handlers hash).
+    # Adding a new binding: add the key here, then add one closure line in initialize.
     KEY_GROUPS = {
       "Navigation"  => ["j", "k", "h", "l", "G", "g", "\e[A", "\e[B", "\e[C", "\e[D"],
       "File ops"    => [" ", "m", "y", "v", "p", "d", "n", "f", "r", "b", "i", "S", "X"],
@@ -292,34 +349,34 @@ module FFF
       end
 
       if complete
-      if @input_mode.mode == :search
-        handle_search_complete
-      elsif @input_mode.mode == :rename
-        handle_rename_complete
+        if @input_mode.mode == :search
+          handle_search_complete
+        elsif @input_mode.mode == :rename
+          handle_rename_complete
+        end
+        @force_full_redraw = true
+      else
+        live_search if @input_mode.mode == :search && !@input_mode.text.starts_with?('!')
       end
-      @force_full_redraw = true
-    else
-      live_search if @input_mode.mode == :search && !@input_mode.text.starts_with?('!')
     end
-  end
 
   def handle_search_complete
-      @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
-      clamp_scroll
-      @input_mode.end(false)
-    end
+    @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
+    clamp_scroll
+    @input_mode.end(false)
+  end
 
-    def handle_rename_complete
-      if @scroll < @dir_manager.list.size
-        old_path = @dir_manager.list[@scroll]
-        error = @input_mode.apply_rename(old_path)
-        show_error(error) if error
-        @dir_manager.read!
-      end
-      @input_mode.end
+  def handle_rename_complete
+    if @scroll < @dir_manager.list.size
+      old_path = @dir_manager.list[@scroll]
+      error = @input_mode.apply_rename(old_path)
+      show_error(error) if error
+      @dir_manager.read!
     end
+    @input_mode.end
+  end
 
-    def live_search
+  def live_search
       @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
     end
 
@@ -332,48 +389,8 @@ module FFF
 
       key = @config.key_bindings[key]? || key
 
-      case key
-      # ── Navigation ───────────────────────────────────────────────────────
-      when "j", "\e[B"           then cursor_down
-      when "k", "\e[A"           then cursor_up
-      when @config.key_page_up   then page_up
-      when @config.key_page_down then page_down
-      when "h", "\e[D"           then go_parent
-      when "l", "\e[C"           then enter_item
-      when "G"                   then go_bottom
-      when "g"                   then go_top
-      # ── File ops ──────────────────────────────────────────────────────────
-      when " "                   then toggle_mark
-      when "m"                   then toggle_mark_all
-      when "y"                   then yank_files
-      when "v"                   then cut_files
-      when "p"                   then paste_files
-      when "d"                   then delete_files
-      when "n"                   then new_directory
-      when "f"                   then new_file
-      when "r"                   then start_rename
-      when "b"                   then bulk_rename
-      when "i"                   then preview_file
-      when "S"                   then create_symlink
-      when "X"                   then toggle_executable
-      # ── View / system ─────────────────────────────────────────────────────
-      when "s"                   then spawn_shell
-      when "/"                   then start_search
-      when "."                   then @dir_manager.toggle_hidden
-      when "t"                   then go_to_trash
-      when "x"                   then show_attributes
-      when ":"                   then go_to_dir
-      when "~"                   then @dir_manager.go_home
-      when "-"                   then go_prev
-      when "e"                   then @dir_manager.refresh!
-      when "="                   then @dir_manager.cycle_sort_mode
-      when "+"                   then @dir_manager.toggle_sort_reverse
-      when "?"                   then toggle_help
-      when "q"                   then quit
-      # ── Bookmarks ─────────────────────────────────────────────────────────
-      when "1", "2", "3", "4", "5", "6", "7", "8", "9"
-        jump_to_bookmark(key)
-      end
+      # All keys: single hash lookup → Proc(Nil) closure (or nil → no-op)
+      @key_handlers[key]?.try(&.call)
     end
 
     def start_search
