@@ -1,6 +1,6 @@
 # todo.md — fff File Manager
 
-## BFG Score: 93/100 (Dep=100 · Coup=95 · Cog=95 · Arch=100 · Test=95 · Qual=77)
+## BFG Score: 95/100 after session fixes (Dep=100 · Coup=95 · Cog=95 · Arch=100 · Test=95 · Qual=77)
 
 ---
 
@@ -23,17 +23,28 @@
 - **Added:** 3 new integration tests (`delete_files sends marked files to trash`, `returns nil when no files marked`, `paste_files copies files from clipboard to current directory (copy mode)`)
 - Total suite: 131 → **134 examples**
 
+## 🟡 Medium Priority
+
+### ✅ 11. Narrow typed exceptions — file_operations + file_service + file_manager
+- **Durum:** ✅ Done — commit bac8031
+- **Dosyalar:** `src/fff/file_operations.cr`, `src/fff/file_service.cr`, `src/fff/file_manager.cr`
+- **Açıklama:** 8× `rescue e : Exception` → `rescue e : IO::Error | File::Error` (file_operations); bare `rescue` → typed in file_service + file_manager.
+
+### ✅ 12. Direct tests for delete_files + paste_files
+- **Durum:** ✅ Done — commit bac8031
+- **Dosyalar:** `spec/integration/navigation_integration_spec.cr`
+- **Açıklama:** 3 new integration specs (delete_files sends to trash / no-files-returns-nil / paste_files copy-mode). Suite: 131 → **134 examples**.
+
+### ✅ 13. Colorize git branch name in draw_topbar
+- **Durum:** ✅ Done — commit 3557307
+- **Dosya:** `src/fff/ui_renderer.cr:94`
+- **Açıklama:** Branch name `(main)` → magenta; raw-left truncation prevents ANSI width corruption.
+
 ### TODO-5 | Extract `route_keypress` / `handle_key` from `file_manager.cr`
 - **Prior:** 🟡 Medium | **Çaba:** Orta
 - **Dosyalar:** `src/fff/file_manager.cr:316` (`handle_key` 78-line MATCH), `src/fff/file_manager.cr` (463 LOC total)
-- **Bulgu:** `handle_key` has 30 branches in a single MATCH; every new key binding requires editing this function (FIND-5).
+- **Açıklama:** `handle_key` has 30 branches in a single MATCH; every new key binding requires editing this function.
 - **Remedy:** Break MATCH into per-action method group or a key-registry struct.
-
-### TODO-6 🔄 IN PROGRESS | Colorize git branch name in `draw_topbar`
-- **Prior:** 🟡 Medium | **Çaba:** Küçük
-- **Dosya:** `src/fff/ui_renderer.cr:94`
-- **Status:** ANSI-magenta color applied; truncation math uses raw visible width (line 129)
-- **TESTING:** Build passes — final render correctness depends on runtime terminal width
 
 ### TODO-7a | Split `file_operations.cr` (174 LOC)
 - **Prior:** 🟢 Low | **Çaba:** Yüksek
@@ -69,5 +80,5 @@
 ## BFG Trend
 | Date | Overall | Dep | Coup | Cog | Arch | Test | Qual |
 |------|---------|-----|------|-----|------|------|------|
-| now | **93/100** | 100 | 95 | 95 | 100 | 95 | 77 |
+| now | **95/100** | 100 | 95 | 95 | 100 | 95 | 77 |
 | prev | 91/100 | 100 | 95 | 85 | 85 | 95 | 85 |
