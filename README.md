@@ -144,14 +144,14 @@ Directories always use the built-in preview.
 - **FFF::Config** — env var & JSON config management, `LS_COLORS` parsing
 - **FFF::DirectoryManager** — directory reading, sorting, hidden-file filtering
 - **FFF::DrawState** — bundles all redraw parameters into one struct
-- **FFF::FileManager** — event loop and TUI router; includes `NavigationHandlers`, `FileOpHandlers`, `ViewHandlers`
+- **FFF::FileManager** — event loop, hash-table key dispatch, and TUI router; includes `NavigationHandlers`, `FileOpHandlers`, `ViewHandlers`
 - **FFF::FileOperations** — file/directory creation, deletion, copying
 - **FFF::FileService** — low-level `copy`/`move`/`trash`/`symlink` with writability checks
 - **FFF::InputMode** — search/rename text input with cursor control and editing
 - **FFF::SearchEngine** — fuzzy filename matching + ripgrep content search
 - **FFF::Terminal** — `crystal-term` shard wrapper
 - **FFF::UIRenderer** — incremental, flicker-free drawing
-- **FFF::FormatUtils** — shared helpers (`human_size`)
+- **FFF::FormatUtils** — shared helpers (`human_size`), `FFF::HOME` constant
 
 ## Development
 
@@ -171,7 +171,7 @@ crystal spec spec/integration/advanced_integration_spec.cr
 
 #### Test Architecture
 - **91 unit tests** across 6 modules (config, directory_manager, file_service, input_mode, search_engine, ui_renderer)
-- **40 integration tests** across 2 suites (navigation: 30, advanced: 10) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
+- **43 integration tests** across 2 suites (navigation + advanced) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
 - Both specs run headless; no terminal or display required
 
 ### Patches
