@@ -461,6 +461,7 @@ module FFF
 
     def save_cd_on_exit
       last_file = File.join(HOME, ".cache", "fff", "opened_file")
+      File.write(last_file, @dir_manager.current_dir)
     end
 
     def write_picker_file
