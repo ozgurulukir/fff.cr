@@ -59,9 +59,9 @@ describe FFF::Config do
 
     it "handles malformed LS_COLORS" do
       SpecHelper.mock_ls_colors({
-        "*.txt" => "01;33",
+        "*.txt"   => "01;33",
         "invalid" => "xxx",
-        "*.md"  => "01;34",
+        "*.md"    => "01;34",
       }) do
         config = FFF::Config.new
         ls_colors = config.ls_colors

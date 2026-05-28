@@ -43,6 +43,11 @@ module FFF
     def redraw(state : DrawState)
       @term.refresh_size
 
+      if state.current_dir != @prev_path
+        @color_cache.clear
+        @prev_path = state.current_dir
+      end
+
       if state.full
         @term.move_to(0, 0)
         print "\e[2J"
@@ -88,7 +93,7 @@ module FFF
       print "\e[K"
 
       dir = state.current_dir
-      home = ENV["HOME"]
+      home = HOME
       display_path = home && dir.starts_with?(home) ? "~#{dir[home.size..]}" : dir
 
       git_branch = state.git_branch
@@ -136,9 +141,9 @@ module FFF
       left = if !git_branch.empty? && raw_line.includes?("(#{git_branch})")
                cb = Term::Color.truecolor_string("(#{git_branch})", fore: Term::Color.color(:magenta))
                raw_line.sub("(#{git_branch})", cb)
-              else
-                raw_line
-              end
+             else
+               raw_line
+             end
 
       line = left
 

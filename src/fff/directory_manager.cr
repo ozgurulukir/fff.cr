@@ -34,22 +34,24 @@ module FFF
       @hidden_count = 0
       @total_size = 0_i64
 
-       all_entries.each do |entry|
-         next if entry == "." || entry == ".."
-         next if !@show_hidden && entry.starts_with?('.')
+      all_entries.each do |entry|
+        next if entry == "." || entry == ".."
 
         path = File.join(@current_dir, entry)
         next unless File.exists?(path)
 
+        @hidden_count += 1 if !@show_hidden && entry.starts_with?('.')
+
+        next if !@show_hidden && entry.starts_with?('.')
+
         if File.directory?(path)
           dirs << path
-         else
-           files << path
-           if info = File.info?(path)
-             @total_size += info.size
-           end
-           @hidden_count += 1 if entry.starts_with?('.')
-         end
+        else
+          files << path
+          if info = File.info?(path)
+            @total_size += info.size
+          end
+        end
       end
 
       @full_list = sort(dirs, files)
@@ -88,7 +90,7 @@ module FFF
     end
 
     def go_home
-      home = ENV["HOME"] || Dir.current
+      home = HOME || Dir.current
       Dir.cd(home)
       read!
     end

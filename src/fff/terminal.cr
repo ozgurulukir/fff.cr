@@ -145,7 +145,7 @@ module FFF
         when "\e", "escape", nil
           return nil
         when "\r", "\n", "enter"
-          return text.empty? ? default : text
+          return text.empty? ? (default || "") : text
         when "\u0003"
           return nil
         when "\u007F", "\b", "backspace"

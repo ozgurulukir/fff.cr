@@ -17,11 +17,11 @@ src/fff/
   config.cr         # Environment variable & LS_COLORS configuration
   directory_manager.cr# Directory reader, sorting mechanisms, and state manager
    draw_state.cr     # DrawState struct — bundles 19 render params into one object
-  file_manager.cr   # Core coordinator: event loop & high-level TUI router (~322 lines)
+  file_manager.cr   # Core coordinator: event loop, hash-table key dispatch (~491 lines)
   file_op_handlers.cr# Extracted file operation methods (included by FileManager)
   file_operations.cr# Specialized file/directory creation and operations
   file_service.cr   # Low-level filesystem helpers with writability checks
-  format_utils.cr   # Shared utilities (human_size) used across modules
+  format_utils.cr   # Shared utilities (human_size, FFF::HOME constant) used across modules
    input_mode.cr     # Search/rename text input with cursor control, insert/delete editing
   navigation_handlers.cr# Extracted navigation methods (included by FileManager)
   search_engine.cr  # Fuzzy search engine & ripgrep integration (Process.run, no shell)
@@ -39,14 +39,15 @@ FileManager
 ├── include NavigationHandlers  → cursor_up/down, go_*, jump_to_bookmark
 ├── include FileOpHandlers      → enter, new, rename, mark, yank, paste, delete
 ├── include ViewHandlers        → preview, attributes, spawn_shell
-└── (core)                      → event_loop, redraw, input_mode routing
+└── (core)                      → event_loop, redraw, input_mode routing,
+                                   @key_handlers hash dispatch (built in initialize)
 ```
 
 State is managed within the `FileManager` instance, with `Config` and `Terminal` as dependencies. Directory items and structures are delegated to `DirectoryManager`, drawing to `UIRenderer` (via a single `DrawState` struct), and operations to `FileOperations`.
 
 ## Security
 
-All external command execution uses `Process.run` with explicit argv arrays — no shell interpolation. Backtick and `system()` calls were eliminated in Phase 7 refactor. Commands affected: ripgrep (`rg`), `file --mime-type`, shell spawn, editor/open invocations, bulk rename, `bat`, `less`.
+All external command execution uses `Process.run` with explicit argv arrays — no shell interpolation. Backtick and `system()` calls were eliminated (including `default_opener`'s backtick for `uname` in Phase 8). Commands affected: ripgrep (`rg`), `file --mime-type`, `uname`, shell spawn, editor/open invocations, bulk rename, `bat`, `less`.
 
 ## Dependencies (crystal-term shards)
 
@@ -130,10 +131,11 @@ In search and rename modes:
 - **Search Mode**: Navigable. `j/k` work while filter is active.
 - **Cursor Editing**: Both search and rename modes support `←`/`→` cursor movement, `Home`/`End`, `Backspace`/`Delete`, and insert-at-cursor typing.
 - **Incremental & State Redraws**: Uses dynamic `@force_full_redraw` to force clean clears only when transitioning into or out of search/rename modes. Normal state changes redraw incrementally to eliminate TUI flickering.
-- **Color Caching**: Results cached by file path only (removed stale width dependency).
+- **Color Caching**: Results cached by file path, cleared on directory change to prevent unbounded growth.
 - **Scroll Region**: `\e[1;{max_items}r` keeps status line fixed.
 - **Page Scroll**: `PgUp`/`PgDn` (`\e[5~`/`\e[6~`) scroll by one screenful. Configurable via `FFF_KEY_PAGE_UP`/`FFF_KEY_PAGE_DOWN`.
 - **Arrow Key Safety**: Safe fallback lookup (`@config.key_bindings[key]? || key`) protects against unrecognized raw escape sequences raising `KeyError` crashes.
+- **Hash-Table Dispatch**: `@key_handlers : Hash(String, Proc(Nil))` built once in `initialize`. `handle_key` performs single lookup: `@key_handlers[key]?.try(&.call)`. Arrow keys (`\e[A/B/C/D`) and dynamic page keys resolved at init time. `config.key_bindings` memoized via `@key_bindings_cache`.
 - **Input Mismatch Resilience**: Robust matching handles both raw characters (`\e`, `\r`, `\b`) and mapped TTY names (`"escape"`, `"enter"`, `"backspace"`, `"up"`, `"down"`) to ensure 100% terminal compatibility.
 
 ## File Operations
@@ -141,7 +143,7 @@ In search and rename modes:
 - **Bulk Rename**: Mark files → `b` → edit in `$EDITOR`.
 - **Rename Abort Safety**: Safe Escape key cancellation during renames terminates the workflow cleanly without applying unintended edits.
 - **Cursor Editing**: Rename mode supports cursor movement, insert-at-cursor, backspace/delete, Home/End.
-- **Trash**: Moves to `~/.local/share/fff/trash` with conflict resolution.
+- **Trash**: Moves to configurable trash dir (`FFF_TRASH` env or config.json `trash_dir`, default `~/.local/share/fff/trash`) with conflict resolution.
 - **Write Checks**: Proactive `File::Info.writable?` checks before mutation.
 - **Picker Mode**: `-p` flag writes selection to `~/.cache/fff/opened_file`.
 - **Shell Injection Free**: All external commands use `Process.run` with argv arrays — no `system()` or backticks.
@@ -149,6 +151,8 @@ In search and rename modes:
 ## Performance
 
 - **LS_COLORS**: Parsed once and cached in `Config`.
+- **key_bindings**: Memoized via `@key_bindings_cache` — hash built once, not per-keypress.
+- **Git Branch**: Cached per directory (including non-git dirs) — `Process.run("git",...)` called only on directory change, not every frame.
 - **Redraw**: Optimized double-buffered incremental drawing loop.
 - **Lazy Content Search**: Live search queries only update fuzzy file list scanning. Expensive content queries (triggered via `!`) are deferred until the user presses **Enter**, preventing TUI lag and freezes while typing.
 - **Hot-path string building**: `draw_status`, `draw_topbar`, `draw_help_overlay` use `String.build` instead of `parts = [] + join`.
@@ -175,7 +179,19 @@ Crystal 1.20 deprecates `File.executable?`. **Fix**: `File::Info.executable?(pat
 `Process.kill(signal, pid)` is removed. **Fix**: `Process.signal(Signal::TERM, pid)` (and `Signal::KILL` for forceful terminations).
 
 ### `dir.entries` Double-Filtering Bug (`.`/`..` + Hidden)
-`Dir.entries` returns `"."` and `".."`. If both are filtered first and `hidden_count` runs afterward, `"."` and `".."` match `starts_with?('.')` → hidden count inflated by 2. **Fix**: filter `"."` + `".."` in a single guard before `hidden_count` increment; `@hidden_count += 1` was also moved inside the `else` branch so directories are not counted in `hidden_count` (only regular files carry that metadata).
+`Dir.entries` returns `"."` and `".."`. If both are filtered first and `hidden_count` runs afterward, `"."` and `".."` match `starts_with?('.')` → hidden count inflated by 2. **Fix**: filter `"."` + `".."` in a single guard before `hidden_count` increment. `hidden_count` now counts both hidden files and directories that are not currently displayed.
+
+### `FFF::HOME` Constant (nil-safe)
+`ENV["HOME"]` can be nil if HOME is unset. **Fix**: `FFF::HOME = ENV["HOME"]? || "/tmp"` constant defined in `format_utils.cr`. All `ENV["HOME"]` usages across 4 files replaced with `FFF::HOME`.
+
+### SearchEngine Fiber Synchronization
+`content_search` spawns ripgrep in a worker fiber with a 2-second timeout fiber. Original code used `uninitialized Process` — if timeout fired before worker assigned the process, undefined behavior. **Fix**: `Channel(Process)` passes the spawned process safely from worker to timeout fiber. Timeout fiber calls `Process#wait` after SIGTERM to reap zombies.
+
+### Lifecycle: `run` ensure block
+`run` uses `rescue e : Exception` + `ensure { @term.leave_tui }` — Crystal requires `rescue` before `ensure`. The old `at_exit` hook was removed to prevent double `leave_tui`. `perform_shutdown` no longer calls `leave_tui` — the `ensure` block handles it.
+
+### Config `key_bindings` Memoization
+`def key_bindings : Hash(String, String)` was building a new Hash on every call (every keypress). **Fix**: `@key_bindings_cache : Hash(String, String)?` with `@key_bindings_cache ||= { ... }` — built once on first access.
 
 ### `make clean` Removes `bin/` Directory
 `Makefile.clean` uses `rm -rf bin/` which removes the directory itself, causing `make build` linker to fail on subsequent invocation. **Workaround**: `mkdir -p bin` before `make build`.

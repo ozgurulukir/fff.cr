@@ -1,4 +1,6 @@
 module FFF
+  HOME = ENV["HOME"]? || "/tmp"
+
   module FormatUtils
     def self.human_size(bytes : Int) : String
       human_size_i64(bytes.to_i64)

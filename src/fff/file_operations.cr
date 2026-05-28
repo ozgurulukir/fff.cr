@@ -11,14 +11,6 @@ module FFF
     def initialize(@config : Config, @term : Terminal)
     end
 
-    def yank_files(sources : Array(String), clipboard : Array(String), mode : Symbol) : Array(String)
-      sources.empty? ? clipboard : sources
-    end
-
-    def cut_files(sources : Array(String), clipboard : Array(String), mode : Symbol) : Array(String)
-      sources.empty? ? clipboard : sources
-    end
-
     def paste_files(sources : Array(String), dest_dir : String, mode : Symbol) : String?
       return nil if sources.empty? || mode == :none
 
@@ -117,8 +109,8 @@ module FFF
       begin
         info = File.info(path)
         has_exec = info.permissions.includes?(::File::Permissions::OwnerExecute) ||
-                    info.permissions.includes?(::File::Permissions::GroupExecute) ||
-                    info.permissions.includes?(::File::Permissions::OtherExecute)
+                   info.permissions.includes?(::File::Permissions::GroupExecute) ||
+                   info.permissions.includes?(::File::Permissions::OtherExecute)
         if has_exec
           Process.run("chmod", ["-x", path])
           "Removed executable bit"
@@ -134,17 +126,17 @@ module FFF
     def bulk_rename(sources : Array(String), editor : String) : String?
       return "No files marked" if sources.empty?
 
-      temp_file = "/tmp/fff_bulk_rename_#{Process.pid}.txt"
+      temp_path = File.join(Dir.tempdir, "fff_bulk_rename_#{Process.pid}_#{Random.rand(999999)}.txt")
       begin
         # Write original names to temp file
-        File.write(temp_file, sources.map { |s| File.basename(s) }.join("\n"))
+        File.write(temp_path, sources.map { |s| File.basename(s) }.join("\n"))
 
         # Open editor
         editor_parts = editor.split
-        Process.run(editor_parts[0], editor_parts[1...] + [temp_file], input: STDIN, output: STDOUT, error: STDERR)
+        Process.run(editor_parts[0], editor_parts[1...] + [temp_path], input: STDIN, output: STDOUT, error: STDERR)
 
         # Read new names
-        new_names = File.read(temp_file).lines.map(&.strip).reject(&.empty?)
+        new_names = File.read(temp_path).lines.map(&.strip).reject(&.empty?)
 
         return "Number of names changed" if new_names.size != sources.size
 
@@ -163,7 +155,7 @@ module FFF
       rescue e : IO::Error | File::Error
         e.message
       ensure
-        File.delete(temp_file) if File.exists?(temp_file)
+        File.delete(temp_path) if File.exists?(temp_path)
       end
     end
 
