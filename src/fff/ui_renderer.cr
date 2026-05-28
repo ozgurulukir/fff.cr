@@ -52,18 +52,18 @@ module FFF
         @term.move_to(0, 0)
         print "\e[2J"
         draw_topbar(state)
-        draw_all_lines(state.list, state.scroll, state.page_offset, state.marked, state.search_mode, state.search_term, state.loading)
+        draw_all_lines(state, state.list, state.scroll, state.page_offset, state.marked, state.search_mode, state.search_term, state.loading)
       else
         draw_topbar(state)
         if state.prev_scroll != state.scroll || state.prev_page_offset != state.page_offset
           old_row = state.prev_scroll - state.prev_page_offset
           if old_row >= 0 && old_row < @term.max_items
             @term.move_to(old_row + 1, 0)
-            draw_line(old_row, state.prev_scroll, state.list, state.marked, state.scroll, state.search_mode, state.search_term) if state.prev_scroll < state.list.size
+            draw_line(state, old_row, state.prev_scroll, state.list, state.marked, state.scroll, state.search_mode, state.search_term) if state.prev_scroll < state.list.size
           end
           new_row = state.scroll - state.page_offset
           if new_row >= 0 && new_row < @term.max_items && state.scroll < state.list.size
-            draw_line(new_row, state.scroll, state.list, state.marked, state.scroll, state.search_mode, state.search_term)
+            draw_line(state, new_row, state.scroll, state.list, state.marked, state.scroll, state.search_mode, state.search_term)
           end
         end
       end
@@ -125,13 +125,12 @@ module FFF
         raw_left = raw_left[0...{avail - right.size - 1, 0}.max]
       end
 
-      left = if !git_branch.empty? && raw_left.includes?("(#{git_branch})")
-               cb = Term::Color.truecolor_string("(#{git_branch})", fore: Term::Color.color(:magenta))
-               raw_left.sub("(#{git_branch})", cb)
-             else
-               raw_left
-             end
-
+      _left = if !git_branch.empty? && raw_left.includes?("(#{git_branch})")
+                cb = Term::Color.truecolor_string("(#{git_branch})", fore: Term::Color.color(:magenta))
+                raw_left.sub("(#{git_branch})", cb)
+              else
+                raw_left
+              end
       # raw_left for gap math (visible width); left for terminal output (with ANSI)
       gap = avail - raw_left.size - right.size
       gap = 0 if gap < 0
@@ -158,13 +157,14 @@ module FFF
       if state.list.size > 0 && state.scroll < state.list.size
         path = state.list[state.scroll]
         name = File.basename(path)
-        if File.directory?(path)
+        info = state.stat_cache[path]? || File.info?(path)
+        linfo = state.lstat_cache[path]? || File.info?(path, follow_symlinks: false)
+        if info && info.directory?
           name = "#{name}/"
-        elsif File.symlink?(path)
+        elsif linfo && linfo.symlink?
           name = "#{name}@"
         end
 
-        info = File.info?(path)
         if info
           size = FormatUtils.human_size(info.size)
           perms = permission_string(info)
@@ -224,7 +224,7 @@ module FFF
       end
     end
 
-    private def draw_all_lines(list : Array(String), scroll : Int32, page_offset : Int32, marked : Set(String), search_mode : Bool, search_term : String, loading : Bool)
+    private def draw_all_lines(state : DrawState, list : Array(String), scroll : Int32, page_offset : Int32, marked : Set(String), search_mode : Bool, search_term : String, loading : Bool)
       if loading
         row = (@term.height / 2).to_i
         col = (@term.width / 2).to_i - 7
@@ -239,7 +239,7 @@ module FFF
       end_idx = {page_offset + max, list.size}.min
 
       (start_idx...end_idx).each do |i|
-        draw_line(i - page_offset, i, list, marked, scroll, search_mode, search_term)
+        draw_line(state, i - page_offset, i, list, marked, scroll, search_mode, search_term)
       end
 
       ((end_idx - start_idx)...max).each do |i|
@@ -248,19 +248,21 @@ module FFF
       end
     end
 
-    private def draw_line(row : Int32, idx : Int32, list : Array(String), marked : Set(String), scroll : Int32, search_mode : Bool, search_term : String)
+    private def draw_line(state : DrawState, row : Int32, idx : Int32, list : Array(String), marked : Set(String), scroll : Int32, search_mode : Bool, search_term : String)
       path = list[idx]
       name = File.basename(path)
       selected = (idx == scroll)
       is_marked = marked.includes?(path)
-      color = get_file_color(path)
+      linfo = state.lstat_cache[path]? || File.info?(path, follow_symlinks: false)
+      info = state.stat_cache[path]? || File.info?(path)
+      color = get_file_color(path, linfo, info)
 
       # Visual suffix: 📁 dir  ·  * executable  ·  @ symlink
-      suffix = if File.symlink?(path)
+      suffix = if linfo && linfo.symlink?
                  "@"
-               elsif File.directory?(path)
+               elsif info && info.directory?
                  "/"
-               elsif File.info?(path).try(&.permissions.includes?(::File::Permissions::OtherExecute))
+               elsif info && info.permissions.includes?(::File::Permissions::OtherExecute)
                  "*"
                else
                  ""
@@ -363,14 +365,14 @@ module FFF
       end
     end
 
-    private def get_file_color(path : String) : Symbol
+    private def get_file_color(path : String, linfo : File::Info?, info : File::Info?) : Symbol
       if cached = @color_cache[path]?
         return cached
       end
 
-      color = if File.directory?(path)
+      color = if info && info.directory?
                 :blue
-              elsif (info = File.info?(path)) && info.permissions.includes?(::File::Permissions::OtherExecute)
+              elsif info && info.permissions.includes?(::File::Permissions::OtherExecute)
                 :green
               else
                 ext = File.extname(path).downcase

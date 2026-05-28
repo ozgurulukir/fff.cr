@@ -95,50 +95,50 @@ module FFF
       # so every binding including page_up/down can live in the hash.
       @key_handlers = Hash(String, Proc(Nil)).new
       # Navigation
-      @key_handlers["j"] = -> { cursor_down }
-      @key_handlers["\e[B"] = -> { cursor_down } # ↓-arrow
-      @key_handlers["k"] = -> { cursor_up }
-      @key_handlers["\e[A"] = -> { cursor_up } # ↑-arrow
-      @key_handlers["h"] = -> { go_parent }
-      @key_handlers["\e[D"] = -> { go_parent } # ←-arrow
-      @key_handlers["l"] = -> { enter_item }
-      @key_handlers["\e[C"] = -> { enter_item } # →-arrow
-      @key_handlers["G"] = -> { go_bottom }
-      @key_handlers["g"] = -> { go_top }
+      @key_handlers["j"] = ->{ cursor_down }
+      @key_handlers["\e[B"] = ->{ cursor_down } # ↓-arrow
+      @key_handlers["k"] = ->{ cursor_up }
+      @key_handlers["\e[A"] = ->{ cursor_up } # ↑-arrow
+      @key_handlers["h"] = ->{ go_parent }
+      @key_handlers["\e[D"] = ->{ go_parent } # ←-arrow
+      @key_handlers["l"] = ->{ enter_item }
+      @key_handlers["\e[C"] = ->{ enter_item } # →-arrow
+      @key_handlers["G"] = ->{ go_bottom }
+      @key_handlers["g"] = ->{ go_top }
       # File ops
-      @key_handlers[" "] = -> { toggle_mark }
-      @key_handlers["m"] = -> { toggle_mark_all }
-      @key_handlers["y"] = -> { yank_files }
-      @key_handlers["v"] = -> { cut_files }
-      @key_handlers["p"] = -> { paste_files }
-      @key_handlers["d"] = -> { delete_files }
-      @key_handlers["n"] = -> { new_directory }
-      @key_handlers["f"] = -> { new_file }
-      @key_handlers["r"] = -> { start_rename }
-      @key_handlers["b"] = -> { bulk_rename }
-      @key_handlers["i"] = -> { preview_file }
-      @key_handlers["S"] = -> { create_symlink }
-      @key_handlers["X"] = -> { toggle_executable }
+      @key_handlers[" "] = ->{ toggle_mark }
+      @key_handlers["m"] = ->{ toggle_mark_all }
+      @key_handlers["y"] = ->{ yank_files }
+      @key_handlers["v"] = ->{ cut_files }
+      @key_handlers["p"] = ->{ paste_files }
+      @key_handlers["d"] = ->{ delete_files }
+      @key_handlers["n"] = ->{ new_directory }
+      @key_handlers["f"] = ->{ new_file }
+      @key_handlers["r"] = ->{ start_rename }
+      @key_handlers["b"] = ->{ bulk_rename }
+      @key_handlers["i"] = ->{ preview_file }
+      @key_handlers["S"] = ->{ create_symlink }
+      @key_handlers["X"] = ->{ toggle_executable }
       # View / system
-      @key_handlers["s"] = -> { spawn_shell }
-      @key_handlers["/"] = -> { start_search }
-      @key_handlers["."] = -> { @dir_manager.toggle_hidden }
-      @key_handlers["t"] = -> { go_to_trash }
-      @key_handlers["x"] = -> { show_attributes }
-      @key_handlers[":"] = -> { go_to_dir }
-      @key_handlers["~"] = -> { @dir_manager.go_home }
-      @key_handlers["-"] = -> { go_prev }
-      @key_handlers["e"] = -> { @dir_manager.refresh! }
-      @key_handlers["="] = -> { @dir_manager.cycle_sort_mode }
-      @key_handlers["+"] = -> { @dir_manager.toggle_sort_reverse }
-      @key_handlers["?"] = -> { toggle_help }
-      @key_handlers["q"] = -> { quit }
+      @key_handlers["s"] = ->{ spawn_shell }
+      @key_handlers["/"] = ->{ start_search }
+      @key_handlers["."] = ->{ @dir_manager.toggle_hidden }
+      @key_handlers["t"] = ->{ go_to_trash }
+      @key_handlers["x"] = ->{ show_attributes }
+      @key_handlers[":"] = ->{ go_to_dir }
+      @key_handlers["~"] = ->{ @dir_manager.go_home }
+      @key_handlers["-"] = ->{ go_prev }
+      @key_handlers["e"] = ->{ @dir_manager.refresh! }
+      @key_handlers["="] = ->{ @dir_manager.cycle_sort_mode }
+      @key_handlers["+"] = ->{ @dir_manager.toggle_sort_reverse }
+      @key_handlers["?"] = ->{ toggle_help }
+      @key_handlers["q"] = ->{ quit }
       # Dynamic page keys (resolved from @config at init time)
-      @key_handlers[@config.key_page_up] = -> { page_up }
-      @key_handlers[@config.key_page_down] = -> { page_down }
+      @key_handlers[@config.key_page_up] = ->{ page_up }
+      @key_handlers[@config.key_page_down] = ->{ page_down }
       # Bookmarks (digit → jump_to_bookmark, digit captured by closure)
       (1..9).each do |d|
-        @key_handlers[d.to_s] = -> { jump_to_bookmark(d.to_s) }
+        @key_handlers[d.to_s] = ->{ jump_to_bookmark(d.to_s) }
       end
     end
 
@@ -221,6 +221,8 @@ module FFF
         git_status: @git_status,
         total_size: @dir_manager.total_size,
         hidden_count: @dir_manager.hidden_count,
+        stat_cache: @dir_manager.stat_cache,
+        lstat_cache: @dir_manager.lstat_cache,
       )
       @renderer.redraw(state)
 

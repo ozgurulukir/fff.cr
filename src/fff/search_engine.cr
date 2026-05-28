@@ -59,7 +59,7 @@ module FFF
       pipe_err_rd, pipe_err_wr = IO.pipe
 
       spawn do
-        the_proc = begin
+        _the_proc = begin
           p = Process.new(
             "rg", ["-l", "--max-count", "1", query, dir],
             output: pipe_wr, error: pipe_err_wr
@@ -98,7 +98,7 @@ module FFF
         rg_results = rg_text.strip.split("\n").reject(&.empty?)
         return [] of String if rg_results.empty?
         rg_results.map { |path| Path.new(path).absolute? ? path : ::File.join(dir, path) }
-      when ignored = timeout_chan.receive
+      when _ignored = timeout_chan.receive
         [] of String
       end
     rescue

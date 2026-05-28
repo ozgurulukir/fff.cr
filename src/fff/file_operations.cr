@@ -126,10 +126,12 @@ module FFF
     def bulk_rename(sources : Array(String), editor : String) : String?
       return "No files marked" if sources.empty?
 
-      temp_path = File.join(Dir.tempdir, "fff_bulk_rename_#{Process.pid}_#{Random.rand(999999)}.txt")
+      temp_file = File.tempfile("fff_bulk_rename", ".txt")
+      temp_path = temp_file.path
       begin
-        # Write original names to temp file
-        File.write(temp_path, sources.map { |s| File.basename(s) }.join("\n"))
+        # Write original names to temp file directly through the IO
+        temp_file.puts(sources.map { |s| File.basename(s) }.join("\n"))
+        temp_file.close
 
         # Open editor
         editor_parts = editor.split
@@ -142,7 +144,7 @@ module FFF
 
         # Rename each file
         sources.each_with_index do |src, i|
-          new_name = new_names[i]
+          new_name = File.basename(new_names[i])
           next if new_name == File.basename(src)
 
           new_path = File.join(File.dirname(src), new_name)

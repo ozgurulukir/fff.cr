@@ -12,6 +12,8 @@ module FFF
     getter sort_reverse : Bool
     getter total_size : Int64
     getter hidden_count : Int32
+    getter stat_cache : Hash(String, File::Info)
+    getter lstat_cache : Hash(String, File::Info)
 
     def initialize(start_dir : String)
       Dir.cd(start_dir)
@@ -23,6 +25,8 @@ module FFF
       @sort_reverse = false
       @total_size = 0_i64
       @hidden_count = 0
+      @stat_cache = Hash(String, File::Info).new
+      @lstat_cache = Hash(String, File::Info).new
     end
 
     def read!
@@ -33,24 +37,30 @@ module FFF
       files = [] of String
       @hidden_count = 0
       @total_size = 0_i64
+      @stat_cache.clear
+      @lstat_cache.clear
 
       all_entries.each do |entry|
         next if entry == "." || entry == ".."
 
         path = File.join(@current_dir, entry)
-        next unless File.exists?(path)
+
+        linfo = File.info?(path, follow_symlinks: false)
+        next unless linfo
+        @lstat_cache[path] = linfo
+
+        info = File.info?(path) || linfo
+        @stat_cache[path] = info
 
         @hidden_count += 1 if !@show_hidden && entry.starts_with?('.')
 
         next if !@show_hidden && entry.starts_with?('.')
 
-        if File.directory?(path)
+        if info.directory?
           dirs << path
         else
           files << path
-          if info = File.info?(path)
-            @total_size += info.size
-          end
+          @total_size += info.size
         end
       end
 
@@ -64,11 +74,11 @@ module FFF
         sorted_dirs = dirs.sort_by { |d| File.basename(d).downcase }
         sorted_files = files.sort_by { |f| File.basename(f).downcase }
       when :size
-        sorted_dirs = dirs.sort_by { |d| File.info(d).size }
-        sorted_files = files.sort_by { |f| File.info?(f).try(&.size) || 0 }
+        sorted_dirs = dirs.sort_by { |d| @stat_cache[d]?.try(&.size) || 0 }
+        sorted_files = files.sort_by { |f| @stat_cache[f]?.try(&.size) || 0 }
       when :time
-        sorted_dirs = dirs.sort_by { |d| File.info(d).modification_time }
-        sorted_files = files.sort_by { |f| File.info?(f).try(&.modification_time) || Time.unix(0) }
+        sorted_dirs = dirs.sort_by { |d| @stat_cache[d]?.try(&.modification_time) || Time.unix(0) }
+        sorted_files = files.sort_by { |f| @stat_cache[f]?.try(&.modification_time) || Time.unix(0) }
       else
         sorted_dirs = dirs
         sorted_files = files
