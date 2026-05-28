@@ -53,7 +53,7 @@ module FFF
       @total_size : Int64 = 0,
       @hidden_count : Int32 = 0,
       @stat_cache : Hash(String, File::Info) = Hash(String, File::Info).new,
-      @lstat_cache : Hash(String, File::Info) = Hash(String, File::Info).new
+      @lstat_cache : Hash(String, File::Info) = Hash(String, File::Info).new,
     )
     end
   end

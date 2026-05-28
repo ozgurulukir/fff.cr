@@ -125,12 +125,6 @@ module FFF
         raw_left = raw_left[0...{avail - right.size - 1, 0}.max]
       end
 
-      _left = if !git_branch.empty? && raw_left.includes?("(#{git_branch})")
-                cb = Term::Color.truecolor_string("(#{git_branch})", fore: Term::Color.color(:magenta))
-                raw_left.sub("(#{git_branch})", cb)
-              else
-                raw_left
-              end
       # raw_left for gap math (visible width); left for terminal output (with ANSI)
       gap = avail - raw_left.size - right.size
       gap = 0 if gap < 0

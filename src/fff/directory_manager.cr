@@ -43,6 +43,13 @@ module FFF
       all_entries.each do |entry|
         next if entry == "." || entry == ".."
 
+        if entry.starts_with?('.')
+          unless @show_hidden
+            @hidden_count += 1
+            next
+          end
+        end
+
         path = File.join(@current_dir, entry)
 
         linfo = File.info?(path, follow_symlinks: false)
@@ -51,10 +58,6 @@ module FFF
 
         info = File.info?(path) || linfo
         @stat_cache[path] = info
-
-        @hidden_count += 1 if !@show_hidden && entry.starts_with?('.')
-
-        next if !@show_hidden && entry.starts_with?('.')
 
         if info.directory?
           dirs << path

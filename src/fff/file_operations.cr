@@ -130,8 +130,11 @@ module FFF
       temp_path = temp_file.path
       begin
         # Write original names to temp file directly through the IO
-        temp_file.puts(sources.map { |s| File.basename(s) }.join("\n"))
-        temp_file.close
+        begin
+          temp_file.puts(sources.map { |s| File.basename(s) }.join("\n"))
+        ensure
+          temp_file.close
+        end
 
         # Open editor
         editor_parts = editor.split
