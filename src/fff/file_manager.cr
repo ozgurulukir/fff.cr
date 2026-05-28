@@ -221,6 +221,8 @@ module FFF
         git_status: @git_status,
         total_size: @dir_manager.total_size,
         hidden_count: @dir_manager.hidden_count,
+        stat_cache: @dir_manager.stat_cache,
+        lstat_cache: @dir_manager.lstat_cache,
       )
       @renderer.redraw(state)
 
