@@ -1,8 +1,10 @@
+require "random/secure"
+
 module FFF
   HOME = ENV["HOME"]? || begin
     Path.home.to_s
   rescue
-    File.join(Dir.tempdir, "fff-#{Process.pid}")
+    File.join(Dir.tempdir, "fff-#{Random::Secure.hex(16)}")
   end
 
   module FormatUtils
