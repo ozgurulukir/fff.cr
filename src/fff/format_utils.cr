@@ -1,5 +1,11 @@
+require "random/secure"
+
 module FFF
-  HOME = ENV["HOME"]? || "/tmp"
+  HOME = ENV["HOME"]? || begin
+    Path.home.to_s
+  rescue
+    File.join(Dir.tempdir, "fff-#{Random::Secure.hex(16)}")
+  end
 
   module FormatUtils
     def self.human_size(bytes : Int) : String

@@ -1,3 +1,4 @@
+require "../../src/fff/format_utils.cr"
 require "spec"
 require "../spec_helper.cr"
 require "../../src/fff/search_engine.cr"
