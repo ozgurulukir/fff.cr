@@ -633,13 +633,13 @@ describe FFF::FileManager do
       temp_dir = SpecHelper.create_temp_dir("fm_te_on")
       begin
         path = SpecHelper.create_temp_file(temp_dir, "script.sh", "#!/bin/bash\necho hi")
-        Process.run("chmod", ["u-x", path])
+        File.chmod(path, File.info(path).permissions & ~File::Permissions::OwnerExecute)
 
         fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
         term.queue_answers("y") # confirm_inline: approve toggle
         fm.scroll = 0
         fm.toggle_executable
-        File::Info.executable?(path).should be_true
+        (File.info(path).permissions.includes?(::File::Permissions::OwnerExecute)).should be_true
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
@@ -649,14 +649,14 @@ describe FFF::FileManager do
       temp_dir = SpecHelper.create_temp_dir("fm_te_off")
       begin
         path = SpecHelper.create_temp_file(temp_dir, "script.sh", "#!/bin/bash\necho hi")
-        Process.run("chmod", ["u+x", path])
+        File.chmod(path, File.info(path).permissions | File::Permissions::OwnerExecute)
 
         fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
         term.queue_answers("y", "y") # two confirm_inline approvals
         fm.scroll = 0
         fm.toggle_executable # off
         fm.toggle_executable # on again
-        File::Info.executable?(path).should be_true
+        (File.info(path).permissions.includes?(::File::Permissions::OwnerExecute)).should be_true
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
