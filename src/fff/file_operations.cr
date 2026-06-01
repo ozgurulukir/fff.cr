@@ -111,15 +111,10 @@ module FFF
         has_exec = info.permissions.includes?(::File::Permissions::OwnerExecute) ||
                    info.permissions.includes?(::File::Permissions::GroupExecute) ||
                    info.permissions.includes?(::File::Permissions::OtherExecute)
-        if has_exec
-          new_perms = info.permissions & ~File::Permissions::OwnerExecute & ~File::Permissions::GroupExecute & ~File::Permissions::OtherExecute
-          File.chmod(path, new_perms)
-          "Removed executable bit"
-        else
-          new_perms = info.permissions | File::Permissions::OwnerExecute | File::Permissions::GroupExecute | File::Permissions::OtherExecute
-          File.chmod(path, new_perms)
-          "Added executable bit"
-        end
+        exec_perms = File::Permissions::OwnerExecute | File::Permissions::GroupExecute | File::Permissions::OtherExecute
+        new_perms = has_exec ? (info.permissions & ~exec_perms) : (info.permissions | exec_perms)
+        File.chmod(path, new_perms)
+        has_exec ? "Removed executable bit" : "Added executable bit"
       rescue e : IO::Error | File::Error
         e.message
       end
