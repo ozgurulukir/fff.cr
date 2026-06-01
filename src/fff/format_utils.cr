@@ -1,5 +1,9 @@
 module FFF
-  HOME = ENV["HOME"]? || "/tmp"
+  HOME = ENV["HOME"]? || begin
+    Path.home.to_s
+  rescue
+    File.join(Dir.tempdir, "fff-#{Process.pid}")
+  end
 
   module FormatUtils
     def self.human_size(bytes : Int) : String
