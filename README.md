@@ -83,7 +83,7 @@ fff-cr -p                 # picker mode (writes to opened_file cache)
 | `=` / `+` | Cycle sort / Reverse | `:` | Go to dir |
 | `S` | Symlink | `1-9` | Favorites |
 
-In search and rename modes, `←`/`→` move within the input text, `Backspace`/`Delete` edit, `Home`/`End` jump to start/end.
+In search and rename modes, `←`/`→` move within the input text, `Backspace`/`Delete` edit, `Home`/`End` jump to start/end. In normal mode, `ESC` clears active search filters and marks. In search mode, `ESC` cancels the search; if you navigated the results with arrow keys, it drops you directly onto the selected file, otherwise it reverts to your pre-search position.
 
 All bindings are configurable via `FFF_KEY_*` environment variables.
 
@@ -95,7 +95,7 @@ When in search mode (triggered by `/`), you can prefix your query to activate di
 | --- | --- | --- |
 | (none) | **Fuzzy Filename** | Fuzzy matches filenames within the current directory. |
 | `!` | **Content Search** | Calls `rg` (ripgrep) to search file content (requires pressing Enter to search). |
-| `>` | **Recursive Search** | Recursively fuzzy searches files in the directory tree (up to 5 levels deep, capped at 200 results). |
+| `>` | **Recursive Search** | Recursively fuzzy searches files in the directory tree (up to 5 levels deep, capped at 200 results) (requires pressing Enter to search). |
 
 ## Configuration
 

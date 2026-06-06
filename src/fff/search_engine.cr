@@ -24,23 +24,27 @@ module FFF
       return 1000 if text == query
       # Başlangıç eşleşmesi
       return 500 if text.starts_with?(query)
-      # İçerik eşleşmesi
-      return 200 if text.includes?(query)
 
       # Bulanık (fuzzy) eşleşme skorlama
       text_idx = 0
       query_idx = 0
       score = 100
+      consecutive = 0
 
       while text_idx < text.size && query_idx < query.size
         if text[text_idx] == query[query_idx]
           score += 10
+          score += consecutive * 5
+          consecutive += 1
           query_idx += 1
         else
           score -= 1
+          consecutive = 0
         end
         text_idx += 1
       end
+
+      score += 50 if text.includes?(query)
 
       query_idx == query.size ? Math.max(score, 1) : 0
     end

@@ -14,9 +14,9 @@ describe FFF::SearchEngine do
       score.should eq(500)
     end
 
-    it "gives 200 for substring match" do
+    it "gives a high score for substring match" do
       score = FFF::SearchEngine.fuzzy_score("hello.txt", "ello")
-      score.should eq(200)
+      score.should eq(219)
     end
 
     it "gives positive score for fuzzy match" do

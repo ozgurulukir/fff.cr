@@ -151,7 +151,9 @@ In search and rename modes:
 
 ## Terminal Handling
 
-- **Search Mode**: Navigable. `j/k` work while filter is active.
+- **Search Mode**: Navigable. `j/k` work while filter is active. Typing in search mode resets the viewport scroll and page offset to `0` to keep matching results visible.
+- **Search ESC Position Persistence**: Canceling search with `ESC` preserves your selection. If you navigated the search results, pressing `ESC` drops your cursor directly onto the selected item in the restored full list. If you did not navigate, it restores your pre-search scroll position.
+- **Normal Mode ESC**: Pressing `ESC` in normal mode clears active search filters and marks, restoring the full directory list while keeping the cursor focused on the current item.
 - **Cursor Editing**: Both search and rename modes support `←`/`→` cursor movement, `Home`/`End`, `Backspace`/`Delete`, and insert-at-cursor typing.
 - **Incremental & State Redraws**: Uses dynamic `@force_full_redraw` to force clean clears only when transitioning into or out of search/rename modes. Normal state changes redraw incrementally to eliminate TUI flickering.
 - **Color Caching**: Results cached by file path, cleared on directory change to prevent unbounded growth.
@@ -219,7 +221,8 @@ Bulk copy and delete operations (5+ items) invoke the `ProgressBar` utility:
 - **Git Branch**: Cached per directory (including non-git dirs) — `Process.run("git",...)` called only on directory change, not every frame.
 - **Redraw**: Optimized double-buffered incremental drawing loop.
 - **Lazy Content Search**: Live search queries only update fuzzy file list scanning. Expensive content queries (triggered via `!`) are deferred until the user presses **Enter**, preventing TUI lag and freezes while typing.
-- **Recursive Tree Search Performance Guards**: Recursive tree search (`>` prefix) limits folder recursion to a depth of 5 and caps maximum results at 200 items. This protects the event loop and memory from TUI lag or stack/memory overflows on large directories.
+- **Recursive Tree Search Performance Guards**: Recursive tree search (`>` prefix) limits folder recursion to a depth of 5 and caps maximum results at 200 items. In addition, typing matches are not updated live; the search is deferred until the user presses **Enter** to prevent event loop blocking.
+- **Fuzzy Search Scoring**: `SearchEngine.fuzzy_score` uses consecutive matching bonus (`score += consecutive * 5`) and a substring inclusion bonus (`+50`) at the end, ensuring that exact substring matches outrank distant fuzzy matches.
 - **Hot-path string building**: `draw_status`, `draw_topbar`, `draw_help_overlay` use `String.build` instead of `parts = [] + join`.
 - **Per-char rendering**: `draw_fuzzy_name` and `colorize_git_status` use `String.build { |s| s << char }` instead of `char.to_s`.
 - **Anti-patterns avoided**:

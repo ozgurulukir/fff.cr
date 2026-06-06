@@ -81,6 +81,9 @@ module FFF
     # ── Private ivar type declarations ─────────────────────────────────────────
 
     @key_handlers : Hash(String, Proc(Nil))
+    @search_original_scroll : Int32
+    @search_original_page_offset : Int32
+    @search_navigated : Bool
 
     def initialize(@config : Config, start_dir : String, @picker_mode = false, term : Terminal? = nil)
       @term = term || Terminal.new
@@ -108,6 +111,10 @@ module FFF
       @git_branch = ""
       @git_status = ""
       @git_dir_cache = ""
+
+      @search_original_scroll = 0
+      @search_original_page_offset = 0
+      @search_navigated = false
 
       @key_handlers = Hash(String, Proc(Nil)).new
 
@@ -155,6 +162,8 @@ module FFF
       @key_handlers["+"] = ->{ @dir_manager.toggle_sort_reverse }
       @key_handlers["?"] = ->{ toggle_help }
       @key_handlers["q"] = ->{ quit }
+      @key_handlers["\e"] = ->{ clear_state }
+      @key_handlers["escape"] = ->{ clear_state }
       # Dynamic page keys (resolved from @config at init time)
       @key_handlers[@config.key_page_up] = ->{ page_up }
       @key_handlers[@config.key_page_down] = ->{ page_down }
@@ -358,7 +367,27 @@ module FFF
 
       # ESC/Ctrl+C: cancel current mode
       if key == "\e" || key == "escape" || key == "\u0003" || (key.bytesize == 1 && key.char_at(0).ord == 27)
-        @dir_manager.list = @input_mode.original_list.dup
+        if @input_mode.mode == :search
+          current_path = @scroll < @dir_manager.list.size ? @dir_manager.list[@scroll] : nil
+          @dir_manager.list = @input_mode.original_list.dup
+          
+          if @search_navigated && current_path
+            if new_idx = @dir_manager.list.index(current_path)
+              @scroll = new_idx
+              if @scroll < @page_offset || @scroll >= @page_offset + @term.max_items
+                @page_offset = {@scroll - @term.max_items // 2, 0}.max
+              end
+            else
+              @scroll = @search_original_scroll
+              @page_offset = @search_original_page_offset
+            end
+          else
+            @scroll = @search_original_scroll
+            @page_offset = @search_original_page_offset
+          end
+        else
+          @dir_manager.list = @input_mode.original_list.dup
+        end
         @input_mode.end
         @force_full_redraw = true
         return
@@ -367,6 +396,7 @@ module FFF
       complete = @input_mode.handle_key(key)
 
       if @input_mode.navigating
+        @search_navigated = true
         cursor_up if key == "\e[A" || key == "up"
         cursor_down if key == "\e[B" || key == "down"
         return
@@ -380,7 +410,7 @@ module FFF
         end
         @force_full_redraw = true
       else
-        live_search if @input_mode.mode == :search && !@input_mode.text.starts_with?('!')
+        live_search if @input_mode.mode == :search && !@input_mode.text.starts_with?('!') && !@input_mode.text.starts_with?('>')
       end
     end
 
@@ -406,6 +436,8 @@ module FFF
 
     def live_search
       @dir_manager.list = @input_mode.apply_search(@input_mode.original_list)
+      @scroll = 0
+      @page_offset = 0
     end
 
     def handle_key(key : String)
@@ -423,6 +455,9 @@ module FFF
 
     def start_search
       @dir_manager.list = @dir_manager.full_list.dup
+      @search_original_scroll = @scroll
+      @search_original_page_offset = @page_offset
+      @search_navigated = false
       @input_mode.start_search(@dir_manager.list)
       @force_full_redraw = true
     end
@@ -435,6 +470,39 @@ module FFF
       old_name = File.basename(old_path)
       @input_mode.start_rename(old_name)
       @force_full_redraw = true
+    end
+
+    def clear_state
+      cleared = false
+      if @dir_manager.list.size != @dir_manager.full_list.size || @dir_manager.list != @dir_manager.full_list
+        current_path = @scroll < @dir_manager.list.size ? @dir_manager.list[@scroll] : nil
+        
+        @dir_manager.list = @dir_manager.full_list.dup
+        
+        if current_path
+          if new_idx = @dir_manager.list.index(current_path)
+            @scroll = new_idx
+            if @scroll < @page_offset || @scroll >= @page_offset + @term.max_items
+              @page_offset = {@scroll - @term.max_items // 2, 0}.max
+            end
+          else
+            clamp_scroll
+          end
+        else
+          clamp_scroll
+        end
+        cleared = true
+      end
+
+      if @marked.size > 0
+        @marked.clear
+        cleared = true
+      end
+
+      if cleared
+        @force_full_redraw = true
+        show_info("Filter and marks cleared")
+      end
     end
 
     def with_tui_restored(&)
