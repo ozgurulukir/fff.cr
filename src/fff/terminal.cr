@@ -80,7 +80,7 @@ module FFF
     end
 
     def update_window_title(path : String = "")
-      title = path.empty? ? "fffm" : "fffm: #{path}"
+      title = path.empty? ? "fff-cr" : "fff-cr: #{path}"
       # Use both title sequences for better compatibility
       print "\e]2;#{title}\a"
       print "\e]2;#{title}\e\\"
