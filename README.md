@@ -1,4 +1,4 @@
-# FFF — Fucking Fast File Manager
+# fff.cr — Fucking Fast File Manager
 
 [![Crystal](https://img.shields.io/badge/Crystal-1.20.1-000?labelColor=eee&logo=crystal)](https://crystal-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -37,7 +37,7 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 
 ```bash
 make deps       # install shards
-make build      # release build → bin/fff
+make build      # release build → bin/fff-cr
 make debug      # debug build (faster compile)
 make run        # build + run
 make test       # run test suite
@@ -50,17 +50,17 @@ sudo make install
 
 ```powershell
 shards install                              # install shards
-crystal build src/fff.cr -o bin/fff.exe    # build fff.exe
+crystal build src/fff.cr -o bin/fff-cr.exe  # build fff-cr.exe
 crystal spec spec/fff/                      # run unit tests
-.\bin\fff.exe                               # run the app
+.\bin\fff-cr.exe                            # run the app
 ```
 
 ## Usage
 
 ```bash
-fff                    # open current directory
-fff /path/to/dir       # open specific directory
-fff -p                 # picker mode (writes to opened_file cache)
+fff-cr                    # open current directory
+fff-cr /path/to/dir       # open specific directory
+fff-cr -p                 # picker mode (writes to opened_file cache)
 ```
 
 ### Key Bindings
@@ -157,8 +157,8 @@ Directories always use the built-in preview.
 
 ```text
 .
-├── bin/fff                  # compiled binary
-├── man/fff.1                # man page
+├── bin/fff-cr               # compiled binary
+├── man/fff-cr.1             # man page
 ├── src/
 │   ├── fff.cr               # entry point
 │   └── fff/

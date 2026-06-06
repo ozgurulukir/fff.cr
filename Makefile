@@ -1,6 +1,6 @@
 .PHONY: all build install uninstall clean test format
 
-NAME=fff
+NAME=fff-cr
 SRC=src/fff.cr
 PREFIX?=/usr/local
 MANDIR?=$(PREFIX)/share/man

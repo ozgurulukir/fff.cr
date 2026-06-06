@@ -2,12 +2,12 @@
 
 ## Project Overview
 
-**fff** (Fucking Fast File Manager) — a terminal-based file manager written in Crystal.
+**fff.cr** (Fucking Fast File Manager) — a terminal-based file manager written in Crystal.
 
 - **Language**: Crystal 1.20.1
 - **Source**: Multiple files in `src/fff/`
 - **Branch**: `crystal-port` (Bash source removed — pure Crystal)
-- **Build**: `make build` or `crystal build src/fff.cr --release -o bin/fff`
+- **Build**: `make build` or `crystal build src/fff.cr --release -o bin/fff-cr`
 
 ## Architecture
 
@@ -105,23 +105,23 @@ These are fixed via `sed` in `lib/` after `shards install`. Patches are **not** 
 
 ```bash
 shards install                    # install dependencies
-make build                        # release build → bin/fff
+make build                        # release build → bin/fff-cr
 make debug                        # debug build (faster compile, no optimizations)
 make test                         # run test suite
 make format                       # crystal tool format
 make lint                         # ameba static analysis
 make run                          # build + run
-./bin/fff                         # launch in current directory
-./bin/fff /path/to/dir            # launch in specific directory
+./bin/fff-cr                      # launch in current directory
+./bin/fff-cr /path/to/dir         # launch in specific directory
 ```
 
 **On Windows 11 (PowerShell):**
 
 ```powershell
 shards install                              # install dependencies
-crystal build src/fff.cr -o bin/fff.exe    # build fff.exe
+crystal build src/fff.cr -o bin/fff-cr.exe  # build fff-cr.exe
 crystal spec spec/fff/                      # run unit tests
-.\bin\fff.exe                               # run the app
+.\bin\fff-cr.exe                            # run the app
 ```
 
 ## Key Bindings (defaults, all configurable via `FFF_KEY_*` env vars)

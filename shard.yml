@@ -1,4 +1,4 @@
-name: fff
+name: fff.cr
 version: 0.2.0
 
 authors:
@@ -10,7 +10,7 @@ description: |
 license: MIT
 
 targets:
-  fff:
+  fff-cr:
     main: src/fff.cr
 
 crystal: 1.20.1

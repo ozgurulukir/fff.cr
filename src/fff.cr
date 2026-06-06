@@ -35,7 +35,7 @@ module FFF
 
     def run
       if @args.includes?("--version")
-        puts "fff #{VERSION}"
+        puts "fff-cr #{VERSION}"
         return
       end
 
@@ -53,9 +53,9 @@ module FFF
     end
 
     private def print_help
-      puts "fff - Fucking Fast File Manager (Crystal)"
+      puts "fff-cr - Fucking Fast File Manager (Crystal)"
       puts ""
-      puts "Usage: fff [options] [directory]"
+      puts "Usage: fff-cr [options] [directory]"
       puts ""
       puts "Options:"
       puts "  -h, --help     Show this help"
