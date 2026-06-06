@@ -243,4 +243,38 @@ describe FFF::DirectoryManager do
       end
     end
   end
+
+  describe "#safe_navigate" do
+    it "navigates to an existing directory successfully" do
+      temp_dir = SpecHelper.create_temp_dir("test_safe_navigate_success")
+      begin
+        sub_dir = File.join(temp_dir, "subdir")
+        Dir.mkdir_p(sub_dir)
+
+        dir_manager = FFF::DirectoryManager.new(temp_dir)
+        dir_manager.read!
+
+        dir_manager.safe_navigate(sub_dir).should be_true
+        dir_manager.current_dir.should eq(sub_dir)
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+
+    it "rolls back to the original directory when navigation fails" do
+      temp_dir = SpecHelper.create_temp_dir("test_safe_navigate_fail")
+      begin
+        dir_manager = FFF::DirectoryManager.new(temp_dir)
+        dir_manager.read!
+
+        expect_raises(Exception) do
+          dir_manager.safe_navigate("/nonexistent/directory/path/here")
+        end
+
+        dir_manager.current_dir.should eq(temp_dir)
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
 end
