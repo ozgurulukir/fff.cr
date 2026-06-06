@@ -37,7 +37,7 @@ module FFF
         puts "Contents:"
         Dir.entries(path).each { |e| puts "  #{e}" }
       else
-        size = @renderer.human_size(File.info(path).size) rescue "???"
+        size = FormatUtils.human_size(File.info(path).size) rescue "???"
         puts "File: #{File.basename(path)}"
         puts "Size: #{size}"
         puts "---"

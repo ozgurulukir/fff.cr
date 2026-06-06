@@ -53,10 +53,21 @@ module FFF
       proc_chan = Channel(Process?).new(1)
       result_chan = Channel(IO::Memory).new(1)
       timeout_chan = Channel(Nil).new(1)
-      output_io = IO::Memory.new
-      error_io = IO::Memory.new
+
       pipe_rd, pipe_wr = IO.pipe
       pipe_err_rd, pipe_err_wr = IO.pipe
+
+      spawn_ripgrep(query, dir, proc_chan, result_chan, pipe_rd, pipe_wr, pipe_err_rd, pipe_err_wr)
+      spawn_timeout(proc_chan, timeout_chan, pipe_rd, pipe_err_rd)
+
+      parse_rg_output(result_chan, timeout_chan, dir)
+    rescue
+      [] of String
+    end
+
+    private def self.spawn_ripgrep(query, dir, proc_chan, result_chan, pipe_rd, pipe_wr, pipe_err_rd, pipe_err_wr)
+      output_io = IO::Memory.new
+      error_io = IO::Memory.new
 
       spawn do
         _the_proc = begin
@@ -79,7 +90,9 @@ module FFF
       rescue
         result_chan.send(output_io)
       end
+    end
 
+    private def self.spawn_timeout(proc_chan, timeout_chan, pipe_rd, pipe_err_rd)
       spawn do
         sleep 2.seconds
         the_proc = proc_chan.receive
@@ -91,7 +104,9 @@ module FFF
         end
         timeout_chan.send(nil)
       end
+    end
 
+    private def self.parse_rg_output(result_chan, timeout_chan, dir) : Array(String)
       select
       when output = result_chan.receive
         rg_text = output.to_s
@@ -101,8 +116,6 @@ module FFF
       when _ignored = timeout_chan.receive
         [] of String
       end
-    rescue
-      [] of String
     end
   end
 end
