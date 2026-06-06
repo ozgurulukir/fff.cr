@@ -70,7 +70,7 @@ These are fixed via `sed` in `lib/` after `shards install`. Patches are **not** 
 ### 2. `term-reader` — `get_codes` ESC loop hangs
 - **File**: `lib/term-reader/src/reader/console.cr:28-30`
 - **Bug**: `@input.blocking = !nonblock` doesn't reliably make `read_char` nonblocking on TTY, causing the escape code detection loop to hang.
-- **Fix**: replace `@input.blocking = !nonblock` with a fiber-based timeout using `Channel(Char?)` + `spawn { sleep 5.milliseconds }` race. If no data arrives within 5ms, returns nil instead of blocking. This avoids the nonblocking IO that Crystal doesn't support on TTY.
+- **Fix**: On POSIX, replace `@input.blocking = !nonblock` with a fiber-based timeout using `Channel(Char?)` + `spawn { sleep 5.milliseconds }` race. On Windows, since Crystal is single-threaded and blocking TTY reads pause the scheduler, we use a native `LibMSVCRT.kbhit` check to immediately return `nil` if no input is queued in the console, preventing lagging/hanging.
 
 ### 3. `term-prompt` — `Regex.escape` type mismatch
 - **File**: `lib/term-prompt/src/prompt/confirm_question.cr:95`
