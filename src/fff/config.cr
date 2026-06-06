@@ -95,7 +95,7 @@ module FFF
                nil
              end
 
-      @editor = ENV["EDITOR"]? || json_get(json, "editor") || "vi"
+      @editor = ENV["EDITOR"]? || json_get(json, "editor") || default_editor
       @opener = ENV["FFF_OPENER"]? || json_get(json, "opener") || default_opener
       @trash_dir = ENV["FFF_TRASH"]? || json_get(json, "trash_dir") || File.join(HOME, ".local", "share", "fff", "trash")
       @cd_on_exit = (ENV["FFF_CD_ON_EXIT"]? == "1") || (json_get(json, "cd_on_exit") == "true")
@@ -163,6 +163,14 @@ module FFF
         "explorer"
       {% else %}
         "xdg-open"
+      {% end %}
+    end
+
+    private def default_editor
+      {% if flag?(:windows) %}
+        "notepad"
+      {% else %}
+        "vi"
       {% end %}
     end
 

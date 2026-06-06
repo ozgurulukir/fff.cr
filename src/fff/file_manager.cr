@@ -456,7 +456,11 @@ module FFF
     end
 
     def open_with_opener(path : String)
-      with_tui_restored { Process.run(@config.opener, [path], input: STDIN, output: STDOUT, error: STDERR) }
+      {% if flag?(:windows) %}
+        with_tui_restored { Process.run("cmd.exe", ["/c", "start", "", path], input: STDIN, output: STDOUT, error: STDERR) }
+      {% else %}
+        with_tui_restored { Process.run(@config.opener, [path], input: STDIN, output: STDOUT, error: STDERR) }
+      {% end %}
     end
 
     def marked_or_current : Array(String)
