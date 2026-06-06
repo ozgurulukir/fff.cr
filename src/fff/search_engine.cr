@@ -45,6 +45,45 @@ module FFF
       query_idx == query.size ? Math.max(score, 1) : 0
     end
 
+    # Recursive path search — scans directory tree with fuzzy matching
+    # Triggered by `>` prefix in search mode
+    def self.recursive_search(query : String, dir : String, max_results : Int32 = 200) : Array(String)
+      return [] of String if query.size < 1
+
+      matches = [] of {String, Int32}
+      query_lower = query.downcase
+
+      scan_recursive(dir, query_lower, matches, max_results, 0, 5)
+
+      matches.sort_by { |m| {-m[1], m[0]} }.map { |m| m[0] }.first(max_results)
+    rescue
+      [] of String
+    end
+
+    private def self.scan_recursive(dir : String, query : String, matches : Array({String, Int32}),
+                                     max_results : Int32, depth : Int32, max_depth : Int32)
+      return if depth > max_depth
+      return if matches.size >= max_results
+
+      begin
+        Dir.entries(dir).each do |entry|
+          next if entry == "." || entry == ".."
+          next if entry.starts_with?('.')
+
+          path = File.join(dir, entry)
+          name = entry.downcase
+          score = fuzzy_score(name, query)
+          matches << {path, score} if score > 0
+
+          if File.directory?(path) && matches.size < max_results
+            scan_recursive(path, query, matches, max_results, depth + 1, max_depth)
+          end
+        end
+      rescue
+        # Permission denied or other I/O error — skip this directory
+      end
+    end
+
     # Ripgrep entegrasyonu - Dosya içeriğinde arama yapar
     # Runs rg in a fiber with a 2-second timeout so the TUI never freezes.
     def self.content_search(query : String, dir : String) : Array(String)

@@ -9,6 +9,7 @@ module FFF
     getter cursor_pos : Int32
     getter original_list : Array(String)
     getter navigating : Bool
+    getter match_count : Int32
 
     def initialize(@term : Terminal)
       @active = false
@@ -18,6 +19,7 @@ module FFF
       @original_list = [] of String
       @old_name = ""
       @navigating = false
+      @match_count = -1
     end
 
     def start_search(current_list : Array(String))
@@ -27,6 +29,7 @@ module FFF
       @cursor_pos = 0
       @original_list = current_list.dup
       @navigating = false
+      @match_count = current_list.size
     end
 
     def start_rename(old_name : String)
@@ -36,6 +39,7 @@ module FFF
       @cursor_pos = old_name.size
       @old_name = old_name
       @navigating = false
+      @match_count = -1
     end
 
     def handle_key(key : String) : Bool
@@ -84,18 +88,28 @@ module FFF
 
     def apply_search(list : Array(String)) : Array(String)
       return list unless @mode == :search
-      return @original_list if @text.empty?
+      return @original_list.tap { @match_count = @original_list.size } if @text.empty?
 
-      if @text.starts_with?('!')
-        dir = Dir.current
-        query = @text[1..-1]
-        return @original_list if query.empty?
+      result = if @text.starts_with?('!')
+                 # Content search (ripgrep)
+                 dir = Dir.current
+                 query = @text[1..-1]
+                 return @original_list.tap { @match_count = @original_list.size } if query.empty?
+                 matches = SearchEngine.content_search(query, dir)
+                 @original_list.select { |path| matches.includes?(path) }
+               elsif @text.starts_with?('>')
+                 # Recursive path search
+                 dir = Dir.current
+                 query = @text[1..-1]
+                 return @original_list.tap { @match_count = @original_list.size } if query.empty?
+                 SearchEngine.recursive_search(query, dir)
+               else
+                 # Fuzzy filename search
+                 SearchEngine.fuzzy_match(list, @text)
+               end
 
-        matches = SearchEngine.content_search(query, dir)
-        @original_list.select { |path| matches.includes?(path) }
-      else
-        SearchEngine.fuzzy_match(list, @text)
-      end
+      @match_count = result.size
+      result
     end
 
     def apply_rename(old_path : String) : String?
@@ -124,6 +138,7 @@ module FFF
       @original_list.clear
       @old_name = ""
       @navigating = false
+      @match_count = -1
     end
 
     def cursor_position : Int32

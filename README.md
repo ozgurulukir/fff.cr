@@ -8,14 +8,19 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 ## Features
 
 - **Fast**: `LS_COLORS` caching, optimized incremental render loop, no flicker
-- **Navigable Search**: Fuzzy filename filtering + ripgrep content search (`!` prefix), all while keeping cursor navigation live. `←`/`→` to move within the search query, `Backspace`/`Delete` to edit.
-- **Inline Prompts**: New file/directory, rename, and go-to-dir inputs stay inside the TUI — no full-screen dialog pop-out.
-- **Inline Confirm**: Delete and permission-toggle confirmations stay inside the TUI with a `[y/N]` prompt at the bottom.
-- **File Operations**: Copy, move, delete (trash), rename, bulk rename, symlink
-- **Smart Preview**: `bat` → `less` → builtin fallback chain; file attributes via `File::Info`/`stat`
+- **Modern Themes**: Truecolor RGB central theme system with 5 built-in presets (`default`, `catppuccin-mocha`, `gruvbox-dark`, `nord`, `dracula`).
+- **Nerd Font Icons**: Support for file and directory icons using Nerd Fonts (over 100+ extensions and 35+ special file mapping).
+- **Dual-Pane View (Preview Panel)**: Interactive directory and file content preview side panel (automatically adapts when terminal columns >= 80).
+- **Details Columns**: Shows file size and modification time directly in the file list.
+- **Toast Notifications**: Interactive notification system (Error, Success, Warning, Info) with custom colors and icons, featuring auto-expiry.
+- **Navigable Search**: Fuzzy filename filtering, ripgrep content search (`!` prefix), and recursive directory tree search (`>` prefix) while keeping cursor navigation live.
+- **Progress Bars**: Interactive progress bar for bulk operations (copying/deleting 5+ files).
+- **Inline Prompts & Confirms**: Inputs (new file, new dir, rename, go-to-dir) and confirmations (delete, executable toggle) stay inside the TUI.
+- **File Operations**: Copy, move, delete (trash), rename, bulk rename, symlink with auto-advance navigation.
+- **Smart Full Preview**: Full-screen preview via `bat` → `less` → built-in fallback chain; file attributes via `File::Info`/`stat`
 - **Picker Mode**: `-p` flag writes selection to `~/.cache/fff/opened_file` for external tool integration
 - **Secure**: All external commands via `Process.run` (no shell injection), pre-operation writability checks
-- **Customizable**: Full keybinding control via environment variables or `~/.config/fff/config.json`
+- **Customizable**: Full keybinding, theme, and layout control via environment variables or `~/.config/fff/config.json`
 
 ## Installation
 
@@ -27,6 +32,7 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 ### Build
 
 **On Linux/macOS:**
+
 ```bash
 make deps       # install shards
 make build      # release build → bin/fff
@@ -39,6 +45,7 @@ sudo make install
 ```
 
 **On Windows 11 (PowerShell):**
+
 ```powershell
 shards install                              # install shards
 crystal build src/fff.cr -o bin/fff.exe    # build fff.exe
@@ -57,7 +64,7 @@ fff -p                 # picker mode (writes to opened_file cache)
 ### Key Bindings
 
 | Key | Action | Key | Action |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `j`/`k` | Down/Up | `l`/`h` | Enter/Parent |
 | `q` | Quit | `?` | Help overlay |
 | `/` | Search (Navigable) | `space` | Mark |
@@ -78,9 +85,29 @@ In search and rename modes, `←`/`→` move within the input text, `Backspace`/
 
 All bindings are configurable via `FFF_KEY_*` environment variables.
 
+### Search Engine Prefixes
+
+When in search mode (triggered by `/`), you can prefix your query to activate different search modes:
+
+| Prefix | Mode | Description |
+| --- | --- | --- |
+| (none) | **Fuzzy Filename** | Fuzzy matches filenames within the current directory. |
+| `!` | **Content Search** | Calls `rg` (ripgrep) to search file content (requires pressing Enter to search). |
+| `>` | **Recursive Search** | Recursively fuzzy searches files in the directory tree (up to 5 levels deep, capped at 200 results). |
+
 ## Configuration
 
 fff reads from environment variables first, then falls back to `~/.config/fff/config.json`.
+
+### UI & Layout Settings
+
+| Env Variable | Config JSON Key | Description / Values |
+| --- | --- | --- |
+| `FFF_THEME` | `theme` | UI Theme: `default`, `catppuccin-mocha`, `gruvbox-dark`, `nord`, `dracula` (Default: `default`) |
+| `FFF_ICONS` | `icons` | Enable Nerd Font icons: `1` or `true` (Default: disabled) |
+| `FFF_COLUMNS` | `show_columns` | Show details columns (size/date): `1` or `true` (Default: enabled) |
+| `FFF_COLUMN_MODE` | `column_mode` | Column display mode: `size`, `date`, or `both` (Default: `both`) |
+| `FFF_PREVIEW` | `preview` | Enable directory/file preview side-panel when term is wide enough: `1` or `true` (Default: disabled) |
 
 ### Key variables
 
@@ -89,6 +116,11 @@ export FFF_OPENER="xdg-open"              # file opener
 export FFF_FAV1="$HOME/Documents"         # favorite dirs 1-9
 export FFF_CD_ON_EXIT="1"                 # save cwd on exit
 export FFF_TRASH="$HOME/.local/share/fff/trash"
+
+# Example UI settings:
+export FFF_THEME="catppuccin-mocha"
+export FFF_ICONS="1"
+export FFF_PREVIEW="1"
 ```
 
 Full list of `FFF_KEY_*` variables: `UP`, `DOWN`, `ENTER`, `QUIT`, `SEARCH`, `PARENT`, `MARK`, `MARK_ALL`, `COPY`, `MOVE`, `PASTE`, `DELETE`, `NEW_DIR`, `MKFILE`, `RENAME`, `BULK_RENAME`, `PREVIEW`, `SHELL`, `HIDDEN`, `HOME`, `PREVIOUS`, `REFRESH`, `ATTRIBUTES`, `EXECUTABLE`, `GO_DIR`, `GO_TRASH`, `SYMLINK`, `TOP`, `BOTTOM`, `PAGE_UP`, `PAGE_DOWN`.
@@ -98,6 +130,11 @@ Full list of `FFF_KEY_*` variables: `UP`, `DOWN`, `ENTER`, `QUIT`, `SEARCH`, `PA
   "editor": "vim",
   "opener": "xdg-open",
   "trash_dir": "/path/to/trash",
+  "theme": "catppuccin-mocha",
+  "icons": true,
+  "show_columns": true,
+  "column_mode": "both",
+  "preview": true,
   "favorites": { "1": "/home/user/Documents" },
   "keys": { "up": "k", "down": "j" },
   "bookmarks": { "proj": "/home/user/projects" }
@@ -116,7 +153,7 @@ Directories always use the built-in preview.
 
 ## Project Structure
 
-```
+```text
 .
 ├── bin/fff                  # compiled binary
 ├── man/fff.1                # man page
@@ -131,10 +168,15 @@ Directories always use the built-in preview.
 │       ├── file_operations.cr
 │       ├── file_service.cr
 │       ├── format_utils.cr
+│       ├── icon_provider.cr
 │       ├── input_mode.cr
+│       ├── message_bus.cr
 │       ├── navigation_handlers.cr
+│       ├── preview_panel.cr
+│       ├── progress_bar.cr
 │       ├── search_engine.cr
 │       ├── terminal.cr
+│       ├── theme.cr
 │       ├── ui_renderer.cr
 │       └── view_handlers.cr
 ├── spec/                    # test suite
@@ -150,17 +192,22 @@ Directories always use the built-in preview.
 ## Architecture
 
 - **FFF::Application** — CLI argument parsing, terminal setup
-- **FFF::Config** — env var & JSON config management, `LS_COLORS` parsing
+- **FFF::Config** — env var & JSON config management, `LS_COLORS` parsing, layout preferences
 - **FFF::DirectoryManager** — directory reading, sorting, hidden-file filtering
 - **FFF::DrawState** — bundles all redraw parameters into one struct
 - **FFF::FileManager** — event loop, hash-table key dispatch, and TUI router; includes `NavigationHandlers`, `FileOpHandlers`, `ViewHandlers`
-- **FFF::FileOperations** — file/directory creation, deletion, copying
+- **FFF::FileOperations** — file/directory creation, deletion, copying with callback blocks for progress tracking
 - **FFF::FileService** — low-level `copy`/`move`/`trash`/`symlink` with writability checks
-- **FFF::InputMode** — search/rename text input with cursor control and editing
-- **FFF::SearchEngine** — fuzzy filename matching + ripgrep content search
+- **FFF::FormatUtils** — shared helpers (`human_size`, date formatting), `FFF::HOME` constant
+- **FFF::IconProvider** — maps file extensions and special names to Nerd Font icons
+- **FFF::InputMode** — search/rename text input with cursor control, editing, and search mode matching
+- **FFF::MessageBus** — thread-safe TUI toast notification queue (Error/Success/Warning/Info)
+- **FFF::PreviewPanel** — split pane displaying file previews/details and directory entries
+- **FFF::ProgressBar** — ANSI progress bar tracking bulk operations
+- **FFF::SearchEngine** — fuzzy filename matching, ripgrep content search, and recursive tree search
 - **FFF::Terminal** — `crystal-term` shard wrapper
-- **FFF::UIRenderer** — incremental, flicker-free drawing
-- **FFF::FormatUtils** — shared helpers (`human_size`), `FFF::HOME` constant
+- **FFF::Theme** — truecolor RGB color palette system with pre-configured styles
+- **FFF::UIRenderer** — incremental, flicker-free drawing, truecolor CSS/TUI styling, layout composition
 
 ## Development
 
@@ -179,8 +226,10 @@ crystal spec spec/integration/advanced_integration_spec.cr
 ```
 
 #### Test Architecture
-- **91 unit tests** across 6 modules (config, directory_manager, file_service, input_mode, search_engine, ui_renderer)
+
+- **93 unit tests** across 6 modules (config, directory_manager, file_service, input_mode, search_engine, ui_renderer)
 - **43 integration tests** across 2 suites (navigation + advanced) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
+
 - Both specs run headless; no terminal or display required
 
 ### Patches

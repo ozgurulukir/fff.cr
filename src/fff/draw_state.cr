@@ -1,3 +1,5 @@
+require "./message_bus"
+
 module FFF
   struct DrawState
     getter scroll : Int32
@@ -13,7 +15,8 @@ module FFF
     getter current_dir : String
     getter clipboard_mode : Symbol
     getter clipboard_size : Int32
-    getter error_msg : String?
+    getter clipboard_items : Array(String)
+    getter message : Message?
     getter loading : Bool
     getter full : Bool
     getter sort_mode : Symbol
@@ -26,6 +29,9 @@ module FFF
     getter hidden_count : Int32
     getter stat_cache : Hash(String, File::Info)
     getter lstat_cache : Hash(String, File::Info)
+    getter favorites : Hash(String, String)
+    getter match_count : Int32
+    getter preview_path : String?
 
     def initialize(
       @scroll : Int32 = 0,
@@ -41,7 +47,8 @@ module FFF
       @current_dir : String = "",
       @clipboard_mode : Symbol = :none,
       @clipboard_size : Int32 = 0,
-      @error_msg : String? = nil,
+      @clipboard_items : Array(String) = [] of String,
+      @message : Message? = nil,
       @loading : Bool = false,
       @full : Bool = false,
       @sort_mode : Symbol = :name,
@@ -53,7 +60,10 @@ module FFF
       @total_size : Int64 = 0_i64,
       @hidden_count : Int32 = 0,
       @stat_cache : Hash(String, File::Info) = Hash(String, File::Info).new,
-      @lstat_cache : Hash(String, File::Info) = Hash(String, File::Info).new
+      @lstat_cache : Hash(String, File::Info) = Hash(String, File::Info).new,
+      @favorites : Hash(String, String) = Hash(String, String).new,
+      @match_count : Int32 = -1,
+      @preview_path : String? = nil
     )
     end
   end

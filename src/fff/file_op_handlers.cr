@@ -1,3 +1,5 @@
+require "./progress_bar"
+
 module FFF
   module FileOpHandlers
     def enter_item
@@ -30,7 +32,11 @@ module FFF
       return if name.nil? || name.empty?
 
       error = @file_ops.new_file(@dir_manager.current_dir, name)
-      show_error(error) if error
+      if error
+        show_error(error)
+      else
+        show_success("Created #{name}")
+      end
       @dir_manager.read!
     end
 
@@ -39,7 +45,11 @@ module FFF
       return if name.nil? || name.empty?
 
       error = @file_ops.new_directory(@dir_manager.current_dir, name)
-      show_error(error) if error
+      if error
+        show_error(error)
+      else
+        show_success("Created #{name}/")
+      end
       @dir_manager.read!
     end
 
@@ -63,6 +73,7 @@ module FFF
 
       begin
         FileUtils.mv(old_path, new_path)
+        show_success("Renamed → #{new_name}")
         @dir_manager.read!
       rescue e : Exception
         show_error(e.message)
@@ -73,7 +84,11 @@ module FFF
       sources = marked_or_current
       error = with_tui_restored { @file_ops.bulk_rename(sources, @config.editor) }
 
-      show_error(error) if error
+      if error
+        show_error(error)
+      else
+        show_success("Bulk rename complete")
+      end
       @marked.clear
       @dir_manager.read!
     end
@@ -82,7 +97,11 @@ module FFF
       sources = marked_or_current
       error = @file_ops.create_symlink(sources, @dir_manager.current_dir)
 
-      show_error(error) if error
+      if error
+        show_error(error)
+      else
+        show_success("#{sources.size} symlink(s) created")
+      end
       @marked.clear
       @dir_manager.read!
     end
@@ -97,24 +116,34 @@ module FFF
       else
         @marked.add(path)
       end
+      # Auto-advance cursor after marking (ranger behavior)
+      cursor_down
     end
 
     def toggle_mark_all
       if @marked.size == @dir_manager.list.size
         @marked.clear
+        show_info("All marks cleared")
       else
         @dir_manager.list.each { |path| @marked.add(path) }
+        show_info("#{@marked.size} items marked")
       end
     end
 
     def yank_files
       @clipboard = marked_or_current
-      @clipboard_mode = :copy if @clipboard.size > 0
+      if @clipboard.size > 0
+        @clipboard_mode = :copy
+        show_success("📋 #{@clipboard.size} item(s) copied")
+      end
     end
 
     def cut_files
       @clipboard = marked_or_current
-      @clipboard_mode = :cut if @clipboard.size > 0
+      if @clipboard.size > 0
+        @clipboard_mode = :cut
+        show_warning("✂ #{@clipboard.size} item(s) cut")
+      end
     end
 
     def paste_files
@@ -125,8 +154,25 @@ module FFF
         return unless confirm
       end
 
-      error = @file_ops.paste_files(@clipboard, @dir_manager.current_dir, @clipboard_mode)
-      show_error(error) if error
+      # Use progress bar for multi-file operations
+      count = @clipboard.size
+      if count > 5
+        op_name = @clipboard_mode == :copy ? "Copying" : "Moving"
+        bar = ProgressBar.new(op_name, count)
+        error = @file_ops.paste_files_with_progress(@clipboard, @dir_manager.current_dir, @clipboard_mode) do |i, name|
+          bar.update(i + 1, name)
+          bar.draw(@term.width, @term.height, @config.theme)
+        end
+      else
+        error = @file_ops.paste_files(@clipboard, @dir_manager.current_dir, @clipboard_mode)
+      end
+
+      if error
+        show_error(error)
+      else
+        op = @clipboard_mode == :copy ? "pasted" : "moved"
+        show_success("✓ #{count} item(s) #{op}")
+      end
 
       @marked.clear
       @dir_manager.read!
@@ -141,8 +187,22 @@ module FFF
       confirm = @term.confirm_inline("Delete #{sources.size} item(s)? ")
       return unless confirm
 
-      error = @file_ops.delete_files(sources, trash_dir)
-      show_error(error) if error
+      count = sources.size
+      if count > 5
+        bar = ProgressBar.new("Deleting", count)
+        error = @file_ops.delete_files_with_progress(sources, trash_dir) do |i, name|
+          bar.update(i + 1, name)
+          bar.draw(@term.width, @term.height, @config.theme)
+        end
+      else
+        error = @file_ops.delete_files(sources, trash_dir)
+      end
+
+      if error
+        show_error(error)
+      else
+        show_success("✓ #{count} item(s) deleted")
+      end
 
       @marked.clear
       @dir_manager.read!
@@ -166,8 +226,12 @@ module FFF
       confirm = @term.confirm_inline("#{action} from '#{name}'? ")
       return unless confirm
 
-      error = @file_ops.toggle_executable(path)
-      show_error(error) if error
+      result = @file_ops.toggle_executable(path)
+      if result && result.includes?("bit")
+        show_success(result)
+      elsif result
+        show_error(result)
+      end
     end
   end
 end

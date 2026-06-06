@@ -14,6 +14,11 @@ require "./search_engine"
 require "./navigation_handlers"
 require "./file_op_handlers"
 require "./view_handlers"
+require "./message_bus"
+require "./theme"
+require "./icon_provider"
+require "./preview_panel"
+require "./progress_bar"
 
 module FFF
   # FileManager - Core TUI file manager coordinator
@@ -31,8 +36,7 @@ module FFF
     property clipboard_mode : Symbol
     property dir_manager : DirectoryManager
     property input_mode : InputMode
-    property error_msg : String?
-    property error_expires : Time?
+    property message_bus : MessageBus
     property loading : Bool
     property show_help : Bool
     property git_branch : String
@@ -53,13 +57,29 @@ module FFF
     getter prev_child : String?
     getter prev_list_size : Int32
 
+    # Backward compatibility for tests that use error_msg
+    def error_msg : String?
+      @message_bus.current.try(&.text)
+    end
+
+    def error_msg=(msg : String?)
+      if msg
+        @message_bus.error(msg)
+      else
+        @message_bus.clear
+      end
+    end
+
+    def error_expires : Time?
+      @message_bus.current.try(&.expires_at)
+    end
+
+    def error_expires=(t : Time?)
+      # No-op for backward compatibility — MessageBus manages expiry internally
+    end
+
     # ── Private ivar type declarations ─────────────────────────────────────────
 
-    # Key → handler dispatch table.
-    # Built in initialize() using instance-method closures:
-    #   ->{ cursor_down } captures self at init time, becomes Proc(Nil).
-    # KEY_GROUPS (below) is the central registry — adding a binding = add
-    # to KEY_GROUPS + one line here.
     @key_handlers : Hash(String, Proc(Nil))
 
     def initialize(@config : Config, start_dir : String, @picker_mode = false, term : Terminal? = nil)
@@ -68,6 +88,7 @@ module FFF
       @renderer = UIRenderer.new(@term, @config)
       @input_mode = InputMode.new(@term)
       @file_ops = FileOperations.new(@config, @term)
+      @message_bus = MessageBus.new
 
       @scroll = 0
       @page_offset = 0
@@ -77,8 +98,6 @@ module FFF
       @running = true
       @prev_dir = nil
       @prev_child = nil
-      @error_msg = nil
-      @error_expires = nil
       @prev_scroll = -1
       @prev_page_offset = -1
       @fff_level = (ENV["FFF_LEVEL"]?.try(&.to_i?) || 0)
@@ -97,8 +116,6 @@ module FFF
 
     private def setup_key_handlers
       # Build key → handler dispatch table (run once at startup)
-      # All keys resolved here use @config values (already set by this point),
-      # so every binding including page_up/down can live in the hash.
       # Navigation
       @key_handlers["j"] = ->{ cursor_down }
       @key_handlers["\e[B"] = ->{ cursor_down } # ↓-arrow
@@ -191,15 +208,22 @@ module FFF
     end
 
     def redraw(full = false)
-      check_error_expiry
+      @message_bus.tick!
 
       list_changed = @dir_manager.list.size != @prev_list_size
       @prev_list_size = @dir_manager.list.size
 
       update_git_branch
 
-      full_draw = full || @force_full_redraw || @input_mode.active || list_changed || !@error_msg.nil? || @loading || @show_help || @prev_page_offset != @page_offset
+      full_draw = full || @force_full_redraw || @input_mode.active || list_changed || @message_bus.current != nil || @loading || @show_help || @prev_page_offset != @page_offset
       @force_full_redraw = false
+
+      # Determine preview path (cursor item)
+      preview_path = if @config.preview && @scroll < @dir_manager.list.size
+                       @dir_manager.list[@scroll]
+                     else
+                       nil
+                     end
 
       state = DrawState.new(
         scroll: @scroll,
@@ -216,7 +240,8 @@ module FFF
         current_dir: @dir_manager.current_dir,
         clipboard_mode: @clipboard_mode,
         clipboard_size: @clipboard.size,
-        error_msg: @error_msg,
+        clipboard_items: @clipboard,
+        message: @message_bus.current,
         loading: @loading,
         full: full_draw,
         sort_mode: @dir_manager.sort_mode,
@@ -228,6 +253,9 @@ module FFF
         hidden_count: @dir_manager.hidden_count,
         stat_cache: @dir_manager.stat_cache,
         lstat_cache: @dir_manager.lstat_cache,
+        favorites: @config.favorites,
+        match_count: @input_mode.match_count,
+        preview_path: preview_path,
       )
       @renderer.redraw(state)
 
@@ -293,15 +321,6 @@ module FFF
         s << " ?#{untracked}" if untracked > 0
         s << " -#{deleted}" if deleted > 0
       }
-    end
-
-    def check_error_expiry
-      if expires = @error_expires
-        if Time.utc > expires
-          @error_msg = nil
-          @error_expires = nil
-        end
-      end
     end
 
     def event_loop
@@ -375,7 +394,11 @@ module FFF
       if @scroll < @dir_manager.list.size
         old_path = @dir_manager.list[@scroll]
         error = @input_mode.apply_rename(old_path)
-        show_error(error) if error
+        if error
+          show_error(error)
+        else
+          show_success("Renamed successfully")
+        end
         @dir_manager.read!
       end
       @input_mode.end
@@ -498,10 +521,26 @@ module FFF
       end
     end
 
+    # ── Message helpers (backward-compatible + new) ─────────────────
+
     def show_error(message : String?)
       return if message.nil? || message.empty?
-      @error_msg = message
-      @error_expires = Time.utc + Time::Span.new(seconds: 2)
+      @message_bus.error(message)
+    end
+
+    def show_success(message : String?)
+      return if message.nil? || message.empty?
+      @message_bus.success(message)
+    end
+
+    def show_warning(message : String?)
+      return if message.nil? || message.empty?
+      @message_bus.warning(message)
+    end
+
+    def show_info(message : String?)
+      return if message.nil? || message.empty?
+      @message_bus.info(message)
     end
   end
 end

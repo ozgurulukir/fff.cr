@@ -1,13 +1,17 @@
-require "term-color"
 require "./config"
 require "./format_utils"
+require "./theme"
+require "./icon_provider"
+require "./message_bus"
+require "./preview_panel"
 
 module FFF
   class UIRenderer
     @term : Terminal
     @config : Config
-    @color_cache : Hash(String, Symbol)
+    @color_cache : Hash(String, RGB)
     @prev_path : String
+    @preview_panel : PreviewPanel
 
     HELP_LINES = [
       "───── Navigation ─────",
@@ -35,45 +39,76 @@ module FFF
 
     SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
+    # Map LS_COLORS symbol → theme-compatible RGB
+    LS_COLOR_RGB = {
+      :red     => {243_u8, 139_u8, 168_u8},
+      :green   => {166_u8, 227_u8, 161_u8},
+      :yellow  => {249_u8, 226_u8, 175_u8},
+      :blue    => {137_u8, 180_u8, 250_u8},
+      :magenta => {245_u8, 194_u8, 231_u8},
+      :cyan    => {148_u8, 226_u8, 213_u8},
+      :white   => {205_u8, 214_u8, 244_u8},
+    }
+
     def initialize(@term : Terminal, @config : Config)
-      @color_cache = Hash(String, Symbol).new
+      @color_cache = Hash(String, RGB).new
       @prev_path = ""
+      @preview_panel = PreviewPanel.new
     end
 
     def redraw(state : DrawState)
       @term.refresh_size
+      theme = @config.theme
 
       if state.current_dir != @prev_path
         @color_cache.clear
         @prev_path = state.current_dir
       end
 
+      # Calculate list width (depends on preview panel)
+      list_w = effective_list_width
+
       if state.full
         @term.move_to(0, 0)
         print "\e[2J"
-        draw_topbar(state)
-        draw_all_lines(state, state.list, state.scroll, state.page_offset, state.marked, state.search_mode, state.search_term, state.loading)
+        draw_topbar(state, theme)
+        draw_bookmark_bar(state, theme)
+        draw_all_lines(state, theme, list_w)
+        # Draw preview panel
+        if @config.preview && @preview_panel.active?(@term.width)
+          preview_path = state.preview_path
+          start_row = bookmark_bar_row + 1
+          end_row = @term.height - 3
+          @preview_panel.draw(@term.width, @term.height, preview_path, theme, start_row, end_row)
+        end
       else
-        draw_topbar(state)
+        draw_topbar(state, theme)
         if state.prev_scroll != state.scroll || state.prev_page_offset != state.page_offset
           old_row = state.prev_scroll - state.prev_page_offset
+          content_start = bookmark_bar_row + 1
           if old_row >= 0 && old_row < @term.max_items
-            @term.move_to(old_row + 1, 0)
-            draw_line(state, old_row, state.prev_scroll, state.list, state.marked, state.scroll, state.search_mode, state.search_term) if state.prev_scroll < state.list.size
+            draw_line(state, theme, old_row, state.prev_scroll, list_w) if state.prev_scroll < state.list.size
           end
           new_row = state.scroll - state.page_offset
           if new_row >= 0 && new_row < @term.max_items && state.scroll < state.list.size
-            draw_line(state, new_row, state.scroll, state.list, state.marked, state.scroll, state.search_mode, state.search_term)
+            draw_line(state, theme, new_row, state.scroll, list_w)
           end
+        end
+        # Update preview on cursor change
+        if @config.preview && @preview_panel.active?(@term.width)
+          preview_path = state.preview_path
+          start_row = bookmark_bar_row + 1
+          end_row = @term.height - 3
+          @preview_panel.draw(@term.width, @term.height, preview_path, theme, start_row, end_row)
         end
       end
 
       if state.show_help
-        draw_help_overlay
+        draw_help_overlay(theme)
       else
-        draw_status(state)
-        draw_error(state.error_msg, @term.width)
-        draw_rename_prompt(state.rename_new_name, state.cursor_pos, @term.width) if state.rename_mode
+        draw_status(state, theme)
+        draw_message(state.message, theme)
+        draw_rename_prompt(state.rename_new_name, state.cursor_pos, theme) if state.rename_mode
         place_cursor(state)
       end
 
@@ -84,7 +119,24 @@ module FFF
       @color_cache.clear
     end
 
-    private def draw_topbar(state : DrawState)
+    # ── Effective dimensions ────────────────────────────────────────
+
+    private def effective_list_width : Int32
+      if @config.preview && @preview_panel.active?(@term.width)
+        @preview_panel.list_width(@term.width)
+      else
+        @term.width
+      end
+    end
+
+    private def bookmark_bar_row : Int32
+      # Bookmark bar sits at row 1 (below topbar) if favorites exist
+      @config.favorites.empty? ? 0 : 1
+    end
+
+    # ── Topbar (Breadcrumb) ─────────────────────────────────────────
+
+    private def draw_topbar(state : DrawState, theme : Theme)
       @term.move_to(0, 0)
       print "\e[K"
 
@@ -92,54 +144,110 @@ module FFF
       home = HOME
       display_path = home && dir.starts_with?(home) ? "~#{dir[home.size..]}" : dir
 
+      # Breadcrumb rendering
+      sep = File::SEPARATOR.to_s
+      segments = display_path.split(sep).reject(&.empty?)
+      segments.unshift("~") if display_path.starts_with?("~")
+
       git_branch = state.git_branch
       file_count = state.list.size
       size_str = state.total_size > 0 ? FormatUtils.human_size(state.total_size) : "—"
-      file_badge = "#{file_count} files  #{size_str}"
 
+      # Build right side
       right = if state.search_mode
+                match_info = state.match_count >= 0 ? "  (#{state.match_count} matches)" : ""
                 before = state.search_term[0...state.cursor_pos]
                 after = state.search_term[state.cursor_pos..]
-                "Search: #{before}|#{after}"
+                " / #{before}█#{after}#{match_info} "
               else
                 sort_indicator = state.sort_reverse ? " ↑" : " ↓"
                 hidden_note = state.hidden_count > 0 ? " (#{state.hidden_count} hidden)" : ""
-                "#{state.scroll + 1}/#{state.list.size}#{hidden_note}#{sort_indicator}"
+                " #{state.scroll + 1}/#{state.list.size}#{hidden_note}#{sort_indicator} "
               end
 
-      avail = @term.width
+      # Build breadcrumb left side
+      avail = @term.width - right.size
+      breadcrumb = String.build do |s|
+        s << " "
+        segments.each_with_index do |seg, i|
+          if i > 0
+            s << Theme.fg(" ❯ ", theme.dim)
+          end
+          if i == segments.size - 1
+            # Last segment: accent color, bold
+            s << Theme.fg_bold(seg, theme.accent)
+          else
+            s << Theme.fg(seg, theme.topbar_fg)
+          end
+        end
 
-      # Build raw visible text (no ANSI), truncate, then colorize branch — avoids
-      # ANSI-escape bytes corrupting the truncation math.
-      if git_branch.empty?
-        raw_left = String.build { |s| s << display_path << "  " << file_badge }
-      else
-        raw_left = String.build { |s| s << display_path << "  (#{git_branch})  " << file_badge }
+        # Git branch badge
+        unless git_branch.empty?
+          s << "  "
+          s << Theme.fg(" #{git_branch}", theme.symlink_color)
+        end
+
+        # File count badge
+        s << "  "
+        s << Theme.fg("#{file_count} files  #{size_str}", theme.dim)
       end
 
-      if raw_left.size + right.size + 1 > avail
-        raw_left = raw_left[0...{avail - right.size - 1, 0}.max]
-      end
+      # We must compute visible length without ANSI
+      raw_left_len = 1 + segments.join(" ❯ ").size
+      raw_left_len += 4 + git_branch.size unless git_branch.empty?
+      raw_left_len += 2 + "#{file_count} files  #{size_str}".size
 
-      # raw_left for gap math (visible width); left for terminal output (with ANSI)
-      gap = avail - raw_left.size - right.size
+      gap = @term.width - raw_left_len - right.size
       gap = 0 if gap < 0
-      raw_line = raw_left + " " * gap + right
-      raw_line = raw_line[0...avail]
-      # Re-apply color to branch in the possibly-truncated raw line
-      left = if !git_branch.empty? && raw_line.includes?("(#{git_branch})")
-               cb = Term::Color.truecolor_string("(#{git_branch})", fore: Term::Color.color(:magenta))
-               raw_line.sub("(#{git_branch})", cb)
-             else
-               raw_line
-             end
 
-      line = left
-
-      print Term::Color.truecolor_string(line, fore: Term::Color.color(:white), back: Term::Color.color(:blue))
+      # Print with topbar background
+      print Theme.set_fg_bg(theme.topbar_fg, theme.topbar_bg)
+      print breadcrumb
+      print " " * gap
+      print Theme.fg(right, theme.topbar_fg)
+      print Theme.reset
     end
 
-    private def draw_status(state : DrawState)
+    # ── Bookmark Bar ────────────────────────────────────────────────
+
+    private def draw_bookmark_bar(state : DrawState, theme : Theme)
+      return if state.favorites.empty?
+
+      @term.move_to(1, 0)
+      print "\e[K"
+      print Theme.set_fg_bg(theme.bookmark_fg, theme.bookmark_bg)
+
+      line = String.build do |s|
+        s << " "
+        (1..9).each do |i|
+          key = i.to_s
+          if path = state.favorites[key]?
+            name = File.basename(path)
+            name = "~" if path == HOME
+            # Check if current dir matches this favorite
+            is_active = state.current_dir == path ||
+                        state.current_dir.starts_with?(path + File::SEPARATOR)
+            if is_active
+              s << Theme.fg_bold("[#{key}:#{name}]", theme.bookmark_active)
+            else
+              s << Theme.fg("[#{key}:#{name}]", theme.bookmark_fg)
+            end
+            s << " "
+          end
+        end
+      end
+
+      # Pad to full width
+      # Calculate visible length approximately
+      print line
+      # Fill remaining with spaces
+      print " " * {@term.width - 1, 0}.max
+      print Theme.reset
+    end
+
+    # ── Status Bar ──────────────────────────────────────────────────
+
+    private def draw_status(state : DrawState, theme : Theme)
       @term.move_to(@term.height - 1, 0)
       print "\e[K"
 
@@ -158,9 +266,9 @@ module FFF
         if info
           size = FormatUtils.human_size(info.size)
           perms = permission_string(info)
-          left = String.build { |s| s << name << "  " << size << " " << perms }
+          left = String.build { |s| s << " " << name << "  " << size << " " << perms }
         else
-          left = name
+          left = " #{name}"
         end
       else
         left = ""
@@ -174,7 +282,7 @@ module FFF
         end
 
         if state.marked.size > 0
-          s << "●" << state.marked.size.to_s unless state.clipboard_size > 0
+          s << " ●" << state.marked.size.to_s unless state.clipboard_size > 0
         end
 
         sort_label = case state.sort_mode
@@ -186,68 +294,77 @@ module FFF
         s << " " << sort_label << arrow
 
         unless state.git_status.empty?
-          s << "  " << colorize_git_status(state.git_status)
+          s << "  " << colorize_git_status(state.git_status, theme)
         end
+        s << " "
       }
 
-      # pad right side so git status aligns to terminal right edge
-      gap = @term.width - left.size - right.size - 1
+      gap = @term.width - left.size - right.size
       gap = {gap, 0}.max
-      line = String.build { |s| s << left << " " * gap << right }
-      line = line[0...@term.width]
 
-      print Term::Color.truecolor_string(line, fore: Term::Color.color(:white), back: Term::Color.color(:black))
+      print Theme.set_fg_bg(theme.status_fg, theme.status_bg)
+      print left
+      print " " * gap
+      print right
+      print Theme.reset
     end
 
-    private def colorize_git_status(status : String) : String
+    private def colorize_git_status(status : String, theme : Theme) : String
       String.build do |s|
         status.each_char do |c|
           color = case c
-                  when '+' then Term::Color.color(:green)
-                  when '~' then Term::Color.color(:yellow)
-                  when '?' then Term::Color.color(:cyan)
-                  when '-' then Term::Color.color(:red)
-                  else          Term::Color.color(:white)
+                  when '+' then theme.git_added
+                  when '~' then theme.git_modified
+                  when '?' then theme.git_untracked
+                  when '-' then theme.git_deleted
+                  else          theme.status_fg
                   end
-          s << Term::Color.truecolor_string(String.build { |buf| buf << c }, fore: color)
+          s << Theme.fg(String.build { |buf| buf << c }, color)
         end
       end
     end
 
-    private def draw_all_lines(state : DrawState, list : Array(String), scroll : Int32, page_offset : Int32, marked : Set(String), search_mode : Bool, search_term : String, loading : Bool)
-      if loading
+    # ── File Lines ──────────────────────────────────────────────────
+
+    private def draw_all_lines(state : DrawState, theme : Theme, list_w : Int32)
+      if state.loading
         row = (@term.height / 2).to_i
         col = (@term.width / 2).to_i - 7
         @term.move_to(row, {col, 0}.max)
         spinner = SPINNER_FRAMES[(Time.utc.to_unix * 10 % 10).to_i]
-        print Term::Color.truecolor_string(" #{spinner} Loading…", fore: Term::Color.color(:yellow))
+        print Theme.fg(" #{spinner} Loading…", theme.warning)
         return
       end
 
+      content_start = bookmark_bar_row + 1
       max = @term.max_items
-      start_idx = page_offset
-      end_idx = {page_offset + max, list.size}.min
+      start_idx = state.page_offset
+      end_idx = {state.page_offset + max, state.list.size}.min
 
       (start_idx...end_idx).each do |i|
-        draw_line(state, i - page_offset, i, list, marked, scroll, search_mode, search_term)
+        draw_line(state, theme, i - state.page_offset, i, list_w)
       end
 
       ((end_idx - start_idx)...max).each do |i|
-        @term.move_to(i + 1, 0)
+        @term.move_to(content_start + i, 0)
         print "\e[K"
       end
     end
 
-    private def draw_line(state : DrawState, row : Int32, idx : Int32, list : Array(String), marked : Set(String), scroll : Int32, search_mode : Bool, search_term : String)
-      path = list[idx]
+    private def draw_line(state : DrawState, theme : Theme, row : Int32, idx : Int32, list_w : Int32)
+      return if idx >= state.list.size
+      path = state.list[idx]
       name = File.basename(path)
-      selected = (idx == scroll)
-      is_marked = marked.includes?(path)
+      selected = (idx == state.scroll)
+      is_marked = state.marked.includes?(path)
       linfo = state.lstat_cache[path]? || File.info?(path, follow_symlinks: false)
       info = state.stat_cache[path]? || File.info?(path)
-      color = get_file_color(path, linfo, info)
+      color = get_file_color(path, linfo, info, theme)
 
-      # Visual suffix: 📁 dir  ·  * executable  ·  @ symlink
+      # Icon prefix
+      icon = @config.icons ? IconProvider.icon_for(path, info) : ""
+
+      # Visual suffix: / dir  ·  * executable  ·  @ symlink
       suffix = if linfo && linfo.symlink?
                  "@"
                elsif info && info.directory?
@@ -257,53 +374,142 @@ module FFF
                else
                  ""
                end
-      display_name = "#{name}#{suffix}"
-      prefix = is_marked ? " ● " : "   "
+      display_name = "#{icon}#{name}#{suffix}"
 
-      @term.move_to(row + 1, 0)
+      # Mark indicator
+      prefix = if is_marked
+                 " ▪ "
+               else
+                 "   "
+               end
+
+      # Cut items shown dimmed
+      in_clipboard = state.clipboard_mode == :cut && state.clipboard_items.includes?(path)
+
+      # Right-side column (size/date)
+      col_text = ""
+      col_raw_len = 0
+      if @config.show_columns && !selected
+        col_text, col_raw_len = format_column(info, theme)
+      end
+
+      content_start = bookmark_bar_row + 1
+      @term.move_to(content_start + row, 0)
+
+      name_area = list_w - prefix.size - col_raw_len
+      name_area = 1 if name_area < 1
+
       if selected
-        line_text = "#{prefix}#{display_name}".ljust(@term.width)
-        print Term::Color.truecolor_string(line_text, fore: Term::Color.color(:white), back: Term::Color.color(:blue))
-      else
-        print Term::Color.truecolor_string(prefix, fore: Term::Color.color(is_marked ? :yellow : :white))
-        if search_mode && !search_term.empty? && !search_term.starts_with?('!')
-          draw_fuzzy_name(display_name, search_term.downcase, color)
+        # Selected line: full-width accent bg
+        line_text = "#{prefix}#{display_name}"
+        if line_text.size < list_w
+          line_text = line_text + " " * (list_w - line_text.size)
         else
-          print Term::Color.truecolor_string(display_name, fore: Term::Color.color(color))
+          line_text = line_text[0...list_w]
         end
+        print Theme.fg_bg(line_text, theme.selection_fg, theme.selection_bg)
+      else
+        # Normal line
+        effective_color = in_clipboard ? theme.dim : color
+
+        # Print mark prefix
+        mark_color = is_marked ? theme.marked : theme.fg
+        print Theme.fg(prefix, mark_color)
+
+        # Print name (with fuzzy highlighting if searching)
+        truncated_name = display_name.size > name_area ? display_name[0...name_area] : display_name
+        if state.search_mode && !state.search_term.empty? && !state.search_term.starts_with?('!')
+          draw_fuzzy_name(truncated_name, state.search_term.downcase, effective_color, theme)
+        else
+          print Theme.fg(truncated_name, effective_color)
+        end
+
+        # Pad between name and column
+        padding = name_area - truncated_name.size
+        print " " * padding if padding > 0
+
+        # Print column
+        print col_text unless col_text.empty?
+
         print "\e[K"
       end
     end
 
-    private def draw_fuzzy_name(name : String, query : String, base_color : Symbol)
+    private def format_column(info : File::Info?, theme : Theme) : {String, Int32}
+      return {"", 0} unless info
+
+      case @config.column_mode
+      when :size
+        size_str = info.directory? ? "    —" : FormatUtils.human_size(info.size).rjust(5)
+        {Theme.fg(" #{size_str} ", theme.dim), 7}
+      when :date
+        date_str = FormatUtils.format_time(info.modification_time)
+        {Theme.fg(" #{date_str} ", theme.dim), 8}
+      when :both
+        size_str = info.directory? ? "   —" : FormatUtils.human_size(info.size).rjust(4)
+        date_str = FormatUtils.format_time(info.modification_time)
+        {Theme.fg(" #{size_str}  #{date_str} ", theme.dim), 14}
+      else
+        size_str = info.directory? ? "    —" : FormatUtils.human_size(info.size).rjust(5)
+        {Theme.fg(" #{size_str} ", theme.dim), 7}
+      end
+    end
+
+    private def draw_fuzzy_name(name : String, query : String, base_color : RGB, theme : Theme)
       query_idx = 0
       name.each_char do |char|
         if query_idx < query.size && char.downcase == query[query_idx]
-          print Term::Color.truecolor_string(String.build { |s| s << char }, fore: Term::Color.color(:yellow), back: Term::Color.color(:black), bold: true, underline: true)
+          print Theme.fg_bg_bold_underline(String.build { |s| s << char }, theme.search_match, theme.bg)
           query_idx += 1
         else
-          print Term::Color.truecolor_string(String.build { |s| s << char }, fore: Term::Color.color(base_color))
+          print Theme.fg(String.build { |s| s << char }, base_color)
         end
       end
     end
 
-    private def draw_error(error_msg : String?, width : Int32)
-      return if error_msg.nil?
+    # ── Message (Toast) ─────────────────────────────────────────────
+
+    private def draw_message(message : Message?, theme : Theme)
+      return if message.nil?
       @term.move_to(@term.height - 2, 0)
-      msg = error_msg.to_s.ljust(width)[0...width]
-      print Term::Color.truecolor_string(msg, fore: Term::Color.color(:red), back: Term::Color.color(:blue))
+
+      color = case message.type
+              when .error?   then theme.error
+              when .success? then theme.success
+              when .warning? then theme.warning
+              when .info?    then theme.info
+              else                theme.fg
+              end
+
+      bg = case message.type
+           when .error?   then theme.status_bg
+           when .success? then theme.status_bg
+           when .warning? then theme.status_bg
+           when .info?    then theme.status_bg
+           else                theme.status_bg
+           end
+
+      msg_text = "#{message.icon}#{message.text}"
+      msg_text = msg_text[0...@term.width] if msg_text.size > @term.width
+      padded = msg_text + " " * {@term.width - msg_text.size, 0}.max
+      print Theme.fg_bg(padded, color, bg)
     end
 
-    private def draw_rename_prompt(new_name : String, cursor_pos : Int32, width : Int32)
+    # ── Rename Prompt ───────────────────────────────────────────────
+
+    private def draw_rename_prompt(new_name : String, cursor_pos : Int32, theme : Theme)
       @term.move_to(@term.height - 2, 0)
       before = new_name[0...cursor_pos]
       after = new_name[cursor_pos..]
-      prompt = "Rename to: #{before}|#{after}"
-      prompt = prompt.ljust(width)[0...width]
-      print Term::Color.truecolor_string(prompt, fore: Term::Color.color(:yellow), back: Term::Color.color(:blue))
+      prompt = " Rename to: #{before}│#{after}"
+      prompt = prompt[0...@term.width] if prompt.size > @term.width
+      padded = prompt + " " * {@term.width - prompt.size, 0}.max
+      print Theme.fg_bg(padded, theme.warning, theme.status_bg)
     end
 
-    private def draw_help_overlay
+    # ── Help Overlay ────────────────────────────────────────────────
+
+    private def draw_help_overlay(theme : Theme)
       max_w = HELP_LINES.max_of?(&.size) || 50
       box_w = {max_w + 4, @term.width - 4}.min
       box_h = HELP_LINES.size + 2
@@ -317,19 +523,21 @@ module FFF
         @term.move_to(start_row + r, start_col)
         print "\e[K"
         if r == 0
-          print Term::Color.truecolor_string(top_border, fore: Term::Color.color(:cyan), back: Term::Color.color(:black))
+          print Theme.fg_bg(top_border, theme.accent, theme.bg)
         elsif r == box_h - 1
-          print Term::Color.truecolor_string(bot_border, fore: Term::Color.color(:cyan), back: Term::Color.color(:black))
+          print Theme.fg_bg(bot_border, theme.accent, theme.bg)
         else
           text = HELP_LINES[r - 1]? || ""
           text = text[0...box_w].ljust(box_w)
           line_body = String.build { |s| s << "│ " << text << " │" }
-          print Term::Color.truecolor_string(line_body, fore: Term::Color.color(:white), back: Term::Color.color(:black))
+          print Theme.fg_bg(line_body, theme.fg, theme.bg)
         end
       end
 
       @term.move_to(start_row + box_h + 1, 0)
     end
+
+    # ── Utilities ───────────────────────────────────────────────────
 
     private def permission_string(info : File::Info) : String
       perms = info.permissions
@@ -349,30 +557,36 @@ module FFF
       if state.search_mode
         @term.move_to(0, @term.width - 1)
       elsif state.rename_mode
-        col = 11 + state.cursor_pos
+        col = 12 + state.cursor_pos
         col = {@term.width - 1, col}.min
         @term.move_to(@term.height - 2, col)
       end
     end
 
-    private def get_file_color(path : String, linfo : File::Info?, info : File::Info?) : Symbol
+    private def get_file_color(path : String, linfo : File::Info?, info : File::Info?, theme : Theme) : RGB
       if cached = @color_cache[path]?
         return cached
       end
 
-      color = if info && info.directory?
-                :blue
+      color = if linfo && linfo.symlink?
+                theme.symlink_color
+              elsif info && info.directory?
+                theme.dir_color
               elsif info && info.permissions.includes?(::File::Permissions::OtherExecute)
-                :green
+                theme.exec_color
               else
                 ext = File.extname(path).downcase
-                @config.ls_colors[ext]? || :white
+                if ls_sym = @config.ls_colors[ext]?
+                  LS_COLOR_RGB[ls_sym]? || theme.fg
+                else
+                  theme.fg
+                end
               end
 
       @color_cache[path] = color
       color
     rescue
-      :white
+      theme.fg
     end
   end
 end

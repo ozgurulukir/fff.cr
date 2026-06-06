@@ -31,6 +31,32 @@ module FFF
       end
     end
 
+    # Progress-aware version: yields (index, filename) per item
+    def paste_files_with_progress(sources : Array(String), dest_dir : String, mode : Symbol, &on_progress : Int32, String ->) : String?
+      return nil if sources.empty? || mode == :none
+
+      sources.each do |src|
+        return "No such file or directory: #{src}" unless File.exists?(src)
+      end
+
+      begin
+        sources.each_with_index do |src, i|
+          name = File.basename(src)
+          on_progress.call(i, name)
+
+          case mode
+          when :copy
+            FileService.copy([src], dest_dir)
+          when :cut
+            FileService.move([src], dest_dir)
+          end
+        end
+        nil
+      rescue e : IO::Error | File::Error
+        e.message
+      end
+    end
+
     def delete_files(sources : Array(String), trash_dir : String) : String?
       return nil if sources.empty?
 
@@ -40,6 +66,26 @@ module FFF
 
       begin
         FileService.trash(sources, trash_dir)
+        nil
+      rescue e : IO::Error | File::Error
+        e.message
+      end
+    end
+
+    # Progress-aware version: yields (index, filename) per item
+    def delete_files_with_progress(sources : Array(String), trash_dir : String, &on_progress : Int32, String ->) : String?
+      return nil if sources.empty?
+
+      sources.each do |src|
+        return "No such file or directory: #{src}" unless File.exists?(src)
+      end
+
+      begin
+        sources.each_with_index do |src, i|
+          name = File.basename(src)
+          on_progress.call(i, name)
+          FileService.trash([src], trash_dir)
+        end
         nil
       rescue e : IO::Error | File::Error
         e.message

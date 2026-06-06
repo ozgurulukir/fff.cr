@@ -1,5 +1,6 @@
 require "file"
 require "json"
+require "./theme"
 
 module FFF
   # Configuration from environment
@@ -44,6 +45,12 @@ module FFF
     getter key_help : String
     getter favorites : Hash(String, String)
     getter bookmarks : Hash(String, String)
+    # ── New UI settings ──
+    getter theme : Theme
+    getter icons : Bool
+    getter show_columns : Bool
+    getter column_mode : Symbol
+    getter preview : Bool
 
     # ── Phase 14: key binding defaults — single source of truth ──
     # key_* ivar = ENV[env]? || json_get(json, *json_keys) || default
@@ -135,6 +142,22 @@ module FFF
       @key_help = ENV["FFF_KEY_HELP"]? || json_get(json, "keys", "help") || "?"
       @favorites = parse_favorites(json)
       @bookmarks = parse_bookmarks(json)
+
+      # ── New UI settings ──
+      @theme = Theme.load(nil, json)
+      @icons = (ENV["FFF_ICONS"]? == "1") || (json_get(json, "icons") == "true")
+      @show_columns = (ENV["FFF_COLUMNS"]? != "0") && (json_get(json, "columns") != "false")
+      @column_mode = parse_column_mode(ENV["FFF_COLUMN_MODE"]? || json_get(json, "column_mode"))
+      @preview = (ENV["FFF_PREVIEW"]? == "1") || (json_get(json, "preview") == "true")
+    end
+
+    private def parse_column_mode(mode : String?) : Symbol
+      case mode
+      when "size" then :size
+      when "date" then :date
+      when "both" then :both
+      else             :size
+      end
     end
 
     private def json_get(json, *keys) : String?

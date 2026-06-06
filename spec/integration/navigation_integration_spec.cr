@@ -400,15 +400,16 @@ describe FFF::FileManager do
     it "adds and removes a file from the marked set" do
       temp_dir = SpecHelper.create_temp_dir("fm_tm")
       begin
-        %w[a.txt b.txt].each { |n| SpecHelper.create_temp_file(temp_dir, n, "x") }
+        %w[a.txt b.txt c.txt].each { |n| SpecHelper.create_temp_file(temp_dir, n, "x") }
 
         fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
         marks = fm.marked
 
         marks.size.should eq(0)
-        fm.toggle_mark
+        fm.toggle_mark  # marks a.txt, cursor advances to b.txt
         marks.size.should eq(1)
-        fm.toggle_mark
+        fm.scroll = 0   # go back to a.txt
+        fm.toggle_mark  # unmarks a.txt, cursor advances to b.txt
         marks.size.should eq(0)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)

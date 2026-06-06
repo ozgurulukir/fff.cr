@@ -103,7 +103,7 @@ module FFF
         @page_offset = 0
 
         @marked = Set(String).new
-        @error_msg = nil
+        @message_bus.clear
         @force_full_redraw = true
       rescue e : Exception
         Dir.cd(@dir_manager.current_dir) rescue nil
