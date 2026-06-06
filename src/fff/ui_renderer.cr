@@ -84,10 +84,6 @@ module FFF
       @color_cache.clear
     end
 
-    def human_size(bytes : Int) : String
-      FormatUtils.human_size(bytes)
-    end
-
     private def draw_topbar(state : DrawState)
       @term.move_to(0, 0)
       print "\e[K"

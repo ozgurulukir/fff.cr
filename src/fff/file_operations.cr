@@ -97,7 +97,7 @@ module FFF
       size = info.size
       perms = info.permissions.to_s
 
-      "Type: #{type}\nSize: #{human_size(size)}\nPermissions: #{perms}\nModified: #{info.modification_time}"
+      "Type: #{type}\nSize: #{FormatUtils.human_size(size)}\nPermissions: #{perms}\nModified: #{info.modification_time}"
     rescue e : Exception
       e.message
     end
@@ -159,10 +159,6 @@ module FFF
       ensure
         File.delete(temp_path) if File.exists?(temp_path)
       end
-    end
-
-    private def human_size(bytes : Int) : String
-      FormatUtils.human_size(bytes)
     end
   end
 end
