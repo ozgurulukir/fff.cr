@@ -155,8 +155,8 @@ module FFF
     }
 
     def run
-      Signal::INT.trap { quit }
       {% unless flag?(:windows) %}
+        Signal::INT.trap { quit }
         Signal::TERM.trap { quit }
         Signal::QUIT.trap { quit }
         Signal::WINCH.trap { handle_resize }
