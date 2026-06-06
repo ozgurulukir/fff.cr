@@ -7,12 +7,17 @@ module FFF
       path = @dir_manager.list[@scroll]
 
       if File.directory?(path)
-        @prev_dir = @dir_manager.current_dir
-        @prev_child = File.basename(path)
-        Dir.cd(path)
-        @dir_manager.read!
-        @scroll = 0
-        @page_offset = 0
+        begin
+          @prev_dir = @dir_manager.current_dir
+          @prev_child = File.basename(path)
+          Dir.cd(path)
+          @dir_manager.read!
+          @scroll = 0
+          @page_offset = 0
+        rescue e : Exception
+          Dir.cd(@dir_manager.current_dir) rescue nil
+          show_error(e.message)
+        end
       elsif text_file?(path)
         open_in_editor(path)
       else

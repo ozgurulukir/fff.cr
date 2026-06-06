@@ -46,32 +46,44 @@ module FFF
     end
 
     def go_parent
-      return unless @dir_manager.go_parent
+      begin
+        return unless @dir_manager.go_parent
 
-      if child = @prev_child
-        idx = @dir_manager.find_child(child)
-        @scroll = idx || 0
+        if child = @prev_child
+          idx = @dir_manager.find_child(child)
+          @scroll = idx || 0
+        end
+        @page_offset = 0
+      rescue e : Exception
+        show_error(e.message)
       end
-      @page_offset = 0
     end
 
     def go_home
-      @dir_manager.go_home
-      @scroll = 0
-      @page_offset = 0
+      begin
+        @dir_manager.go_home
+        @scroll = 0
+        @page_offset = 0
+      rescue e : Exception
+        show_error(e.message)
+      end
     end
 
     def go_prev
-      old_prev = @prev_dir
-      return unless @dir_manager.go_prev(@prev_dir, @prev_child)
+      begin
+        old_prev = @prev_dir
+        return unless @dir_manager.go_prev(@prev_dir, @prev_child)
 
-      if prev_child = @prev_child
-        found_idx = @dir_manager.find_child(prev_child)
-        @scroll = found_idx if found_idx
+        if prev_child = @prev_child
+          found_idx = @dir_manager.find_child(prev_child)
+          @scroll = found_idx if found_idx
+        end
+        @prev_dir = old_prev
+        @prev_child = nil
+        @page_offset = 0
+      rescue e : Exception
+        show_error(e.message)
       end
-      @prev_dir = old_prev
-      @prev_child = nil
-      @page_offset = 0
     end
 
     def go_to_dir
@@ -84,21 +96,30 @@ module FFF
         return
       end
 
-      Dir.cd(dest)
-      @dir_manager.read!
-      @scroll = 0
-      @page_offset = 0
+      begin
+        Dir.cd(dest)
+        @dir_manager.read!
+        @scroll = 0
+        @page_offset = 0
 
-      @marked = Set(String).new
-      @error_msg = nil
-      @force_full_redraw = true
+        @marked = Set(String).new
+        @error_msg = nil
+        @force_full_redraw = true
+      rescue e : Exception
+        Dir.cd(@dir_manager.current_dir) rescue nil
+        show_error(e.message)
+      end
     end
 
     def go_to_trash
-      trash_dir = @config.trash_dir
-      return unless @dir_manager.go_to_trash(trash_dir)
-      @scroll = 0
-      @page_offset = 0
+      begin
+        trash_dir = @config.trash_dir
+        return unless @dir_manager.go_to_trash(trash_dir)
+        @scroll = 0
+        @page_offset = 0
+      rescue e : Exception
+        show_error(e.message)
+      end
     end
 
     def jump_to_bookmark(key : String)
@@ -107,10 +128,15 @@ module FFF
 
       return unless File.exists?(path) && File.directory?(path)
 
-      Dir.cd(path)
-      @dir_manager.read!
-      @scroll = 0
-      @page_offset = 0
+      begin
+        Dir.cd(path)
+        @dir_manager.read!
+        @scroll = 0
+        @page_offset = 0
+      rescue e : Exception
+        Dir.cd(@dir_manager.current_dir) rescue nil
+        show_error(e.message)
+      end
     end
   end
 end

@@ -86,7 +86,7 @@ describe FFF::DirectoryManager do
       temp_dir = SpecHelper.create_temp_dir("test_parent")
       begin
         sub_dir = File.join(temp_dir, "subdir")
-        Dir.mkdir(sub_dir)
+        Dir.mkdir_p(sub_dir)
 
         dir_manager = FFF::DirectoryManager.new(sub_dir)
         dir_manager.read!
@@ -120,7 +120,7 @@ describe FFF::DirectoryManager do
       temp_dir = SpecHelper.create_temp_dir("test_go_to")
       begin
         sub_dir = File.join(temp_dir, "subdir")
-        Dir.mkdir(sub_dir)
+        Dir.mkdir_p(sub_dir)
 
         dir_manager = FFF::DirectoryManager.new(temp_dir)
         dir_manager.go_to(sub_dir)

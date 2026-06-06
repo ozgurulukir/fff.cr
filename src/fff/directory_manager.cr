@@ -93,43 +93,54 @@ module FFF
       sorted_dirs + sorted_files
     end
 
+    def safe_navigate(target_dir : String) : Bool
+      original_dir = @current_dir
+      begin
+        Dir.cd(target_dir)
+        read!
+        @current_dir = Dir.current
+        true
+      rescue e : Exception
+        Dir.cd(original_dir) rescue nil
+        begin
+          read!
+        rescue
+          @list = [] of String
+          @full_list = [] of String
+        end
+        raise e
+      end
+    end
+
     def go_parent : Bool
       parent = File.dirname(@current_dir)
       return false if parent == @current_dir
 
-      Dir.cd(parent)
-      read!
-      true
+      safe_navigate(parent)
     end
 
     def go_home
       home = HOME || Dir.current
-      Dir.cd(home)
-      read!
+      safe_navigate(home)
     end
 
     def go_prev(prev_dir : String?, prev_child : String?) : Bool
       return false if prev_dir.nil? || prev_child.nil?
+      return false unless Dir.exists?(prev_dir)
 
-      Dir.cd(prev_dir) if Dir.exists?(prev_dir)
-      read!
-      true
+      safe_navigate(prev_dir)
     end
 
     def go_to(path : String) : Bool
       return false unless File.exists?(path) && File.directory?(path)
 
-      Dir.cd(path)
-      read!
-      true
+      safe_navigate(path)
     end
 
     def go_to_trash(trash_dir : String) : Bool
       return false unless Dir.exists?(trash_dir)
 
-      Dir.cd(trash_dir)
-      read!
-      true
+      safe_navigate(trash_dir)
     end
 
     def refresh!
