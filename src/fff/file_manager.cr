@@ -156,9 +156,11 @@ module FFF
 
     def run
       Signal::INT.trap { quit }
-      Signal::TERM.trap { quit }
-      Signal::QUIT.trap { quit }
-      Signal::WINCH.trap { handle_resize }
+      {% unless flag?(:windows) %}
+        Signal::TERM.trap { quit }
+        Signal::QUIT.trap { quit }
+        Signal::WINCH.trap { handle_resize }
+      {% end %}
 
       ENV["FFF_LEVEL"] = @fff_level.to_s
 
@@ -438,9 +440,13 @@ module FFF
     end
 
     def mime_is_text?(path : String) : Bool
-      output = IO::Memory.new
-      status = Process.run("file", ["--mime-type", path], output: output, error: STDERR)
-      status.success? && output.to_s.includes?("text/")
+      {% if flag?(:windows) %}
+        false
+      {% else %}
+        output = IO::Memory.new
+        status = Process.run("file", ["--mime-type", path], output: output, error: STDERR)
+        status.success? && output.to_s.includes?("text/")
+      {% end %}
     rescue e : Exception
       false
     end

@@ -106,18 +106,22 @@ module FFF
       return "No such file: #{path}" unless File.exists?(path)
       return "Cannot change executable bit for directories" if File.directory?(path)
 
-      begin
-        info = File.info(path)
-        has_exec = info.permissions.includes?(::File::Permissions::OwnerExecute) ||
-                   info.permissions.includes?(::File::Permissions::GroupExecute) ||
-                   info.permissions.includes?(::File::Permissions::OtherExecute)
-        exec_perms = File::Permissions::OwnerExecute | File::Permissions::GroupExecute | File::Permissions::OtherExecute
-        new_perms = has_exec ? (info.permissions & ~exec_perms) : (info.permissions | exec_perms)
-        File.chmod(path, new_perms)
-        has_exec ? "Removed executable bit" : "Added executable bit"
-      rescue e : IO::Error | File::Error
-        e.message
-      end
+      {% if flag?(:windows) %}
+        "Executable permissions not supported on Windows"
+      {% else %}
+        begin
+          info = File.info(path)
+          has_exec = info.permissions.includes?(::File::Permissions::OwnerExecute) ||
+                     info.permissions.includes?(::File::Permissions::GroupExecute) ||
+                     info.permissions.includes?(::File::Permissions::OtherExecute)
+          exec_perms = File::Permissions::OwnerExecute | File::Permissions::GroupExecute | File::Permissions::OtherExecute
+          new_perms = has_exec ? (info.permissions & ~exec_perms) : (info.permissions | exec_perms)
+          File.chmod(path, new_perms)
+          has_exec ? "Removed executable bit" : "Added executable bit"
+        rescue e : IO::Error | File::Error
+          e.message
+        end
+      {% end %}
     end
 
     def bulk_rename(sources : Array(String), editor : String) : String?

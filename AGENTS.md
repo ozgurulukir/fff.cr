@@ -89,6 +89,7 @@ These are fixed via `sed` in `lib/` after `shards install`. Patches are **not** 
 
 ## Build & Run
 
+**On Linux/macOS:**
 ```bash
 shards install                    # install dependencies
 make build                        # release build → bin/fff
@@ -99,6 +100,14 @@ make lint                         # ameba static analysis
 make run                          # build + run
 ./bin/fff                         # launch in current directory
 ./bin/fff /path/to/dir            # launch in specific directory
+```
+
+**On Windows 11 (PowerShell):**
+```powershell
+shards install                              # install dependencies
+crystal build src/fff.cr -o bin/fff.exe    # build fff.exe
+crystal spec spec/fff/                      # run unit tests
+.\bin\fff.exe                               # run the app
 ```
 
 ## Key Bindings (defaults, all configurable via `FFF_KEY_*` env vars)
@@ -216,6 +225,18 @@ Arama modunda (`/`) `j`/`k`/`↑`/`↓` tuşları text input'e değil navigasyon
 
 ### Crystal `getter` vs `property` in Test Context
 Crystal'da `getter` sadece okunur, `property` okunur+yazılır. Test'lerde mock injection veya state reset için `property` kullan. `FileManager.renderer` örneği: önce `getter` idi, test'de mock renderer set edilemedi → `property`'a çevrildi.
+
+### Windows 11 Cross-Platform Solutions
+- **POSIX-Specific Signal Traps**: Traps for `Signal::TERM`, `Signal::QUIT`, and `Signal::WINCH` are conditionally compiled using `{% unless flag?(:windows) %}`.
+- **Process Terminate**: In search engine timeouts, `Process#terminate` is called on Windows instead of sending raw `Signal::TERM` signals to other process PIDs.
+- **Opener & Shell Dynamic Resolution**: On Windows, system opener defaults to `explorer` and the TUI shell spawn defaults to `COMSPEC` or `powershell.exe` rather than executing Unix commands (`uname`, `bash`).
+- **Writable Directory and Executable Checks**: POSIX permission checks and executable toggles are bypassed on Windows using platform macros, returning clean error or fallback messages.
+
+### Test Infrastructure on Windows (Case-Sensitivity & Redirected TTY Size)
+- **Case-Insensitive Paths**: Windows is case-insensitive, which means drive letter differences (`C:` vs `c:`) cause `Dir.current.starts_with?(temp_dir)` checks to fail. Path comparisons in `spec_helper.cr` are now downcased to avoid directory locks.
+- **Dir.tempdir Cleanup**: Replaced Unix-hardcoded `/tmp` with `Dir.tempdir` to support proper workspace cleanup across platforms.
+- **Windows Glob Backslash Escape**: Backslashes in path combinations behave as glob escape characters. Glob queries in specs are normalized using `.gsub('\\', '/')`.
+- **term-screen non-TTY buffer overflow**: In spec runs, stdout is redirected to non-TTY pipes, causing Win32 `GetConsoleScreenBufferInfo` to fail and return uninitialized coordinates. The `term-screen` library has been patched to check the Win32 API return code to avoid arithmetic overflow crashes.
 
 ## Inline Confirm Pattern (TUI içi y/n onayı)
 

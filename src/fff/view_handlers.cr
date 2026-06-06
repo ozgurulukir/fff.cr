@@ -83,7 +83,14 @@ module FFF
       @fff_level += 1
       ENV["FFF_LEVEL"] = @fff_level.to_s
 
-      with_tui_restored { Process.run(ENV["SHELL"]? || "bash", input: STDIN, output: STDOUT, error: STDERR) }
+      shell = ENV["SHELL"]?
+      {% if flag?(:windows) %}
+        shell ||= ENV["COMSPEC"]? || "powershell.exe"
+      {% else %}
+        shell ||= "bash"
+      {% end %}
+
+      with_tui_restored { Process.run(shell, input: STDIN, output: STDOUT, error: STDERR) }
 
       @fff_level -= 1
       ENV["FFF_LEVEL"] = @fff_level.to_s

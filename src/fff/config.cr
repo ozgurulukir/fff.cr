@@ -148,14 +148,22 @@ module FFF
     end
 
     private def default_opener
-      output = IO::Memory.new
-      Process.run("uname", output: output)
-      case output.to_s.strip
-      when "Darwin" then "open"
-      else               "xdg-open"
-      end
+      {% if flag?(:windows) %}
+        "explorer"
+      {% else %}
+        output = IO::Memory.new
+        Process.run("uname", output: output)
+        case output.to_s.strip
+        when "Darwin" then "open"
+        else               "xdg-open"
+        end
+      {% end %}
     rescue
-      "xdg-open"
+      {% if flag?(:windows) %}
+        "explorer"
+      {% else %}
+        "xdg-open"
+      {% end %}
     end
 
     private def parse_favorites(json)

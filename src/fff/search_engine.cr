@@ -97,7 +97,11 @@ module FFF
         sleep 2.seconds
         the_proc = proc_chan.receive
         if the_proc
-          Process.signal(Signal::TERM, the_proc.pid) rescue nil
+          {% if flag?(:windows) %}
+            the_proc.terminate rescue nil
+          {% else %}
+            Process.signal(Signal::TERM, the_proc.pid) rescue nil
+          {% end %}
           pipe_rd.close rescue nil
           pipe_err_rd.close rescue nil
           the_proc.wait rescue nil

@@ -82,9 +82,13 @@ module FFF
     end
 
     private def self.writable_dir?(path : String) : Bool
-      dir = File.directory?(path) ? path : File.dirname(path)
-      info = File.info(dir)
-      info.permissions.owner_write? || info.permissions.group_write? || info.permissions.other_write?
+      {% if flag?(:windows) %}
+        true
+      {% else %}
+        dir = File.directory?(path) ? path : File.dirname(path)
+        info = File.info(dir)
+        info.permissions.owner_write? || info.permissions.group_write? || info.permissions.other_write?
+      {% end %}
     rescue e : IO::Error | File::Error
       false
     end

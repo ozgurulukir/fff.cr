@@ -22,10 +22,11 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 ### Requirements
 
 - Crystal 1.20.1+
-- Linux or macOS terminal (with true-color support recommended)
+- Windows 11, Linux, or macOS terminal (with true-color support recommended)
 
 ### Build
 
+**On Linux/macOS:**
 ```bash
 make deps       # install shards
 make build      # release build → bin/fff
@@ -35,6 +36,14 @@ make test       # run test suite
 
 # Optional: system-wide install (including man page)
 sudo make install
+```
+
+**On Windows 11 (PowerShell):**
+```powershell
+shards install                              # install shards
+crystal build src/fff.cr -o bin/fff.exe    # build fff.exe
+crystal spec spec/fff/                      # run unit tests
+.\bin\fff.exe                               # run the app
 ```
 
 ## Usage

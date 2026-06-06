@@ -45,7 +45,7 @@ describe FFF::FileService do
         FFF::FileService.copy([source_file], dest_dir)
 
         File.read(existing_file).should eq("existing content")
-        Dir.glob(File.join(dest_dir, "source.txt.*")).size.should eq(1)
+        Dir.glob(File.join(dest_dir, "source.txt.*").gsub('\\', '/')).size.should eq(1)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
@@ -104,7 +104,7 @@ describe FFF::FileService do
 
         File.exists?(source_file).should be_false
         File.read(existing_file).should eq("existing content")
-        Dir.glob(File.join(dest_dir, "source.txt.*")).size.should eq(1)
+        Dir.glob(File.join(dest_dir, "source.txt.*").gsub('\\', '/')).size.should eq(1)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
@@ -145,7 +145,7 @@ describe FFF::FileService do
 
         File.exists?(source_file).should be_false
         File.read(existing_file).should eq("existing content")
-        Dir.glob(File.join(trash_dir, "file.txt.*")).size.should eq(1)
+        Dir.glob(File.join(trash_dir, "file.txt.*").gsub('\\', '/')).size.should eq(1)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end

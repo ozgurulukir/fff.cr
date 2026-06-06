@@ -49,10 +49,14 @@ module SpecHelper
   def cleanup_temp_dir(dir)
     if Dir.exists?(dir)
       # Change out of the directory if it's the current working directory
-      if Dir.current == dir || Dir.current.starts_with?(dir + "/")
-        Dir.cd("/tmp")
+      curr = Dir.current.downcase
+      target = dir.downcase
+      if curr == target || curr.starts_with?(target + File::SEPARATOR) || curr.starts_with?(target + "/")
+        Dir.cd(Dir.tempdir)
       end
-      items = Dir.glob(File.join(dir, "**/*")).sort_by { |f| -f.size }
+      # Normalize glob pattern for Windows
+      glob_pattern = File.join(dir, "**/*").gsub('\\', '/')
+      items = Dir.glob(glob_pattern).sort_by { |f| -f.size }
       items.each do |file|
         if File.directory?(file)
           Dir.delete(file) rescue nil
