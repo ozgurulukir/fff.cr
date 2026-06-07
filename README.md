@@ -31,6 +31,18 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 - Crystal 1.20.1+
 - Windows 11, Linux, or macOS terminal (with true-color support recommended)
 
+#### System dependencies
+
+| Platform | Package | Notes |
+| --- | --- | --- |
+| Debian/Ubuntu | `libreadline-dev` | Crystal links against readline on Linux |
+| Fedora/RHEL | `readline-devel` | Same as above |
+| Arch | `readline` | Included in `base` |
+| macOS | _(built-in)_ | Comes with Xcode Command Line Tools |
+| Windows 11 | _(none)_ | Crystal uses Win32 console API |
+
+> `make deps` installs Crystal shards **and** auto-patches known `crystal-term` bugs.
+
 ### Build
 
 **On Linux/macOS:**
@@ -50,6 +62,7 @@ sudo make install
 
 ```powershell
 shards install                              # install shards
+crystal run scripts/patch_shards.cr         # patch known shard bugs
 crystal build src/fff.cr -o bin/fff-cr.exe  # build fff-cr.exe
 crystal spec spec/fff/                      # run unit tests
 .\bin\fff-cr.exe                            # run the app
@@ -105,9 +118,9 @@ fff reads from environment variables first, then falls back to `~/.config/fff/co
 
 | Env Variable | Config JSON Key | Description / Values |
 | --- | --- | --- |
-| `FFF_THEME` | `theme` | UI Theme: `default`, `catppuccin-mocha`, `gruvbox-dark`, `nord`, `dracula` (Default: `default`) |
+| `FFF_THEME` | `theme.name` | UI Theme: `default`, `catppuccin-mocha`, `gruvbox-dark`, `nord`, `dracula` (Default: `default`) |
 | `FFF_ICONS` | `icons` | Enable Nerd Font icons: `1` or `true` (Default: disabled) |
-| `FFF_COLUMNS` | `show_columns` | Show details columns (size/date): `1` or `true` (Default: enabled) |
+| `FFF_COLUMNS` | `columns` | Show details columns (size/date): `0` to hide (Default: enabled) |
 | `FFF_COLUMN_MODE` | `column_mode` | Column display mode: `size`, `date`, or `both` (Default: `both`) |
 | `FFF_PREVIEW` | `preview` | Enable directory/file preview side-panel when term is wide enough: `1` or `true` (Default: disabled) |
 
@@ -132,9 +145,9 @@ Full list of `FFF_KEY_*` variables: `UP`, `DOWN`, `ENTER`, `QUIT`, `SEARCH`, `PA
   "editor": "vim",
   "opener": "xdg-open",
   "trash_dir": "/path/to/trash",
-  "theme": "catppuccin-mocha",
+  "theme": { "name": "catppuccin-mocha" },
   "icons": true,
-  "show_columns": true,
+  "columns": true,
   "column_mode": "both",
   "preview": true,
   "favorites": { "1": "/home/user/Documents" },
@@ -230,13 +243,13 @@ crystal spec spec/integration/advanced_integration_spec.cr
 #### Test Architecture
 
 - **93 unit tests** across 6 modules (config, directory_manager, file_service, input_mode, search_engine, ui_renderer)
-- **43 integration tests** across 2 suites (navigation + advanced) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
+- **44 integration tests** across 2 suites (navigation + advanced) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
 
 - Both specs run headless; no terminal or display required
 
 ### Patches
 
-The project patches several `crystal-term` shard bugs in `lib/` after `shards install`. See `AGENTS.md` for details.
+The project patches several `crystal-term` shard bugs via `scripts/patch_shards.cr` after `shards install`. `make deps` applies them automatically on Linux/macOS; on Windows, run `crystal run scripts/patch_shards.cr` manually. The script is idempotent. See `AGENTS.md` for details.
 
 ## License
 

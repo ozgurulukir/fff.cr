@@ -6,7 +6,7 @@
 
 - **Language**: Crystal 1.20.1
 - **Source**: Multiple files in `src/fff/`
-- **Branch**: `crystal-port` (Bash source removed — pure Crystal)
+- **Branch**: `master` (Bash source removed — pure Crystal)
 - **Build**: `make build` or `crystal build src/fff.cr --release -o bin/fff-cr`
 
 ## Architecture
@@ -16,8 +16,8 @@ src/fff.cr          # Application entry point (FFF::Application + ARGV parsing)
 src/fff/
   config.cr         # Environment variable & LS_COLORS configuration, UI preference management
   directory_manager.cr# Directory reader, sorting mechanisms, and state manager
-  draw_state.cr     # DrawState struct — bundles 23 render params into one object
-  file_manager.cr   # Core coordinator: event loop, hash-table key dispatch (~491 lines)
+  draw_state.cr     # DrawState struct — bundles 30 render params into one object
+  file_manager.cr   # Core coordinator: event loop, hash-table key dispatch (~614 lines)
   file_op_handlers.cr# Extracted file operation methods (included by FileManager)
   file_operations.cr# Specialized file/directory creation and operations with callback blocks
   file_service.cr   # Low-level filesystem helpers with writability checks
@@ -67,7 +67,7 @@ All external command execution uses `Process.run` with explicit argv arrays — 
 
 ## Known Shard Bugs (patched in lib/)
 
-These are fixed via `sed` in `lib/` after `shards install`. Patches are **not** persistent — re-running `shards install` overwrites them.
+These are known issues in `crystal-term` shards. Bugs 1, 3, and 6 are patched by `scripts/patch_shards.cr` after `shards install` (called automatically by `make deps`). Bugs 2, 4, and 5 are handled via workarounds in the main source code. The patch script is idempotent and cross-platform (Crystal runs on both Linux and Windows). Patches are **not** persistent — re-running `shards install` overwrites `lib/` contents, but `make deps` or `crystal run scripts/patch_shards.cr` re-applies them.
 
 ### 1. `term-reader` — `sync=` type mismatch
 
@@ -119,6 +119,7 @@ make run                          # build + run
 
 ```powershell
 shards install                              # install dependencies
+crystal run scripts/patch_shards.cr         # patch known shard bugs
 crystal build src/fff.cr -o bin/fff-cr.exe  # build fff-cr.exe
 crystal spec spec/fff/                      # run unit tests
 .\bin\fff-cr.exe                            # run the app
@@ -239,9 +240,9 @@ Crystal lacks Ruby-style `instance_variable_get/set`. All test-visible state mus
 
 Both integration specs use `MockTerminal < FFF::Terminal` with an internal `@read_buffer` key queue (overrides `read_keypress`) and `@answer_queue` prompt queue. `FileManager.initialize` accepts an optional `term : Terminal?` parameter for injection. The advanced spec previously used a standalone class with struct-based input — refactored to subclass `FFF::Terminal` to avoid type-acceptance issues in inheritance-sensitive methods.
 
-### `File.chmod` Bitwise Operations Broken (Crystal 1.20.1)
+### `File.chmod` Bitwise Operations (Crystal 1.20.1)
 
-`File.chmod(Int32, Path)` with union-type or permission bitwise OR fails at compile time. **Fix**: `Process.run("chmod", ["+x"/"-x", path])` used in both `file_operations.cr` and all specs that manipulate permissions.
+`File.chmod(Int32, Path)` with union-type or permission bitwise OR fails at compile time. `File.chmod(String, File::Permissions)` works correctly and is used in `file_operations.cr`. Specs also use `File.chmod(path, File.info(path).permissions & ~File::Permissions::OwnerExecute)`.
 
 ### `File.executable?` Deprecated
 
@@ -257,7 +258,7 @@ Crystal 1.20 deprecates `File.executable?`. **Fix**: `File::Info.executable?(pat
 
 ### `FFF::HOME` Constant (nil-safe)
 
-`ENV["HOME"]` can be nil if HOME is unset. **Fix**: `FFF::HOME = ENV["HOME"]? || "/tmp"` constant defined in `format_utils.cr`. All `ENV["HOME"]` usages across 4 files replaced with `FFF::HOME`.
+`ENV["HOME"]` can be nil if HOME is unset. **Fix**: `FFF::HOME = ENV["HOME"]? || Path.home.to_s rescue File.join(Dir.tempdir, "fff-#{Random::Secure.hex(16)}")` constant defined in `format_utils.cr`. All `ENV["HOME"]` usages across 4 files replaced with `FFF::HOME`.
 
 ### SearchEngine Fiber Synchronization
 

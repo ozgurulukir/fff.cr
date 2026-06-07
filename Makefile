@@ -44,6 +44,7 @@ format:
 
 deps:
 	shards install
+	@crystal run scripts/patch_shards.cr
 
 run: build
 	./$(BUILD_DIR)/$(NAME)
