@@ -83,14 +83,6 @@ class MockTerminal < FFF::Terminal
 
   def move_to(_row : Int32, _col : Int32); end
 
-  def enter_tui; end
-
-  def leave_tui; end
-
-  def clear; end
-
-  def clear_to_end; end
-
   def set_scroll_region; end
 
   def reset_scroll_region; end
