@@ -131,12 +131,6 @@ module FFF
       safe_navigate(prev_dir)
     end
 
-    def go_to(path : String) : Bool
-      return false unless File.exists?(path) && File.directory?(path)
-
-      safe_navigate(path)
-    end
-
     def go_to_trash(trash_dir : String) : Bool
       return false unless Dir.exists?(trash_dir)
 

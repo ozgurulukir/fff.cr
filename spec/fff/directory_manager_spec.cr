@@ -115,33 +115,6 @@ describe FFF::DirectoryManager do
     end
   end
 
-  describe "#go_to" do
-    it "navigates to specified directory" do
-      temp_dir = SpecHelper.create_temp_dir("test_go_to")
-      begin
-        sub_dir = File.join(temp_dir, "subdir")
-        Dir.mkdir_p(sub_dir)
-
-        dir_manager = FFF::DirectoryManager.new(temp_dir)
-        dir_manager.go_to(sub_dir)
-
-        dir_manager.current_dir.should eq(sub_dir)
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-
-    it "returns false for invalid path" do
-      temp_dir = SpecHelper.create_temp_dir("test_go_to_invalid")
-      begin
-        dir_manager = FFF::DirectoryManager.new(temp_dir)
-        dir_manager.go_to("/nonexistent/path").should be_false
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
   describe "#refresh!" do
     it "re-reads current directory" do
       temp_dir = SpecHelper.create_temp_dir("test_refresh")
