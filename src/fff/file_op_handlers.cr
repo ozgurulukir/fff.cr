@@ -53,33 +53,6 @@ module FFF
       @dir_manager.read!
     end
 
-    def rename_item
-      return if @dir_manager.list.empty?
-      return if @scroll >= @dir_manager.list.size
-
-      old_path = @dir_manager.list[@scroll]
-      old_name = File.basename(old_path)
-      new_name = @term.prompt_inline("Rename to:", old_name)
-
-      return if new_name.nil? || new_name == old_name
-
-      dir = File.dirname(old_path)
-      new_path = File.join(dir, new_name)
-
-      if File.exists?(new_path)
-        show_error("Target exists: #{new_name}")
-        return
-      end
-
-      begin
-        FileUtils.mv(old_path, new_path)
-        show_success("Renamed → #{new_name}")
-        @dir_manager.read!
-      rescue e : Exception
-        show_error(e.message)
-      end
-    end
-
     def bulk_rename
       sources = marked_or_current
       error = with_tui_restored { @file_ops.bulk_rename(sources, @config.editor) }
