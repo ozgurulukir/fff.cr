@@ -255,8 +255,8 @@ module FFF
       if state.list.size > 0 && state.scroll < state.list.size
         path = state.list[state.scroll]
         name = File.basename(path)
-        info = state.stat_cache[path]? || File.info?(path)
-        linfo = state.lstat_cache[path]? || File.info?(path, follow_symlinks: false)
+        info = state.stat_cache[path]?
+        linfo = state.lstat_cache[path]?
         if info && info.directory?
           name = "#{name}/"
         elsif linfo && linfo.symlink?
@@ -380,8 +380,8 @@ module FFF
       name = File.basename(path)
       selected = (idx == state.scroll)
       is_marked = state.marked.includes?(path)
-      linfo = state.lstat_cache[path]? || File.info?(path, follow_symlinks: false)
-      info = state.stat_cache[path]? || File.info?(path)
+      linfo = state.lstat_cache[path]?
+      info = state.stat_cache[path]?
       color = get_file_color(path, linfo, info, theme)
 
       display_name = build_display_name(path, info, linfo)
