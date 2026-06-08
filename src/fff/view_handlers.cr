@@ -68,15 +68,7 @@ module FFF
       path = @dir_manager.list[@scroll]
       result = @file_ops.show_attributes(path)
 
-      @term.leave_tui
-      puts result
-      print "Press any key to continue..."
-      STDOUT.flush
-      STDIN.raw(&.read_char) if STDIN.tty?
-      print "\n"
-      STDOUT.flush
-      @term.enter_tui
-      @force_full_redraw = true
+      with_tui_restored { puts result }
     end
 
     def spawn_shell
