@@ -106,7 +106,7 @@ module FFF
           print "\e[K"
           STDOUT.flush
           return true
-        when "n", "N", "\e", nil
+        when "n", "N", "\e", "\u0003", nil
           move_to(row, col)
           print "\e[K"
           STDOUT.flush
@@ -131,6 +131,9 @@ module FFF
 
         case key
         when "\e", "escape", nil
+          move_to(row, col)
+          print "\e[K"
+          STDOUT.flush
           return nil
         when "\r", "\n", "enter"
           return text.empty? ? (default || "") : text

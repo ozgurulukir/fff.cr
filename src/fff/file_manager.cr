@@ -124,52 +124,52 @@ module FFF
     private def setup_key_handlers
       # Build key → handler dispatch table (run once at startup)
       # Navigation
-      @key_handlers["j"] = ->{ cursor_down }
-      @key_handlers["\e[B"] = ->{ cursor_down } # ↓-arrow
-      @key_handlers["k"] = ->{ cursor_up }
-      @key_handlers["\e[A"] = ->{ cursor_up } # ↑-arrow
-      @key_handlers["h"] = ->{ go_parent }
-      @key_handlers["\e[D"] = ->{ go_parent } # ←-arrow
-      @key_handlers["l"] = ->{ enter_item }
-      @key_handlers["\e[C"] = ->{ enter_item } # →-arrow
-      @key_handlers["G"] = ->{ go_bottom }
-      @key_handlers["g"] = ->{ go_top }
+      @key_handlers["j"] = -> { cursor_down }
+      @key_handlers["\e[B"] = -> { cursor_down } # ↓-arrow
+      @key_handlers["k"] = -> { cursor_up }
+      @key_handlers["\e[A"] = -> { cursor_up } # ↑-arrow
+      @key_handlers["h"] = -> { go_parent }
+      @key_handlers["\e[D"] = -> { go_parent } # ←-arrow
+      @key_handlers["l"] = -> { enter_item }
+      @key_handlers["\e[C"] = -> { enter_item } # →-arrow
+      @key_handlers["G"] = -> { go_bottom }
+      @key_handlers["g"] = -> { go_top }
       # File ops
-      @key_handlers[" "] = ->{ toggle_mark }
-      @key_handlers["m"] = ->{ toggle_mark_all }
-      @key_handlers["y"] = ->{ yank_files }
-      @key_handlers["v"] = ->{ cut_files }
-      @key_handlers["p"] = ->{ paste_files }
-      @key_handlers["d"] = ->{ delete_files }
-      @key_handlers["n"] = ->{ new_directory }
-      @key_handlers["f"] = ->{ new_file }
-      @key_handlers["r"] = ->{ start_rename }
-      @key_handlers["b"] = ->{ bulk_rename }
-      @key_handlers["i"] = ->{ preview_file }
-      @key_handlers["S"] = ->{ create_symlink }
-      @key_handlers["X"] = ->{ toggle_executable }
+      @key_handlers[" "] = -> { toggle_mark }
+      @key_handlers["m"] = -> { toggle_mark_all }
+      @key_handlers["y"] = -> { yank_files }
+      @key_handlers["v"] = -> { cut_files }
+      @key_handlers["p"] = -> { paste_files }
+      @key_handlers["d"] = -> { delete_files }
+      @key_handlers["n"] = -> { new_directory }
+      @key_handlers["f"] = -> { new_file }
+      @key_handlers["r"] = -> { start_rename }
+      @key_handlers["b"] = -> { bulk_rename }
+      @key_handlers["i"] = -> { preview_file }
+      @key_handlers["S"] = -> { create_symlink }
+      @key_handlers["X"] = -> { toggle_executable }
       # View / system
-      @key_handlers["s"] = ->{ spawn_shell }
-      @key_handlers["/"] = ->{ start_search }
-      @key_handlers["."] = ->{ @dir_manager.toggle_hidden }
-      @key_handlers["t"] = ->{ go_to_trash }
-      @key_handlers["x"] = ->{ show_attributes }
-      @key_handlers[":"] = ->{ go_to_dir }
-      @key_handlers["~"] = ->{ @dir_manager.go_home }
-      @key_handlers["-"] = ->{ go_prev }
-      @key_handlers["e"] = ->{ @dir_manager.refresh! }
-      @key_handlers["="] = ->{ @dir_manager.cycle_sort_mode }
-      @key_handlers["+"] = ->{ @dir_manager.toggle_sort_reverse }
-      @key_handlers["?"] = ->{ toggle_help }
-      @key_handlers["q"] = ->{ quit }
-      @key_handlers["\e"] = ->{ clear_state }
-      @key_handlers["escape"] = ->{ clear_state }
+      @key_handlers["s"] = -> { spawn_shell }
+      @key_handlers["/"] = -> { start_search }
+      @key_handlers["."] = -> { @dir_manager.toggle_hidden }
+      @key_handlers["t"] = -> { go_to_trash }
+      @key_handlers["x"] = -> { show_attributes }
+      @key_handlers[":"] = -> { go_to_dir }
+      @key_handlers["~"] = -> { @dir_manager.go_home }
+      @key_handlers["-"] = -> { go_prev }
+      @key_handlers["e"] = -> { @dir_manager.refresh! }
+      @key_handlers["="] = -> { @dir_manager.cycle_sort_mode }
+      @key_handlers["+"] = -> { @dir_manager.toggle_sort_reverse }
+      @key_handlers["?"] = -> { toggle_help }
+      @key_handlers["q"] = -> { quit }
+      @key_handlers["\e"] = -> { clear_state }
+      @key_handlers["escape"] = -> { clear_state }
       # Dynamic page keys (resolved from @config at init time)
-      @key_handlers[@config.key_page_up] = ->{ page_up }
-      @key_handlers[@config.key_page_down] = ->{ page_down }
+      @key_handlers[@config.key_page_up] = -> { page_up }
+      @key_handlers[@config.key_page_down] = -> { page_down }
       # Bookmarks (digit → jump_to_bookmark, digit captured by closure)
       (1..9).each do |d|
-        @key_handlers[d.to_s] = ->{ jump_to_bookmark(d.to_s) }
+        @key_handlers[d.to_s] = -> { jump_to_bookmark(d.to_s) }
       end
     end
 
@@ -370,7 +370,7 @@ module FFF
         if @input_mode.mode == :search
           current_path = @scroll < @dir_manager.list.size ? @dir_manager.list[@scroll] : nil
           @dir_manager.list = @input_mode.original_list.dup
-          
+
           if @search_navigated && current_path
             if new_idx = @dir_manager.list.index(current_path)
               @scroll = new_idx
@@ -468,7 +468,7 @@ module FFF
 
       old_path = @dir_manager.list[@scroll]
       old_name = File.basename(old_path)
-      @input_mode.start_rename(old_name)
+      @input_mode.start_rename(old_name, @dir_manager.list)
       @force_full_redraw = true
     end
 
@@ -476,9 +476,9 @@ module FFF
       cleared = false
       if @dir_manager.list.size != @dir_manager.full_list.size || @dir_manager.list != @dir_manager.full_list
         current_path = @scroll < @dir_manager.list.size ? @dir_manager.list[@scroll] : nil
-        
+
         @dir_manager.list = @dir_manager.full_list.dup
-        
+
         if current_path
           if new_idx = @dir_manager.list.index(current_path)
             @scroll = new_idx

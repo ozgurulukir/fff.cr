@@ -32,7 +32,8 @@ module FFF
       @match_count = current_list.size
     end
 
-    def start_rename(old_name : String)
+    def start_rename(old_name : String, current_list : Array(String)? = nil)
+      @original_list = current_list ? current_list.not_nil!.dup : [] of String
       @mode = :rename
       @active = true
       @text = old_name
