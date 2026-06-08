@@ -162,10 +162,6 @@ module SpecHelper
       "\e[?25h"
     end
 
-    def clear_line
-      "\e[K"
-    end
-
     def move_to(row, col)
       "\e[#{row};#{col}H"
     end

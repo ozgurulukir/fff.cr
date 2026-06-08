@@ -59,10 +59,6 @@ module FFF
       print "\e[J"
     end
 
-    def clear_line
-      print "\e[2K"
-    end
-
     def move_to(row : Int32, col : Int32)
       # Raw ANSI to avoid term-cursor bug (swaps row/col)
       # Parameters are 0-indexed, ANSI uses 1-indexed

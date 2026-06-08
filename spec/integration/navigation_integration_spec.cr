@@ -83,8 +83,6 @@ class MockTerminal < FFF::Terminal
 
   def move_to(_row : Int32, _col : Int32); end
 
-  def clear_line; end
-
   def enter_tui; end
 
   def leave_tui; end
