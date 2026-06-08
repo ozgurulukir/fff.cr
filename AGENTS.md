@@ -6,7 +6,8 @@
 
 - **Language**: Crystal 1.20.1
 - **Source**: Multiple files in `src/fff/`
-- **Branch**: `master` (Bash source removed — pure Crystal)
+- **Version**: 0.3.0
+- **Tests**: 205 examples (94 unit + 111 integration), 0 failures
 - **Build**: `make build` or `crystal build src/fff.cr --release -o bin/fff-cr`
 
 ## Architecture
@@ -17,7 +18,7 @@ src/fff/
   config.cr         # Environment variable & LS_COLORS configuration, UI preference management
   directory_manager.cr# Directory reader, sorting mechanisms, and state manager
   draw_state.cr     # DrawState struct — bundles 30 render params into one object
-  file_manager.cr   # Core coordinator: event loop, hash-table key dispatch (~614 lines)
+  file_manager.cr   # Core coordinator: event loop, hash-table key dispatch (~610 lines)
   file_op_handlers.cr# Extracted file operation methods (included by FileManager)
   file_operations.cr# Specialized file/directory creation and operations with callback blocks
   file_service.cr   # Low-level filesystem helpers with writability checks
@@ -201,6 +202,28 @@ Bulk copy and delete operations (5+ items) invoke the `ProgressBar` utility:
 
 - Draws an incremental progress bar: `██████░░░░ 60% Copying (3/5) filename` directly in the prompt area.
 - Executed via block-callbacks inside `FileOperations.paste_files_with_progress` and `delete_files_with_progress` to keep the UI responsive during blocking filesystem operations.
+
+### 6. Selection Indicator & Icon Highlighting
+
+Rather than drawing a flat, single-color selection background that overrides file type coloration, the selected line retains its native colors (e.g. green for executables, blue for directories) and displays them bolded.
+- A vertical selection block indicator (`▌`) rendered in `theme.accent` is prepended to the line prefix.
+- Under search queries, the fuzzy matching highlighting is active on the selected line.
+
+### 7. Status & Topbar Badges
+
+Critical indicators such as clipboard contents, marked files count, sort criteria, git branch, folders/files counts, and total directory size are rendered as pill-shaped colored badges.
+- Badges use `Theme.fg_bg(...)` with the `theme.selection_bg` background to stand out from the default status/topbar background colors.
+- Right-side layout alignment calculates lengths based on color-stripped visible characters (`right_visible_len`), avoiding cursor offsets or line wrapping.
+
+### 8. Empty Directory Placeholder
+
+When directory listings are empty and not in a loading state, `draw_all_lines` renders a centered, dim placeholder: `  Empty Directory / Dizin Boş`.
+- Center position calculations dynamically adapt based on the left panel's current width (`list_w`).
+
+### 9. Persistent Details Columns
+
+File details columns (size and date) are kept visible even when a line is selected, drawing seamlessly on `theme.selection_bg`.
+- `format_column` has been enhanced to accept an optional background color parameter (`bg_color`) to prevent background leakage.
 
 ## File Operations
 

@@ -69,7 +69,7 @@ module FFF
       @preview_border = {88_u8, 91_u8, 112_u8},
       @preview_header = {137_u8, 180_u8, 250_u8},
       @progress_fill = {137_u8, 180_u8, 250_u8},
-      @progress_empty = {69_u8, 71_u8, 90_u8}
+      @progress_empty = {69_u8, 71_u8, 90_u8},
     )
     end
 
@@ -247,6 +247,11 @@ module FFF
     # Render text with underline + truecolor foreground + background
     def self.fg_bg_bold_underline(text : String, fore : RGB, back : RGB) : String
       "\e[1;4m\e[38;2;#{fore[0]};#{fore[1]};#{fore[2]}m\e[48;2;#{back[0]};#{back[1]};#{back[2]}m#{text}\e[0m"
+    end
+
+    # Render text with bold + truecolor foreground + background
+    def self.fg_bg_bold(text : String, fore : RGB, back : RGB) : String
+      "\e[1m\e[38;2;#{fore[0]};#{fore[1]};#{fore[2]}m\e[48;2;#{back[0]};#{back[1]};#{back[2]}m#{text}\e[0m"
     end
 
     # Set truecolor foreground + background (no reset, for building strings)

@@ -11,9 +11,12 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 
 - **Fast**: `LS_COLORS` caching, optimized incremental render loop, no flicker
 - **Modern Themes**: Truecolor RGB central theme system with 5 built-in presets (`default`, `catppuccin-mocha`, `gruvbox-dark`, `nord`, `dracula`).
+- **Selection Indicator**: Sleek vertical block (`▌`) selection marker keeping native file type colors bolded on selection background.
+- **Pill-Shaped Badges**: Status and top bar indicators (clipboard, marks, sorting, git, file/folder counts, and directory size) rendered in colored pill badges.
 - **Nerd Font Icons**: Support for file and directory icons using Nerd Fonts (over 100+ extensions and 35+ special file mapping).
 - **Dual-Pane View (Preview Panel)**: Interactive directory and file content preview side panel (automatically adapts when terminal columns >= 80).
-- **Details Columns**: Shows file size and modification time directly in the file list.
+- **Details Columns**: Shows file size and modification time directly in the file list, including on the selected line.
+- **Empty Directory State**: Centered placeholder display for empty folders.
 - **Toast Notifications**: Interactive notification system (Error, Success, Warning, Info) with custom colors and icons, featuring auto-expiry.
 - **Navigable Search**: Fuzzy filename filtering, ripgrep content search (`!` prefix), and recursive directory tree search (`>` prefix) while keeping cursor navigation live.
 - **Progress Bars**: Interactive progress bar for bulk operations (copying/deleting 5+ files).
@@ -33,13 +36,13 @@ A terminal-based file manager written in **Crystal**. Ported from the original B
 
 #### System dependencies
 
-| Platform | Package | Notes |
-| --- | --- | --- |
+| Platform      | Package           | Notes                                   |
+| ------------- | ----------------- | --------------------------------------- |
 | Debian/Ubuntu | `libreadline-dev` | Crystal links against readline on Linux |
-| Fedora/RHEL | `readline-devel` | Same as above |
-| Arch | `readline` | Included in `base` |
-| macOS | _(built-in)_ | Comes with Xcode Command Line Tools |
-| Windows 11 | _(none)_ | Crystal uses Win32 console API |
+| Fedora/RHEL   | `readline-devel`  | Same as above                           |
+| Arch          | `readline`        | Included in `base`                      |
+| macOS         | _(built-in)_      | Comes with Xcode Command Line Tools     |
+| Windows 11    | _(none)_          | Crystal uses Win32 console API          |
 
 > `make deps` installs Crystal shards **and** auto-patches known `crystal-term` bugs.
 
@@ -78,23 +81,23 @@ fff-cr -p                 # picker mode (writes to opened_file cache)
 
 ### Key Bindings
 
-| Key | Action | Key | Action |
-| --- | --- | --- | --- |
-| `j`/`k` | Down/Up | `l`/`h` | Enter/Parent |
-| `q` | Quit | `?` | Help overlay |
-| `/` | Search (Navigable) | `space` | Mark |
-| `m` | Mark all | `y`/`v` | Copy/Cut |
-| `p` | Paste | `d` | Delete (trash) |
-| `t` | Go to trash | `n` | New dir |
-| `f` | New file | `r` | Rename |
-| `b` | Bulk rename | `i` | Preview |
-| `x` | Attributes | `X` | Toggle executable |
-| `s` | Spawn shell | `g`/`G` | Top/Bottom |
-| `↑`/`↓` | Cursor | `PgUp`/`PgDn` | Page up/down |
-| `.` | Toggle hidden | `~` | Home |
-| `-` | Previous dir | `e` | Refresh |
-| `=` / `+` | Cycle sort / Reverse | `:` | Go to dir |
-| `S` | Symlink | `1-9` | Favorites |
+| Key       | Action               | Key           | Action            |
+| --------- | -------------------- | ------------- | ----------------- |
+| `j`/`k`   | Down/Up              | `l`/`h`       | Enter/Parent      |
+| `q`       | Quit                 | `?`           | Help overlay      |
+| `/`       | Search (Navigable)   | `space`       | Mark              |
+| `m`       | Mark all             | `y`/`v`       | Copy/Cut          |
+| `p`       | Paste                | `d`           | Delete (trash)    |
+| `t`       | Go to trash          | `n`           | New dir           |
+| `f`       | New file             | `r`           | Rename            |
+| `b`       | Bulk rename          | `i`           | Preview           |
+| `x`       | Attributes           | `X`           | Toggle executable |
+| `s`       | Spawn shell          | `g`/`G`       | Top/Bottom        |
+| `↑`/`↓`   | Cursor               | `PgUp`/`PgDn` | Page up/down      |
+| `.`       | Toggle hidden        | `~`           | Home              |
+| `-`       | Previous dir         | `e`           | Refresh           |
+| `=` / `+` | Cycle sort / Reverse | `:`           | Go to dir         |
+| `S`       | Symlink              | `1-9`         | Favorites         |
 
 In search and rename modes, `←`/`→` move within the input text, `Backspace`/`Delete` edit, `Home`/`End` jump to start/end. In normal mode, `ESC` clears active search filters and marks. In search mode, `ESC` cancels the search; if you navigated the results with arrow keys, it drops you directly onto the selected file, otherwise it reverts to your pre-search position.
 
@@ -104,11 +107,11 @@ All bindings are configurable via `FFF_KEY_*` environment variables.
 
 When in search mode (triggered by `/`), you can prefix your query to activate different search modes:
 
-| Prefix | Mode | Description |
-| --- | --- | --- |
-| (none) | **Fuzzy Filename** | Fuzzy matches filenames within the current directory. |
-| `!` | **Content Search** | Calls `rg` (ripgrep) to search file content (requires pressing Enter to search). |
-| `>` | **Recursive Search** | Recursively fuzzy searches files in the directory tree (up to 5 levels deep, capped at 200 results) (requires pressing Enter to search). |
+| Prefix | Mode                 | Description                                                                                                                              |
+| ------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| (none) | **Fuzzy Filename**   | Fuzzy matches filenames within the current directory.                                                                                    |
+| `!`    | **Content Search**   | Calls `rg` (ripgrep) to search file content (requires pressing Enter to search).                                                         |
+| `>`    | **Recursive Search** | Recursively fuzzy searches files in the directory tree (up to 5 levels deep, capped at 200 results) (requires pressing Enter to search). |
 
 ## Configuration
 
@@ -116,13 +119,13 @@ fff reads from environment variables first, then falls back to `~/.config/fff/co
 
 ### UI & Layout Settings
 
-| Env Variable | Config JSON Key | Description / Values |
-| --- | --- | --- |
-| `FFF_THEME` | `theme.name` | UI Theme: `default`, `catppuccin-mocha`, `gruvbox-dark`, `nord`, `dracula` (Default: `default`) |
-| `FFF_ICONS` | `icons` | Enable Nerd Font icons: `1` or `true` (Default: disabled) |
-| `FFF_COLUMNS` | `columns` | Show details columns (size/date): `0` to hide (Default: enabled) |
-| `FFF_COLUMN_MODE` | `column_mode` | Column display mode: `size`, `date`, or `both` (Default: `both`) |
-| `FFF_PREVIEW` | `preview` | Enable directory/file preview side-panel when term is wide enough: `1` or `true` (Default: disabled) |
+| Env Variable      | Config JSON Key | Description / Values                                                                                 |
+| ----------------- | --------------- | ---------------------------------------------------------------------------------------------------- |
+| `FFF_THEME`       | `theme.name`    | UI Theme: `default`, `catppuccin-mocha`, `gruvbox-dark`, `nord`, `dracula` (Default: `default`)      |
+| `FFF_ICONS`       | `icons`         | Enable Nerd Font icons: `1` or `true` (Default: disabled)                                            |
+| `FFF_COLUMNS`     | `columns`       | Show details columns (size/date): `0` to hide (Default: enabled)                                     |
+| `FFF_COLUMN_MODE` | `column_mode`   | Column display mode: `size`, `date`, or `both` (Default: `both`)                                     |
+| `FFF_PREVIEW`     | `preview`       | Enable directory/file preview side-panel when term is wide enough: `1` or `true` (Default: disabled) |
 
 ### Key variables
 
@@ -235,15 +238,16 @@ make lint       # ameba static analysis
 ### Running Tests
 
 ```bash
-make test           # all specs
+make test           # all specs (205 examples)
 crystal spec spec/integration/navigation_integration_spec.cr
-crystal spec spec/integration/advanced_integration_spec.cr
+crystal spec spec/integration/file_operations_integration_spec.cr
+crystal spec spec/integration/ui_integration_spec.cr
 ```
 
 #### Test Architecture
 
-- **93 unit tests** across 6 modules (config, directory_manager, file_service, input_mode, search_engine, ui_renderer)
-- **44 integration tests** across 2 suites (navigation + advanced) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
+- **94 unit tests** across 6 modules (config, directory_manager, file_service, input_mode, search_engine, ui_renderer)
+- **111 integration tests** across 3 suites (navigation, file_operations, ui) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
 
 - Both specs run headless; no terminal or display required
 

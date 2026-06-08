@@ -56,6 +56,11 @@ module FFF
         if File.exists?(dest)
           timestamp = Time.utc.to_unix
           dest = File.join(trash_dir, "#{name}.#{timestamp}")
+          counter = 1
+          while File.exists?(dest)
+            dest = File.join(trash_dir, "#{name}.#{timestamp}_#{counter}")
+            counter += 1
+          end
         end
 
         FileUtils.mv(src, dest)

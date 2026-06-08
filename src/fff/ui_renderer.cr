@@ -85,7 +85,6 @@ module FFF
         draw_topbar(state, theme)
         if state.prev_scroll != state.scroll || state.prev_page_offset != state.page_offset
           old_row = state.prev_scroll - state.prev_page_offset
-          content_start = bookmark_bar_row + 1
           if old_row >= 0 && old_row < @term.max_items
             draw_line(state, theme, old_row, state.prev_scroll, list_w) if state.prev_scroll < state.list.size
           end
@@ -148,10 +147,6 @@ module FFF
       sep = File::SEPARATOR.to_s
       segments = display_path.split(sep).reject(&.empty?)
 
-      git_branch = state.git_branch
-      file_count = state.list.size
-      size_str = state.total_size > 0 ? FormatUtils.human_size(state.total_size) : "—"
-
       # Build right side
       right = if state.search_mode
                 match_info = state.match_count >= 0 ? "  (#{state.match_count} matches)" : ""
@@ -164,8 +159,31 @@ module FFF
                 " #{state.scroll + 1}/#{state.list.size}#{hidden_note}#{sort_indicator} "
               end
 
+      # Folder and file counts
+      folder_count = 0
+      file_count = 0
+      state.list.each do |path|
+        if info = state.stat_cache[path]?
+          if info.directory?
+            folder_count += 1
+          else
+            file_count += 1
+          end
+        else
+          file_count += 1
+        end
+      end
+
+      git_branch = state.git_branch
+      size_str = state.total_size > 0 ? FormatUtils.human_size(state.total_size) : "—"
+
+      git_icon = @config.icons ? " " : "git:"
+      folder_icon = @config.icons ? "  " : "dirs:"
+      file_icon = @config.icons ? "  " : "files:"
+      size_icon = @config.icons ? "󰋊 " : "size:"
+
       # Build breadcrumb left side
-      avail = @term.width - right.size
+      raw_left_len = 1 # leading space
       breadcrumb = String.build do |s|
         s << " "
         segments.each_with_index do |seg, i|
@@ -179,29 +197,49 @@ module FFF
             s << Theme.fg(seg, theme.topbar_fg)
           end
         end
+      end
+      raw_left_len += segments.size > 0 ? segments.join(" ❯ ").size : 0
 
-        # Git branch badge
-        unless git_branch.empty?
-          s << "  "
-          s << Theme.fg(" #{git_branch}", theme.symlink_color)
-        end
-
-        # File count badge
-        s << "  "
-        s << Theme.fg("#{file_count} files  #{size_str}", theme.dim)
+      # Git branch badge
+      git_badge_str = ""
+      unless git_branch.empty?
+        git_badge_text = " #{git_icon}#{git_branch} "
+        git_badge_str = Theme.fg_bg(git_badge_text, theme.symlink_color, theme.selection_bg)
+        raw_left_len += 2 + git_badge_text.size
       end
 
-      # We must compute visible length without ANSI
-      raw_left_len = 1 + segments.join(" ❯ ").size
-      raw_left_len += 4 + git_branch.size unless git_branch.empty?
-      raw_left_len += 2 + "#{file_count} files  #{size_str}".size
+      # Folder count badge
+      folder_badge_text = " #{folder_icon}#{folder_count} "
+      folder_badge_str = Theme.fg_bg(folder_badge_text, theme.dir_color, theme.selection_bg)
+      raw_left_len += 2 + folder_badge_text.size
+
+      # File count badge
+      file_badge_text = " #{file_icon}#{file_count} "
+      file_badge_str = Theme.fg_bg(file_badge_text, theme.topbar_fg, theme.selection_bg)
+      raw_left_len += 2 + file_badge_text.size
+
+      # Size badge
+      size_badge_text = " #{size_icon}#{size_str} "
+      size_badge_str = Theme.fg_bg(size_badge_text, theme.accent, theme.selection_bg)
+      raw_left_len += 2 + size_badge_text.size
+
+      # Left side string
+      left_side = String.build do |s|
+        s << breadcrumb
+        unless git_badge_str.empty?
+          s << "  " << git_badge_str
+        end
+        s << "  " << folder_badge_str
+        s << "  " << file_badge_str
+        s << "  " << size_badge_str
+      end
 
       gap = @term.width - raw_left_len - right.size
       gap = 0 if gap < 0
 
       # Print with topbar background
       print Theme.set_fg_bg(theme.topbar_fg, theme.topbar_bg)
-      print breadcrumb
+      print left_side
       print " " * gap
       print Theme.fg(right, theme.topbar_fg)
       print Theme.reset
@@ -274,14 +312,22 @@ module FFF
       end
 
       # ── right: clipboard · marks · sort · git ──────────────────
+      right_visible_len = 0
       right = String.build { |s|
         if state.clipboard_size > 0
           icon = state.clipboard_mode == :copy ? "📋" : "✂️"
-          s << icon << state.clipboard_size.to_s
+          badge_text = " #{icon} #{state.clipboard_size} "
+          badge_color = state.clipboard_mode == :copy ? theme.success : theme.warning
+          s << Theme.fg_bg(badge_text, badge_color, theme.selection_bg)
+          s << " "
+          right_visible_len += badge_text.size + 1
         end
 
         if state.marked.size > 0
-          s << " ●" << state.marked.size.to_s unless state.clipboard_size > 0
+          badge_text = " ● #{state.marked.size} "
+          s << Theme.fg_bg(badge_text, theme.marked, theme.selection_bg)
+          s << " "
+          right_visible_len += badge_text.size + 1
         end
 
         sort_label = case state.sort_mode
@@ -290,15 +336,19 @@ module FFF
                      else            "name"
                      end
         arrow = state.sort_reverse ? "↑" : "↓"
-        s << " " << sort_label << arrow
+        badge_text = " ↕ #{sort_label}#{arrow} "
+        s << Theme.fg_bg(badge_text, theme.accent, theme.selection_bg)
+        right_visible_len += badge_text.size
 
         unless state.git_status.empty?
           s << "  " << colorize_git_status(state.git_status, theme)
+          right_visible_len += 2 + state.git_status.size
         end
         s << " "
+        right_visible_len += 1
       }
 
-      gap = @term.width - left.size - right.size
+      gap = @term.width - left.size - right_visible_len
       gap = {gap, 0}.max
 
       print Theme.set_fg_bg(theme.status_fg, theme.status_bg)
@@ -337,6 +387,24 @@ module FFF
 
       content_start = bookmark_bar_row + 1
       max = @term.max_items
+
+      if state.list.empty?
+        # Clear all lines in the list area
+        (0...max).each do |i|
+          @term.move_to(content_start + i, 0)
+          print "\e[K"
+        end
+
+        # Draw centered empty directory message
+        msg = @config.icons ? "  Empty Directory / Dizin Boş" : "Empty Directory / Dizin Boş"
+        center_row = content_start + (max // 2)
+        center_col = {(list_w - msg.size) // 2, 0}.max
+
+        @term.move_to(center_row, center_col)
+        print Theme.fg(msg, theme.dim)
+        return
+      end
+
       start_idx = state.page_offset
       end_idx = {state.page_offset + max, state.list.size}.min
 
@@ -365,10 +433,6 @@ module FFF
       "#{icon}#{name}#{suffix}"
     end
 
-    private def build_mark_prefix(is_marked : Bool, theme : Theme) : String
-      is_marked ? " ▪ " : "   "
-    end
-
     private def resolve_effective_color(in_clipboard : Bool, color : RGB, theme : Theme) : RGB
       in_clipboard ? theme.dim : color
     end
@@ -376,7 +440,6 @@ module FFF
     private def draw_line(state : DrawState, theme : Theme, row : Int32, idx : Int32, list_w : Int32)
       return if idx >= state.list.size
       path = state.list[idx]
-      name = File.basename(path)
       selected = (idx == state.scroll)
       is_marked = state.marked.includes?(path)
       linfo = state.lstat_cache[path]?
@@ -385,89 +448,116 @@ module FFF
 
       display_name = build_display_name(path, info, linfo)
 
-      prefix = build_mark_prefix(is_marked, theme)
-
       # Cut items shown dimmed
       in_clipboard = state.clipboard_mode == :cut && state.clipboard_items.includes?(path)
+      effective_color = resolve_effective_color(in_clipboard, color, theme)
+
+      # Background color for this line
+      bg_color = selected ? theme.selection_bg : nil
 
       # Right-side column (size/date)
       col_text = ""
       col_raw_len = 0
-      if @config.show_columns && !selected
-        col_text, col_raw_len = format_column(info, theme)
+      if @config.show_columns
+        col_text, col_raw_len = format_column(info, theme, bg_color)
       end
 
       content_start = bookmark_bar_row + 1
       @term.move_to(content_start + row, 0)
 
-      name_area = list_w - prefix.size - col_raw_len
+      # Prefix length is 3:
+      # Selected: "▌" (accent) + (marked ? "▪" : " ") + " "
+      # Normal:   " " + (marked ? "▪" : " ") + " "
+      prefix_len = 3
+      name_area = list_w - prefix_len - col_raw_len
       name_area = 1 if name_area < 1
 
+      # Print prefix
       if selected
-        # Selected line: full-width accent bg
-        line_text = "#{prefix}#{display_name}"
-        if line_text.size < list_w
-          line_text = line_text + " " * (list_w - line_text.size)
+        print bg_color ? Theme.fg_bg("▌", theme.accent, bg_color) : Theme.fg("▌", theme.accent)
+        if is_marked
+          print bg_color ? Theme.fg_bg("▪ ", theme.marked, bg_color) : Theme.fg("▪ ", theme.marked)
         else
-          line_text = line_text[0...list_w]
+          print bg_color ? Theme.fg_bg("  ", theme.fg, bg_color) : "  "
         end
-        print Theme.fg_bg(line_text, theme.selection_fg, theme.selection_bg)
       else
-        # Normal line
-        effective_color = resolve_effective_color(in_clipboard, color, theme)
+        if is_marked
+          print Theme.fg(" ▪ ", theme.marked)
+        else
+          print "   "
+        end
+      end
 
-        # Print mark prefix
-        mark_color = is_marked ? theme.marked : theme.fg
-        print Theme.fg(prefix, mark_color)
-
-        # Print name (with fuzzy highlighting if searching)
-        truncated_name = display_name.size > name_area ? display_name[0...name_area] : display_name
-        if state.search_mode && !state.search_term.empty? && !state.search_term.starts_with?('!')
-          draw_fuzzy_name(truncated_name, state.search_term.downcase, effective_color, theme)
+      # Print name (with fuzzy highlighting if searching)
+      truncated_name = display_name.size > name_area ? display_name[0...name_area] : display_name
+      if state.search_mode && !state.search_term.empty? && !state.search_term.starts_with?('!')
+        draw_fuzzy_name(truncated_name, state.search_term.downcase, effective_color, theme, bg_color)
+      else
+        if selected
+          print bg_color ? Theme.fg_bg_bold(truncated_name, effective_color, bg_color) : Theme.fg_bold(truncated_name, effective_color)
         else
           print Theme.fg(truncated_name, effective_color)
         end
-
-        # Pad between name and column
-        padding = name_area - truncated_name.size
-        print " " * padding if padding > 0
-
-        # Print column
-        print col_text unless col_text.empty?
-
-        print "\e[K"
       end
+
+      # Pad between name and column
+      padding = name_area - truncated_name.size
+      if padding > 0
+        if bg_color
+          print Theme.fg_bg(" " * padding, theme.fg, bg_color)
+        else
+          print " " * padding
+        end
+      end
+
+      # Print column
+      print col_text unless col_text.empty?
+
+      print Theme.reset
+      print "\e[K"
     end
 
-    private def format_column(info : File::Info?, theme : Theme) : {String, Int32}
+    private def format_column(info : File::Info?, theme : Theme, bg_color : RGB? = nil) : {String, Int32}
       return {"", 0} unless info
 
       case @config.column_mode
       when :size
         size_str = info.directory? ? "    —" : FormatUtils.human_size(info.size).rjust(5)
-        {Theme.fg(" #{size_str} ", theme.dim), 7}
+        str = " #{size_str} "
+        {bg_color ? Theme.fg_bg(str, theme.dim, bg_color) : Theme.fg(str, theme.dim), 7}
       when :date
         date_str = FormatUtils.format_time(info.modification_time)
-        {Theme.fg(" #{date_str} ", theme.dim), 8}
+        str = " #{date_str} "
+        {bg_color ? Theme.fg_bg(str, theme.dim, bg_color) : Theme.fg(str, theme.dim), 8}
       when :both
         size_str = info.directory? ? "   —" : FormatUtils.human_size(info.size).rjust(4)
         date_str = FormatUtils.format_time(info.modification_time)
-        {Theme.fg(" #{size_str}  #{date_str} ", theme.dim), 14}
+        str = " #{size_str}  #{date_str} "
+        {bg_color ? Theme.fg_bg(str, theme.dim, bg_color) : Theme.fg(str, theme.dim), 14}
       else
         size_str = info.directory? ? "    —" : FormatUtils.human_size(info.size).rjust(5)
-        {Theme.fg(" #{size_str} ", theme.dim), 7}
+        str = " #{size_str} "
+        {bg_color ? Theme.fg_bg(str, theme.dim, bg_color) : Theme.fg(str, theme.dim), 7}
       end
     end
 
-    private def draw_fuzzy_name(name : String, query : String, base_color : RGB, theme : Theme)
+    private def draw_fuzzy_name(name : String, query : String, base_color : RGB, theme : Theme, bg_color : RGB? = nil)
       query_idx = 0
       result = String.build do |s|
         name.each_char do |char|
           if query_idx < query.size && char.downcase == query[query_idx]
-            s << Theme.fg_bg_bold_underline(char.to_s, theme.search_match, theme.bg)
+            if bg_color
+              s << Theme.fg_bg_bold_underline(char.to_s, theme.search_match, bg_color)
+            else
+              s << Theme.fg_bg_bold_underline(char.to_s, theme.search_match, theme.bg)
+            end
             query_idx += 1
           else
-            s << Theme.fg(char.to_s, base_color)
+            if bg_color
+              s << Theme.fg_bg(char.to_s, base_color, bg_color)
+            else
+              s << Theme.fg(char.to_s, base_color)
+            end
           end
         end
       end
@@ -521,10 +611,13 @@ module FFF
       box_w = {max_w + 4, @term.width - 4}.min
       box_h = HELP_LINES.size + 2
       start_row = {(@term.height - box_h) // 2, 0}.max
-      start_col = {(@term.width - box_w) // 2, 0}.max
 
-      top_border = "╭" + "─" * box_w + "╮"
-      bot_border = "╰" + "─" * box_w + "╯"
+      # The total box width is box_w + 4 (including the left/right "│ " and " │" paddings)
+      total_box_w = box_w + 4
+      start_col = {(@term.width - total_box_w) // 2, 0}.max
+
+      top_border = "╭" + "─" * (box_w + 2) + "╮"
+      bot_border = "╰" + "─" * (box_w + 2) + "╯"
 
       (0...box_h).each do |r|
         @term.move_to(start_row + r, start_col)
@@ -536,12 +629,55 @@ module FFF
         else
           text = HELP_LINES[r - 1]? || ""
           text = text[0...box_w].ljust(box_w)
-          line_body = String.build { |s| s << "│ " << text << " │" }
-          print Theme.fg_bg(line_body, theme.fg, theme.bg)
+          print Theme.fg_bg("│ ", theme.accent, theme.bg)
+          print colorize_help_line(text, theme)
+          print Theme.fg_bg(" │", theme.accent, theme.bg)
         end
       end
 
       @term.move_to(start_row + box_h + 1, 0)
+    end
+
+    private def colorize_help_line(line : String, theme : Theme) : String
+      if line.starts_with?("───")
+        title = line.gsub("─", "").strip
+        dash_left = (line.size - title.size - 2) // 2
+        dash_right = line.size - title.size - 2 - dash_left
+        String.build do |s|
+          s << Theme.fg_bg("─" * dash_left, theme.accent, theme.bg)
+          s << Theme.fg_bg(" ", theme.fg, theme.bg)
+          s << Theme.fg_bg_bold(title, theme.accent, theme.bg)
+          s << Theme.fg_bg(" ", theme.fg, theme.bg)
+          s << Theme.fg_bg("─" * dash_right, theme.accent, theme.bg)
+        end
+      elsif line.strip.empty?
+        Theme.fg_bg(line, theme.fg, theme.bg)
+      else
+        if line.size >= 24
+          col1 = line[0...24]
+          col2 = line[24..]
+          colorize_column(col1, theme) + colorize_column(col2, theme)
+        else
+          colorize_column(line, theme)
+        end
+      end
+    end
+
+    private def colorize_column(col : String, theme : Theme) : String
+      return Theme.fg_bg(col, theme.fg, theme.bg) if col.strip.empty?
+
+      leading_spaces_count = col.size - col.lstrip.size
+      leading = col[0...leading_spaces_count]
+      rest = col[leading_spaces_count..]
+
+      key_part = rest.split(' ')[0]? || ""
+      desc_part = rest[key_part.size..]
+
+      String.build do |s|
+        s << Theme.fg_bg(leading, theme.fg, theme.bg)
+        s << Theme.fg_bg_bold(key_part, theme.success, theme.bg)
+        s << Theme.fg_bg(desc_part, theme.fg, theme.bg)
+      end
     end
 
     # ── Utilities ───────────────────────────────────────────────────

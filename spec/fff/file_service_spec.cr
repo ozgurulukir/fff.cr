@@ -150,6 +150,37 @@ describe FFF::FileService do
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
     end
+
+    it "avoids overwriting duplicates in trash within the same second" do
+      temp_dir = SpecHelper.create_temp_dir("test_trash_multi_conflict")
+      begin
+        trash_dir = File.join(temp_dir, "trash")
+        Dir.mkdir_p(trash_dir)
+
+        File.write(File.join(trash_dir, "file.txt"), "already in trash")
+
+        source_dir1 = File.join(temp_dir, "dir1")
+        source_dir2 = File.join(temp_dir, "dir2")
+        Dir.mkdir_p(source_dir1)
+        Dir.mkdir_p(source_dir2)
+
+        file1 = SpecHelper.create_temp_file(source_dir1, "file.txt", "first copy")
+        file2 = SpecHelper.create_temp_file(source_dir2, "file.txt", "second copy")
+
+        FFF::FileService.trash([file1, file2], trash_dir)
+
+        files_in_trash = Dir.children(trash_dir)
+        files_in_trash.size.should eq(3)
+        files_in_trash.should contain("file.txt")
+
+        contents = files_in_trash.map { |f| File.read(File.join(trash_dir, f)) }
+        contents.should contain("already in trash")
+        contents.should contain("first copy")
+        contents.should contain("second copy")
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
   end
 
   describe ".create_symlink" do

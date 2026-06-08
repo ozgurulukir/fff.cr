@@ -65,7 +65,7 @@ module FFF
     end
 
     private def self.scan_recursive(dir : String, query : String, matches : Array({String, Int32}),
-                                     max_results : Int32, depth : Int32, max_depth : Int32)
+                                    max_results : Int32, depth : Int32, max_depth : Int32)
       return if depth > max_depth
       return if matches.size >= max_results
 
@@ -113,25 +113,32 @@ module FFF
       error_io = IO::Memory.new
 
       spawn do
-        _the_proc = begin
+        _the_proc = nil
+        begin
           p = Process.new(
             "rg", ["-l", "--max-count", "1", query, dir],
             output: pipe_wr, error: pipe_err_wr
           )
-          pipe_wr.close
-          pipe_err_wr.close
+          _the_proc = p
           proc_chan.send(p)
-          p
         rescue
-          nil
+          pipe_wr.close rescue nil
+          pipe_err_wr.close rescue nil
+          proc_chan.send(nil)
+        ensure
+          if _the_proc
+            pipe_wr.close rescue nil
+            pipe_err_wr.close rescue nil
+          end
         end
 
-        output_io << pipe_rd.gets_to_end
-        error_io << pipe_err_rd.gets_to_end
-
-        result_chan.send(output_io)
-      rescue
-        result_chan.send(output_io)
+        begin
+          output_io << pipe_rd.gets_to_end rescue nil
+          error_io << pipe_err_rd.gets_to_end rescue nil
+          result_chan.send(output_io)
+        rescue
+          result_chan.send(output_io)
+        end
       end
     end
 

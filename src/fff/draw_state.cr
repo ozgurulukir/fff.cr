@@ -63,7 +63,7 @@ module FFF
       @lstat_cache : Hash(String, File::Info) = Hash(String, File::Info).new,
       @favorites : Hash(String, String) = Hash(String, String).new,
       @match_count : Int32 = -1,
-      @preview_path : String? = nil
+      @preview_path : String? = nil,
     )
     end
   end
