@@ -147,7 +147,6 @@ module FFF
       # Breadcrumb rendering
       sep = File::SEPARATOR.to_s
       segments = display_path.split(sep).reject(&.empty?)
-      segments.unshift("~") if display_path.starts_with?("~")
 
       git_branch = state.git_branch
       file_count = state.list.size
