@@ -11,28 +11,22 @@ describe FFF::Config do
     end
   end
 
-  describe "loading from environment" do
-    it "loads from environment variables" do
+  describe "key_bindings" do
+    it "returns hash mapping keys to actions" do
+      config = FFF::Config.new
+      bindings = config.key_bindings
+      bindings["k"].should eq(config.key_up)
+      bindings["j"].should eq(config.key_down)
+    end
+
+    it "reflects custom key bindings from environment" do
       SpecHelper.mock_env_vars({
         "FFF_KEY_UP"   => "w",
         "FFF_KEY_DOWN" => "s",
       }) do
         config = FFF::Config.new
-
-        config.key_binding("up").should eq("w")
-        config.key_binding("down").should eq("s")
-      end
-    end
-
-    it "uses defaults when env vars are unset" do
-      SpecHelper.mock_env_vars({
-        "FFF_KEY_UP"   => "k",
-        "FFF_KEY_DOWN" => "j",
-      }) do
-        config = FFF::Config.new
-
-        config.key_binding("up").should eq("k")
-        config.key_binding("down").should eq("j")
+        config.key_bindings["k"].should eq("w")
+        config.key_bindings["j"].should eq("s")
       end
     end
   end
@@ -69,34 +63,6 @@ describe FFF::Config do
         ls_colors["txt"].should eq(:yellow)
         ls_colors["md"].should eq(:blue)
         ls_colors.keys.should_not contain("invalid")
-      end
-    end
-  end
-
-  describe ".key_binding" do
-    it "returns configured key binding" do
-      SpecHelper.mock_env_vars({
-        "FFF_KEY_UP"   => "k",
-        "FFF_KEY_DOWN" => "j",
-      }) do
-        config = FFF::Config.new
-
-        config.key_binding("up").should eq("k")
-        config.key_binding("down").should eq("j")
-        config.key_binding("enter").should eq("l")
-        config.key_binding("quit").should eq("q")
-      end
-    end
-
-    it "returns empty string for unknown action" do
-      config = FFF::Config.new
-      config.key_binding("nonexistent").should eq("")
-    end
-
-    it "reads custom key bindings from environment" do
-      SpecHelper.mock_env_vars({"FFF_KEY_UP" => "w"}) do
-        config = FFF::Config.new
-        config.key_binding("up").should eq("w")
       end
     end
   end

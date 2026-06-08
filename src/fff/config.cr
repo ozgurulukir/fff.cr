@@ -272,43 +272,5 @@ module FFF
         "S" => @key_symlink, "=" => "=", "+" => "+", "?" => @key_help,
       }
     end
-
-    def key_binding(action : String) : String
-      case action
-      when "up"          then @key_up
-      when "down"        then @key_down
-      when "enter"       then @key_enter
-      when "quit"        then @key_quit
-      when "search"      then @key_search
-      when "parent"      then @key_parent
-      when "mark"        then @key_mark
-      when "mark_all"    then @key_mark_all
-      when "copy"        then @key_copy
-      when "move"        then @key_move
-      when "delete"      then @key_delete
-      when "new_dir"     then @key_new_dir
-      when "paste"       then @key_paste
-      when "preview"     then @key_preview
-      when "page_up"     then @key_page_up
-      when "page_down"   then @key_page_down
-      when "top"         then @key_top
-      when "bottom"      then @key_bottom
-      when "rename"      then @key_rename
-      when "shell"       then @key_shell
-      when "hidden"      then @key_hidden
-      when "home"        then @key_home
-      when "prev"        then @key_prev
-      when "refresh"     then @key_refresh
-      when "mkfile"      then @key_mkfile
-      when "attributes"  then @key_attributes
-      when "executable"  then @key_executable
-      when "go_dir"      then @key_go_dir
-      when "go_trash"    then @key_go_trash
-      when "bulk_rename" then @key_bulk_rename
-      when "symlink"     then @key_symlink
-      when "help"        then @key_help
-      else                    ""
-      end
-    end
   end
 end
