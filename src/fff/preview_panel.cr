@@ -6,9 +6,13 @@ module FFF
   # Activated via FFF_PREVIEW=1 env or config.json "preview": true.
   # Minimum terminal width: 80 columns. Below that, preview is hidden.
   class PreviewPanel
-    MIN_WIDTH     =  80
-    MAX_PANEL_W   =  50
-    PANEL_RATIO   = 0.4
+    MIN_WIDTH            =  80
+    MAX_PANEL_W          =  50
+    PANEL_RATIO          = 0.4
+    TEXT_FILE_EXTENSIONS = {".txt", ".cr", ".sh", ".py", ".js", ".ts", ".json", ".yaml", ".yml",
+                            ".md", ".html", ".css", ".xml", ".rb", ".go", ".rs", ".c", ".h",
+                            ".cpp", ".hpp", ".java", ".php", ".swift", ".kt", ".toml", ".env",
+                            ".log", ".csv", ".sql", ".lua", ".ex", ".exs"}
 
     @cached_path : String
     @cached_entries : Array(String)
@@ -78,8 +82,8 @@ module FFF
     end
 
     private def draw_directory_preview(path : String, theme : Theme,
-                                        start_row : Int32, end_row : Int32,
-                                        start_col : Int32, width : Int32)
+                                       start_row : Int32, end_row : Int32,
+                                       start_col : Int32, width : Int32)
       entries = entries_for(path)
       max_lines = end_row - start_row
 
@@ -121,73 +125,82 @@ module FFF
     end
 
     private def draw_file_preview(path : String, theme : Theme,
-                                   start_row : Int32, end_row : Int32,
-                                   start_col : Int32, width : Int32)
+                                  start_row : Int32, end_row : Int32,
+                                  start_col : Int32, width : Int32)
       max_lines = end_row - start_row
 
-      # Try reading file as text
       begin
         info = File.info(path)
         size_str = FormatUtils.human_size(info.size)
 
-        # First line: file info
         info_line = " #{size_str}  #{format_time(info.modification_time)}"
         info_line = info_line[0...width] if info_line.size > width
         print "\e[#{start_row + 1};#{start_col + 1}H"
         print Theme.fg(info_line, theme.dim)
 
-        # Separator
         print "\e[#{start_row + 2};#{start_col + 1}H"
         sep = " " + "─" * (width - 2) + " "
         sep = sep[0...width]
         print Theme.fg(sep, theme.border)
 
-        # File content (text files only)
         ext = File.extname(path).downcase
-        text_exts = {".txt", ".cr", ".sh", ".py", ".js", ".ts", ".json", ".yaml", ".yml",
-                     ".md", ".html", ".css", ".xml", ".rb", ".go", ".rs", ".c", ".h",
-                     ".cpp", ".hpp", ".java", ".php", ".swift", ".kt", ".toml", ".env",
-                     ".log", ".csv", ".sql", ".lua", ".ex", ".exs"}
 
-        if text_exts.includes?(ext)
-          line_idx = 0
-          File.each_line(path) do |line|
-            break if line_idx >= max_lines - 2
-            row = start_row + line_idx + 3
-            print "\e[#{row};#{start_col + 1}H"
-            truncated = line.size > width - 1 ? " #{line[0...width - 2]}" : " #{line}"
-            truncated = truncated[0...width]
-            padding = width - truncated.size
-            padding = 0 if padding < 0
-            print Theme.fg(truncated, theme.dim)
-            print " " * padding
-            line_idx += 1
-          end
-          # Clear remaining
-          ((line_idx + 3)..(max_lines + 1)).each do |i|
-            row = start_row + i
-            break if row > end_row
-            print "\e[#{row};#{start_col + 1}H"
-            print " " * width
-          end
+        if TEXT_FILE_EXTENSIONS.includes?(ext)
+          render_text_content(path, theme, start_row, end_row, start_col, width, max_lines)
         else
-          # Binary file
-          print "\e[#{start_row + 3};#{start_col + 1}H"
-          bin_msg = " [binary file]"
-          bin_msg = bin_msg[0...width]
-          print Theme.fg(bin_msg, theme.dim)
-          # Clear remaining
-          (4..(max_lines + 1)).each do |i|
-            row = start_row + i
-            break if row > end_row
-            print "\e[#{row};#{start_col + 1}H"
-            print " " * width
-          end
+          render_binary_message(theme, start_row, end_row, start_col, width)
         end
       rescue
-        print "\e[#{start_row + 1};#{start_col + 1}H"
-        err_msg = " [cannot read]"
-        print Theme.fg(err_msg, theme.error)
+        render_error(theme, start_row, start_col, width)
+      end
+    end
+
+    private def render_text_content(path : String, theme : Theme,
+                                    start_row : Int32, end_row : Int32,
+                                    start_col : Int32, width : Int32,
+                                    max_lines : Int32)
+      line_idx = 0
+      File.each_line(path) do |line|
+        break if line_idx >= max_lines - 2
+        row = start_row + line_idx + 3
+        print "\e[#{row};#{start_col + 1}H"
+        truncated = line.size > width - 1 ? " #{line[0...width - 2]}" : " #{line}"
+        truncated = truncated[0...width]
+        padding = width - truncated.size
+        padding = 0 if padding < 0
+        print Theme.fg(truncated, theme.dim)
+        print " " * padding
+        line_idx += 1
+      end
+      clear_remaining_lines(start_row, end_row, start_col, width, line_idx + 3)
+    end
+
+    private def render_binary_message(theme : Theme,
+                                      start_row : Int32, end_row : Int32,
+                                      start_col : Int32, width : Int32)
+      print "\e[#{start_row + 3};#{start_col + 1}H"
+      bin_msg = " [binary file]"
+      bin_msg = bin_msg[0...width]
+      print Theme.fg(bin_msg, theme.dim)
+      clear_remaining_lines(start_row, end_row, start_col, width, 4)
+    end
+
+    private def render_error(theme : Theme,
+                             start_row : Int32, start_col : Int32,
+                             width : Int32)
+      print "\e[#{start_row + 1};#{start_col + 1}H"
+      err_msg = " [cannot read]"
+      print Theme.fg(err_msg, theme.error)
+    end
+
+    private def clear_remaining_lines(start_row : Int32, end_row : Int32,
+                                      start_col : Int32, width : Int32,
+                                      from_line : Int32)
+      max_lines = end_row - start_row
+      (from_line..max_lines).each do |i|
+        row = start_row + i
+        print "\e[#{row};#{start_col + 1}H"
+        print " " * width
       end
     end
 

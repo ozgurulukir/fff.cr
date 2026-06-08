@@ -462,14 +462,17 @@ module FFF
 
     private def draw_fuzzy_name(name : String, query : String, base_color : RGB, theme : Theme)
       query_idx = 0
-      name.each_char do |char|
-        if query_idx < query.size && char.downcase == query[query_idx]
-          print Theme.fg_bg_bold_underline(String.build { |s| s << char }, theme.search_match, theme.bg)
-          query_idx += 1
-        else
-          print Theme.fg(String.build { |s| s << char }, base_color)
+      result = String.build do |s|
+        name.each_char do |char|
+          if query_idx < query.size && char.downcase == query[query_idx]
+            s << Theme.fg_bg_bold_underline(char.to_s, theme.search_match, theme.bg)
+            query_idx += 1
+          else
+            s << Theme.fg(char.to_s, base_color)
+          end
         end
       end
+      print result
     end
 
     # ── Message (Toast) ─────────────────────────────────────────────
