@@ -54,10 +54,6 @@ class MockTerminal < FFF::Terminal
     end
   end
 
-  def confirm?(message : String) : Bool
-    !@answer_queue.empty? ? @answer_queue.shift == "y" : false
-  end
-
   def confirm_inline(message : String) : Bool
     !@answer_queue.empty? ? @answer_queue.shift == "y" : false
   end
@@ -406,10 +402,10 @@ describe FFF::FileManager do
         marks = fm.marked
 
         marks.size.should eq(0)
-        fm.toggle_mark  # marks a.txt, cursor advances to b.txt
+        fm.toggle_mark # marks a.txt, cursor advances to b.txt
         marks.size.should eq(1)
-        fm.scroll = 0   # go back to a.txt
-        fm.toggle_mark  # unmarks a.txt, cursor advances to b.txt
+        fm.scroll = 0  # go back to a.txt
+        fm.toggle_mark # unmarks a.txt, cursor advances to b.txt
         marks.size.should eq(0)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)

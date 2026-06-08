@@ -57,13 +57,13 @@ All external command execution uses `Process.run` with explicit argv arrays — 
 
 ## Dependencies (crystal-term shards)
 
-| Shard | Version | Usage |
-| --- | --- | --- |
-| `term-color` | ~> 0.4.0 | `Term::Color.color(:blue)`, `Term::Color.truecolor_string(text, fore:, back:)` |
-| `term-screen` | ~> 0.3.0 | `Term::Screen.width`, `Term::Screen.height` — returns `{rows, cols}` |
+| Shard         | Version  | Usage                                                                                      |
+| ------------- | -------- | ------------------------------------------------------------------------------------------ |
+| `term-color`  | ~> 0.4.0 | `Term::Color.color(:blue)`, `Term::Color.truecolor_string(text, fore:, back:)`             |
+| `term-screen` | ~> 0.3.0 | `Term::Screen.width`, `Term::Screen.height` — returns `{rows, cols}`                       |
 | `term-cursor` | ~> 0.3.0 | `Term::Cursor.hide` / `.show` / `.clear_line` — **return ANSI strings, must be `print`ed** |
-| `term-reader` | ~> 0.3.0 | `Term::Reader#read_keypress` for keyboard input |
-| `term-prompt` | ~> 0.3.0 | `Term::Prompt#ask`, `#yes?`, `#keypress` for interactive dialogs |
+| `term-reader` | ~> 0.3.0 | `Term::Reader#read_keypress` for keyboard input                                            |
+| `term-prompt` | ~> 0.3.0 | `Term::Prompt#ask`, `#yes?`, `#keypress` for interactive dialogs                           |
 
 ## Known Shard Bugs (patched in lib/)
 
@@ -127,24 +127,24 @@ crystal spec spec/fff/                      # run unit tests
 
 ## Key Bindings (defaults, all configurable via `FFF_KEY_*` env vars)
 
-| Key | Action | Key | Action |
-| --- | --- | --- | --- |
-| `j`/`k` | Down/Up | `l`/`h` | Enter/Parent |
-| `q` | Quit | `?` | Help overlay |
-| `/` | Search | `space` | Mark file |
-| `m` | Mark all | `y` | Yank (copy) |
-| `v` | Cut (move) | `p` | Paste |
-| `d` | Delete (to trash) | `n` | New directory |
-| `f` | New file | `r` | Rename |
-| `b` | Bulk Rename | `i` | Preview (`bat`→`less`→builtin) |
-| `s` | Spawn shell | `g` / `G` | Top / Bottom |
-| `↑` / `↓` | Cursor up / down | `PgUp` / `PgDn` | Page up / down |
-| `.` | Toggle hidden | `t` | Go to trash |
-| `x` | Attributes | `X` | Toggle executable |
-| `:` | Go to directory | `~` | Home directory |
-| `-` | Previous directory| `e` | Refresh directory |
-| `S` | Symlink | `=` / `+` | Cycle sort / Reverse |
-| `1-9` | Favorites | | |
+| Key       | Action             | Key             | Action                         |
+| --------- | ------------------ | --------------- | ------------------------------ |
+| `j`/`k`   | Down/Up            | `l`/`h`         | Enter/Parent                   |
+| `q`       | Quit               | `?`             | Help overlay                   |
+| `/`       | Search             | `space`         | Mark file                      |
+| `m`       | Mark all           | `y`             | Yank (copy)                    |
+| `v`       | Cut (move)         | `p`             | Paste                          |
+| `d`       | Delete (to trash)  | `n`             | New directory                  |
+| `f`       | New file           | `r`             | Rename                         |
+| `b`       | Bulk Rename        | `i`             | Preview (`bat`→`less`→builtin) |
+| `s`       | Spawn shell        | `g` / `G`       | Top / Bottom                   |
+| `↑` / `↓` | Cursor up / down   | `PgUp` / `PgDn` | Page up / down                 |
+| `.`       | Toggle hidden      | `t`             | Go to trash                    |
+| `x`       | Attributes         | `X`             | Toggle executable              |
+| `:`       | Go to directory    | `~`             | Home directory                 |
+| `-`       | Previous directory | `e`             | Refresh directory              |
+| `S`       | Symlink            | `=` / `+`       | Cycle sort / Reverse           |
+| `1-9`     | Favorites          |                 |                                |
 
 In search and rename modes:
 | `←` / `→` | Move cursor | `Home` / `End` | Jump start/end |
@@ -340,8 +340,7 @@ end
 ```
 
 - Prompt, TUI durumunu korur, ekran tamamen silinmez
-- `\e[K` ile satır temizlenir, geri dönerken boş satır bırakılmaz
-- `confirm?` (term-prompt tabanlı, TUI'dan çıkar) hala mevcut, `confirm_inline` yeni TUI içi alternatiftir
+- `\e[K]` ile satır temizlenir, geri dönerken boş satır bırakılmaz
 
 ## Prompt Inline Pattern (TUI içi text input)
 

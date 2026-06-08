@@ -123,10 +123,6 @@ module FFF
       end
     end
 
-    def confirm?(message : String) : Bool
-      @prompt.yes?(message) || false
-    end
-
     # TUI içi inline text prompt — TUI'dan çıkmadan en altına soru çizer,
     # kullanıcı girdisini alır, Enter/Esc ile sonlandırır.
     # default: kullanıcı boş geçerse döndürülecek değer

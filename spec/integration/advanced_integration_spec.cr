@@ -66,10 +66,6 @@ class MockTerminal < FFF::Terminal
     ""
   end
 
-  def confirm?(message : String) : Bool
-    false
-  end
-
   def confirm_inline(message : String) : Bool
     false
   end
