@@ -352,7 +352,7 @@ module FFF
     end
 
     private def build_display_name(path : String, info : File::Info?, linfo : File::Info?) : String
-      icon = @config.icons ? IconProvider.icon_for(path, info) : ""
+      icon = @config.icons ? IconProvider.icon_for(path, info, linfo) : ""
       name = File.basename(path)
       suffix = if linfo && linfo.symlink?
                  "@"

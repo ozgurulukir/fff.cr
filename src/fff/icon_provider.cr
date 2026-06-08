@@ -13,132 +13,126 @@ module FFF
     # Extension → Nerd Font icon mapping
     EXTENSION_ICONS = {
       # Crystal / Ruby
-      ".cr"   => " ", ".rb" => " ",
+      ".cr" => " ", ".rb" => " ",
       # Python
-      ".py"   => " ", ".pyi" => " ", ".pyc" => " ",
+      ".py" => " ", ".pyi" => " ", ".pyc" => " ",
       # JavaScript / TypeScript
-      ".js"   => " ", ".mjs" => " ", ".cjs" => " ",
-      ".ts"   => " ", ".tsx" => " ", ".jsx" => " ",
+      ".js" => " ", ".mjs" => " ", ".cjs" => " ",
+      ".ts" => " ", ".tsx" => " ", ".jsx" => " ",
       # Web
       ".html" => " ", ".htm" => " ",
-      ".css"  => " ", ".scss" => " ", ".sass" => " ", ".less" => " ",
-      ".vue"  => " ", ".svelte" => " ",
+      ".css" => " ", ".scss" => " ", ".sass" => " ", ".less" => " ",
+      ".vue" => " ", ".svelte" => " ",
       # Data / Config
       ".json" => " ", ".yaml" => " ", ".yml" => " ", ".toml" => " ",
-      ".xml"  => " ", ".csv" => " ",
+      ".xml" => " ", ".csv" => " ",
       # Markdown / Docs
-      ".md"   => " ", ".mdx" => " ", ".rst" => " ", ".txt" => " ",
-      ".pdf"  => " ", ".doc" => " ", ".docx" => " ",
+      ".md" => " ", ".mdx" => " ", ".rst" => " ", ".txt" => " ",
+      ".pdf" => " ", ".doc" => " ", ".docx" => " ",
       # Shell
-      ".sh"   => " ", ".bash" => " ", ".zsh" => " ", ".fish" => " ",
-      ".ps1"  => " ", ".psm1" => " ", ".bat" => " ", ".cmd" => " ",
+      ".sh" => " ", ".bash" => " ", ".zsh" => " ", ".fish" => " ",
+      ".ps1" => " ", ".psm1" => " ", ".bat" => " ", ".cmd" => " ",
       # C / C++
-      ".c"    => " ", ".h" => " ",
-      ".cpp"  => " ", ".hpp" => " ", ".cc" => " ", ".hh" => " ",
+      ".c" => " ", ".h" => " ",
+      ".cpp" => " ", ".hpp" => " ", ".cc" => " ", ".hh" => " ",
       # Go
-      ".go"   => " ",
+      ".go" => " ",
       # Rust
-      ".rs"   => " ",
+      ".rs" => " ",
       # Java / Kotlin
       ".java" => " ", ".kt" => " ", ".kts" => " ",
       ".gradle" => " ",
       # Swift
       ".swift" => " ",
       # PHP
-      ".php"  => " ",
+      ".php" => " ",
       # Lua
-      ".lua"  => " ",
+      ".lua" => " ",
       # Elixir / Erlang
-      ".ex"   => " ", ".exs" => " ", ".erl" => " ",
+      ".ex" => " ", ".exs" => " ", ".erl" => " ",
       # Haskell
-      ".hs"   => " ",
+      ".hs" => " ",
       # Images
-      ".png"  => " ", ".jpg" => " ", ".jpeg" => " ", ".gif" => " ",
-      ".svg"  => " ", ".ico" => " ", ".bmp" => " ", ".webp" => " ",
+      ".png" => " ", ".jpg" => " ", ".jpeg" => " ", ".gif" => " ",
+      ".svg" => " ", ".ico" => " ", ".bmp" => " ", ".webp" => " ",
       # Video
-      ".mp4"  => " ", ".mkv" => " ", ".avi" => " ", ".mov" => " ",
+      ".mp4" => " ", ".mkv" => " ", ".avi" => " ", ".mov" => " ",
       ".webm" => " ",
       # Audio
-      ".mp3"  => " ", ".wav" => " ", ".flac" => " ", ".ogg" => " ",
-      ".m4a"  => " ",
+      ".mp3" => " ", ".wav" => " ", ".flac" => " ", ".ogg" => " ",
+      ".m4a" => " ",
       # Archives
-      ".zip"  => " ", ".tar" => " ", ".gz" => " ", ".bz2" => " ",
-      ".xz"   => " ", ".7z" => " ", ".rar" => " ", ".zst" => " ",
+      ".zip" => " ", ".tar" => " ", ".gz" => " ", ".bz2" => " ",
+      ".xz" => " ", ".7z" => " ", ".rar" => " ", ".zst" => " ",
       # Docker
       ".dockerfile" => " ",
       # Git
       ".gitignore" => " ", ".gitmodules" => " ",
       # Database
-      ".sql"  => " ", ".db" => " ", ".sqlite" => " ",
+      ".sql" => " ", ".db" => " ", ".sqlite" => " ",
       # Binary / Compiled
-      ".exe"  => " ", ".dll" => " ", ".so" => " ", ".dylib" => " ",
-      ".o"    => " ", ".a" => " ",
+      ".exe" => " ", ".dll" => " ", ".so" => " ", ".dylib" => " ",
+      ".o" => " ", ".a" => " ",
       # Lock files
       ".lock" => " ",
       # Environment
-      ".env"  => " ",
+      ".env" => " ",
       # Log
-      ".log"  => " ",
+      ".log" => " ",
     }
 
     # Exact filename → icon mapping (overrides extension)
     SPECIAL_NAMES = {
-      "Makefile"       => " ",
-      "makefile"       => " ",
-      "CMakeLists.txt" => " ",
-      "Dockerfile"     => " ",
-      "docker-compose.yml" => " ",
+      "Makefile"            => " ",
+      "makefile"            => " ",
+      "CMakeLists.txt"      => " ",
+      "Dockerfile"          => " ",
+      "docker-compose.yml"  => " ",
       "docker-compose.yaml" => " ",
-      ".gitignore"     => " ",
-      ".gitmodules"    => " ",
-      ".gitattributes" => " ",
-      "LICENSE"        => " ",
-      "LICENSE.md"     => " ",
-      "LICENSE.txt"    => " ",
-      "README.md"      => " ",
-      "README"         => " ",
-      "Gemfile"        => " ",
-      "Rakefile"       => " ",
-      "Cargo.toml"     => " ",
-      "Cargo.lock"     => " ",
-      "go.mod"         => " ",
-      "go.sum"         => " ",
-      "package.json"   => " ",
-      "package-lock.json" => " ",
-      "tsconfig.json"  => " ",
-      "webpack.config.js" => " ",
-      "vite.config.ts" => " ",
-      "vite.config.js" => " ",
-      ".eslintrc"      => " ",
-      ".eslintrc.json" => " ",
-      ".prettierrc"    => " ",
-      "shard.yml"      => " ",
-      "shard.lock"     => " ",
-      ".editorconfig"  => " ",
-      ".env"           => " ",
-      ".env.local"     => " ",
-      "Procfile"       => " ",
-      "Vagrantfile"    => " ",
+      ".gitignore"          => " ",
+      ".gitmodules"         => " ",
+      ".gitattributes"      => " ",
+      "LICENSE"             => " ",
+      "LICENSE.md"          => " ",
+      "LICENSE.txt"         => " ",
+      "README.md"           => " ",
+      "README"              => " ",
+      "Gemfile"             => " ",
+      "Rakefile"            => " ",
+      "Cargo.toml"          => " ",
+      "Cargo.lock"          => " ",
+      "go.mod"              => " ",
+      "go.sum"              => " ",
+      "package.json"        => " ",
+      "package-lock.json"   => " ",
+      "tsconfig.json"       => " ",
+      "webpack.config.js"   => " ",
+      "vite.config.ts"      => " ",
+      "vite.config.js"      => " ",
+      ".eslintrc"           => " ",
+      ".eslintrc.json"      => " ",
+      ".prettierrc"         => " ",
+      "shard.yml"           => " ",
+      "shard.lock"          => " ",
+      ".editorconfig"       => " ",
+      ".env"                => " ",
+      ".env.local"          => " ",
+      "Procfile"            => " ",
+      "Vagrantfile"         => " ",
     }
 
     # Get the appropriate icon for a file path
-    def self.icon_for(path : String, info : File::Info?) : String
+    def self.icon_for(path : String, info : File::Info?, linfo : File::Info?) : String
       name = File.basename(path)
 
-      # Check special filenames first
       if icon = SPECIAL_NAMES[name]?
         return icon
       end
 
-      # Check file type
-      if info
-        if info.directory?
-          return DIR_ICON
-        end
+      if info && info.directory?
+        return DIR_ICON
       end
 
-      # Symlink check (lstat-based, caller should pass linfo)
-      linfo = File.info?(path, follow_symlinks: false) rescue nil
       if linfo && linfo.symlink?
         return SYMLINK_ICON
       end
