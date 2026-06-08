@@ -804,4 +804,189 @@ describe FFF::FileManager do
       end
     end
   end
+
+  # ── Rename ESC restores list ──────────────────────────────────────────────
+  describe "rename ESC restores original list" do
+    it "cancels rename and restores full file list on ESC" do
+      temp_dir = SpecHelper.create_temp_dir("fm_esc")
+      begin
+        %w[alpha.txt beta.txt gamma.txt].each { |n| SpecHelper.create_temp_file(temp_dir, n, "x") }
+
+        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
+        dm = fm.dir_manager
+        dm.list.size.should eq(3)
+
+        fm.scroll = 0
+        fm.start_rename
+        fm.input_mode.active.should be_true
+
+        term.queue_keys("\e")
+        fm.handle_input_mode("\e")
+
+        fm.input_mode.active.should be_false
+        dm.list.size.should eq(3)
+        dm.list.any? { |f| File.basename(f) == "alpha.txt" }.should be_true
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  # ── Rename + Enter completes filesystem rename ────────────────────────────
+  describe "rename + Enter applies filesystem rename" do
+    it "renames file on disk when Enter is pressed with new name" do
+      temp_dir = SpecHelper.create_temp_dir("fm_rn")
+      begin
+        path = SpecHelper.create_temp_file(temp_dir, "original.txt", "content")
+
+        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
+        fm.scroll = 0
+        fm.start_rename
+
+        # Delete all 12 chars of "original.txt" then type "renamed.txt" + Enter
+        12.times { fm.input_mode.handle_key("\b") }
+        fm.input_mode.text.should eq("")
+        %w[r e n a m e d . t x t].each { |ch| fm.input_mode.handle_key(ch) }
+        fm.input_mode.text.should eq("renamed.txt")
+
+        fm.handle_rename_complete
+
+        fm.input_mode.active.should be_false
+        File.exists?(path).should be_false
+        new_path = File.join(temp_dir, "renamed.txt")
+        File.exists?(new_path).should be_true
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  # ── Rename backspace during input ─────────────────────────────────────────
+  describe "rename backspace" do
+    it "deletes character before cursor during rename" do
+      temp_dir = SpecHelper.create_temp_dir("fm_rbs")
+      begin
+        SpecHelper.create_temp_file(temp_dir, "original.txt", "content")
+
+        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
+        fm.scroll = 0
+        fm.start_rename
+
+        fm.input_mode.text.should eq("original.txt")
+        fm.input_mode.cursor_pos.should eq(12)
+
+        fm.input_mode.handle_key("\b")
+        fm.input_mode.text.should eq("original.tx")
+        fm.input_mode.cursor_pos.should eq(11)
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+
+    it "does not delete past start of text" do
+      temp_dir = SpecHelper.create_temp_dir("fm_rbs2")
+      begin
+        SpecHelper.create_temp_file(temp_dir, "hi.txt", "x")
+
+        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
+        fm.scroll = 0
+        fm.start_rename
+
+        fm.input_mode.text.should eq("hi.txt")
+        fm.input_mode.cursor_pos.should eq(6)
+
+        6.times { fm.input_mode.handle_key("\b") }
+        fm.input_mode.text.should eq("")
+        fm.input_mode.cursor_pos.should eq(0)
+        fm.input_mode.handle_key("\b")
+        fm.input_mode.text.should eq("")
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  # ── Paste in cut (move) mode ──────────────────────────────────────────────
+  describe "paste_files in cut mode" do
+    it "moves files from clipboard to current directory" do
+      src_dir = SpecHelper.create_temp_dir("fm_cut_src")
+      dst_dir = SpecHelper.create_temp_dir("fm_cut_dst")
+      begin
+        src_file = SpecHelper.create_temp_file(src_dir, "move_me.txt", "content")
+
+        fm, term = IntegrationHelper.create_test_file_manager(src_dir)
+        fm.clipboard = [src_file]
+        fm.clipboard_mode = :cut
+
+        fm.dir_manager = FFF::DirectoryManager.new(dst_dir)
+        fm.dir_manager.read!
+
+        term.queue_answers("y")
+        fm.paste_files
+
+        File.exists?(src_file).should be_false
+        dest_file = File.join(dst_dir, "move_me.txt")
+        File.exists?(dest_file).should be_true
+      ensure
+        SpecHelper.cleanup_temp_dir(src_dir)
+        SpecHelper.cleanup_temp_dir(dst_dir)
+      end
+    end
+  end
+
+  # ── Bulk rename ───────────────────────────────────────────────────────────
+  describe "bulk_rename" do
+    it "returns error when no files are marked" do
+      temp_dir = SpecHelper.create_temp_dir("fm_br_empty")
+      begin
+        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
+        error = fm.file_ops.bulk_rename([] of String, "cat")
+        error.should eq("No files marked")
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  # ── Toggle executable (POSIX only) ────────────────────────────────────────
+  describe "toggle_executable" do
+    {% unless flag?(:windows) %}
+      it "removes execute permission when toggled off" do
+        temp_dir = SpecHelper.create_temp_dir("fm_te_rm")
+        begin
+          path = SpecHelper.create_temp_file(temp_dir, "script.sh", "#!/bin/bash\necho hi")
+          File.chmod(path, File.info(path).permissions | File::Permissions::OwnerExecute)
+
+          fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
+          term.queue_answers("y")
+          fm.scroll = 0
+          fm.toggle_executable # on
+          fm.toggle_executable # off again
+
+          (File.info(path).permissions.includes?(::File::Permissions::OwnerExecute)).should be_false
+        ensure
+          SpecHelper.cleanup_temp_dir(temp_dir)
+        end
+      end
+    {% end %}
+  end
+
+  # ── prompt_inline ESC cancels and returns nil ─────────────────────────────
+  describe "prompt_inline ESC" do
+    it "returns nil when queue is empty (simulates ESC cancel)" do
+      fm, term = IntegrationHelper.create_test_file_manager("/tmp")
+      result = term.prompt_inline("New file name:")
+      result.should be_nil
+    end
+  end
+
+  # ── confirm_inline Ctrl+C cancels ─────────────────────────────────────────
+  describe "confirm_inline Ctrl+C" do
+    it "returns false on Ctrl+C" do
+      fm, term = IntegrationHelper.create_test_file_manager("/tmp")
+      term.queue_answers("\u0003")
+      result = term.confirm_inline("Proceed?")
+      result.should be_false
+    end
+  end
 end
