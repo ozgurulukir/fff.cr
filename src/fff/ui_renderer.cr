@@ -351,6 +351,29 @@ module FFF
       end
     end
 
+    private def build_display_name(path : String, info : File::Info?, linfo : File::Info?) : String
+      icon = @config.icons ? IconProvider.icon_for(path, info) : ""
+      name = File.basename(path)
+      suffix = if linfo && linfo.symlink?
+                 "@"
+               elsif info && info.directory?
+                 "/"
+               elsif info && info.permissions.includes?(::File::Permissions::OtherExecute)
+                 "*"
+               else
+                 ""
+               end
+      "#{icon}#{name}#{suffix}"
+    end
+
+    private def build_mark_prefix(is_marked : Bool, theme : Theme) : String
+      is_marked ? " ▪ " : "   "
+    end
+
+    private def resolve_effective_color(in_clipboard : Bool, color : RGB, theme : Theme) : RGB
+      in_clipboard ? theme.dim : color
+    end
+
     private def draw_line(state : DrawState, theme : Theme, row : Int32, idx : Int32, list_w : Int32)
       return if idx >= state.list.size
       path = state.list[idx]
@@ -361,27 +384,9 @@ module FFF
       info = state.stat_cache[path]? || File.info?(path)
       color = get_file_color(path, linfo, info, theme)
 
-      # Icon prefix
-      icon = @config.icons ? IconProvider.icon_for(path, info) : ""
+      display_name = build_display_name(path, info, linfo)
 
-      # Visual suffix: / dir  ·  * executable  ·  @ symlink
-      suffix = if linfo && linfo.symlink?
-                 "@"
-               elsif info && info.directory?
-                 "/"
-               elsif info && info.permissions.includes?(::File::Permissions::OtherExecute)
-                 "*"
-               else
-                 ""
-               end
-      display_name = "#{icon}#{name}#{suffix}"
-
-      # Mark indicator
-      prefix = if is_marked
-                 " ▪ "
-               else
-                 "   "
-               end
+      prefix = build_mark_prefix(is_marked, theme)
 
       # Cut items shown dimmed
       in_clipboard = state.clipboard_mode == :cut && state.clipboard_items.includes?(path)
@@ -410,7 +415,7 @@ module FFF
         print Theme.fg_bg(line_text, theme.selection_fg, theme.selection_bg)
       else
         # Normal line
-        effective_color = in_clipboard ? theme.dim : color
+        effective_color = resolve_effective_color(in_clipboard, color, theme)
 
         # Print mark prefix
         mark_color = is_marked ? theme.marked : theme.fg
