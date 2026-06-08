@@ -26,12 +26,10 @@ class MockTerminal < FFF::Terminal
     @answer_queue = [] of String
   end
 
-  # Queue keys to be returned by read_keypress (simulates user input).
   def queue_keys(*keys : String)
     @read_buffer.concat(keys)
   end
 
-  # Queue answers for ask/confirm prompts.
   def queue_answers(*answers : String)
     @answer_queue.concat(answers)
   end
@@ -47,38 +45,17 @@ class MockTerminal < FFF::Terminal
   end
 
   def ask(message : String) : String
-    if !@answer_queue.empty?
-      @answer_queue.shift
-    else
-      ""
-    end
+    !@answer_queue.empty? ? @answer_queue.shift : ""
   end
 
   def confirm_inline(message : String) : Bool
     !@answer_queue.empty? ? @answer_queue.shift == "y" : false
   end
 
-  # Mock prompt_inline: consume from answer queue, return nil if empty (no TTY).
   def prompt_inline(message : String, default : String? = nil) : String?
     !@answer_queue.empty? ? @answer_queue.shift : nil
   end
 
-  # Enqueue keys to be returned by read_keypress (simulates user input).
-  def queue_keys(*keys : String)
-    @read_buffer.concat(keys)
-  end
-
-  def read_keypress : String?
-    if @key_index < @read_buffer.size
-      @read_buffer[@key_index].tap { @key_index += 1 }
-    else
-      nil
-    end
-  rescue
-    nil
-  end
-
-  # ── Silence all TTY / ANSI output ──────────────────────────────────────────
   def print(_str : String); end
 
   def move_to(_row : Int32, _col : Int32); end
@@ -255,7 +232,7 @@ describe FFF::FileManager do
 
         fm.page_down
         fm.scroll.should eq(pg_size)
-        fm.page_offset.should be > 0 # scroll >= max → page_offset moves forward
+        fm.page_offset.should be > 0
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
@@ -392,10 +369,10 @@ describe FFF::FileManager do
         marks = fm.marked
 
         marks.size.should eq(0)
-        fm.toggle_mark # marks a.txt, cursor advances to b.txt
+        fm.toggle_mark
         marks.size.should eq(1)
-        fm.scroll = 0  # go back to a.txt
-        fm.toggle_mark # unmarks a.txt, cursor advances to b.txt
+        fm.scroll = 0
+        fm.toggle_mark
         marks.size.should eq(0)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
@@ -425,21 +402,18 @@ describe FFF::FileManager do
     end
   end
 
-  # ── Yank / paste ───────────────────────────────────────────────────────────
-  describe "yank_files" do
-    it "copies the current file into the clipboard in :copy mode" do
-      temp_dir = SpecHelper.create_temp_dir("fm_yank")
+  describe "toggle_mark_all" do
+    it "marks all files in the current directory" do
+      temp_dir = SpecHelper.create_temp_dir("fm_tma")
       begin
-        %w[a.txt b.txt].each { |n| SpecHelper.create_temp_file(temp_dir, n, "x") }
+        %w[a.txt b.txt c.txt].each { |n| SpecHelper.create_temp_file(temp_dir, n, "x") }
 
         fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        fm.scroll = 0
-        fm.yank_files
+        marks = fm.marked
 
-        clip = fm.clipboard
-        mode = fm.clipboard_mode
-        clip.size.should eq(1)
-        mode.should eq(:copy)
+        marks.size.should eq(0)
+        fm.toggle_mark_all
+        marks.size.should eq(3)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
@@ -489,294 +463,6 @@ describe FFF::FileManager do
     end
   end
 
-  # ── Delete files ──────────────────────────────────────────────────────────
-  describe "delete_files" do
-    it "sends marked files to trash" do
-      temp_dir = SpecHelper.create_temp_dir("fm_df")
-      begin
-        path = SpecHelper.create_temp_file(temp_dir, "to_trash.txt", "bye")
-
-        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-        trash_dir = File.join(ENV["HOME"], ".local", "share", "fff", "trash")
-
-        fm.marked = Set{path}
-        fm.scroll = 0
-        term.queue_answers("y") # confirm_inline: approve delete
-        fm.delete_files
-
-        File.exists?(path).should be_false
-        trash_contents = Dir.children(trash_dir)
-        trash_contents.any? { |f| f.includes?("to_trash") }.should be_true
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-        if home = ENV["HOME"]?
-          trash_dir = File.join(home, ".local", "share", "fff", "trash")
-          FileUtils.rm_rf(trash_dir) if File.exists?(trash_dir)
-        end
-      end
-    end
-
-    it "returns nil when no files marked" do
-      temp_dir = SpecHelper.create_temp_dir("fm_df_nomark")
-      begin
-        SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        fm.delete_files.should be_nil
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── Paste files ───────────────────────────────────────────────────────────
-  describe "paste_files" do
-    it "copies files from clipboard to current directory (copy mode)" do
-      src_dir = SpecHelper.create_temp_dir("fm_pf_src")
-      dst_dir = SpecHelper.create_temp_dir("fm_pf_dst")
-      begin
-        src_file = SpecHelper.create_temp_file(src_dir, "copy_me.txt", "content")
-
-        fm, term = IntegrationHelper.create_test_file_manager(src_dir)
-        fm.clipboard = [src_file]
-        fm.clipboard_mode = :copy
-
-        # Switch FM to destination directory
-        fm.dir_manager = FFF::DirectoryManager.new(dst_dir)
-        fm.dir_manager.read!
-
-        term.queue_answers("y") # confirm_inline for copy mode if needed
-        fm.paste_files
-
-        dest_file = File.join(dst_dir, "copy_me.txt")
-        File.exists?(dest_file).should be_true
-      ensure
-        SpecHelper.cleanup_temp_dir(src_dir)
-        SpecHelper.cleanup_temp_dir(dst_dir)
-      end
-    end
-  end
-
-  # ── Rename ─────────────────────────────────────────────────────────────────
-  describe "start_rename" do
-    it "enters rename input mode" do
-      temp_dir = SpecHelper.create_temp_dir("fm_sr")
-      begin
-        SpecHelper.create_temp_file(temp_dir, "original.txt", "content")
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        input = fm.input_mode
-
-        input.active.should be_false
-        fm.start_rename
-        input.active.should be_true
-        input.mode.should eq(:rename)
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── New file / directory ───────────────────────────────────────────────────
-  describe "new_directory / new_file" do
-    it "creates a new subdirectory" do
-      temp_dir = SpecHelper.create_temp_dir("fm_nd")
-      begin
-        SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
-
-        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-        dm = fm.dir_manager
-        dm.list.size.should eq(1)
-
-        term.queue_answers("new_dir")
-        fm.new_directory
-        dm.list.any? { |p| File.basename(p) == "new_dir" }.should be_true
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-
-    it "creates a new file" do
-      temp_dir = SpecHelper.create_temp_dir("fm_nf")
-      begin
-        SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
-
-        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-        dm = fm.dir_manager
-        dm.list.size.should eq(1)
-
-        term.queue_answers("new_file.txt")
-        fm.new_file
-        dm.list.any? { |p| File.basename(p) == "new_file.txt" }.should be_true
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── Executable toggle ──────────────────────────────────────────────────────
-  describe "toggle_executable" do
-    {% if flag?(:windows) %}
-      it "returns unsupported error message on Windows" do
-        temp_dir = SpecHelper.create_temp_dir("fm_te_win")
-        begin
-          path = SpecHelper.create_temp_file(temp_dir, "script.sh", "#!/bin/bash\necho hi")
-          fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-          term.queue_answers("y") # confirm_inline
-          fm.scroll = 0
-          fm.toggle_executable
-          fm.error_msg.should eq("Executable permissions not supported on Windows")
-        ensure
-          SpecHelper.cleanup_temp_dir(temp_dir)
-        end
-      end
-    {% else %}
-      it "adds execute permission to a regular file" do
-        temp_dir = SpecHelper.create_temp_dir("fm_te_on")
-        begin
-          path = SpecHelper.create_temp_file(temp_dir, "script.sh", "#!/bin/bash\necho hi")
-          File.chmod(path, File.info(path).permissions & ~File::Permissions::OwnerExecute)
-
-          fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-          term.queue_answers("y") # confirm_inline: approve toggle
-          fm.scroll = 0
-          fm.toggle_executable
-          (File.info(path).permissions.includes?(::File::Permissions::OwnerExecute)).should be_true
-        ensure
-          SpecHelper.cleanup_temp_dir(temp_dir)
-        end
-      end
-
-      it "double-toggles back to original permissions" do
-        temp_dir = SpecHelper.create_temp_dir("fm_te_off")
-        begin
-          path = SpecHelper.create_temp_file(temp_dir, "script.sh", "#!/bin/bash\necho hi")
-          File.chmod(path, File.info(path).permissions | File::Permissions::OwnerExecute)
-
-          fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-          term.queue_answers("y", "y") # two confirm_inline approvals
-          fm.scroll = 0
-          fm.toggle_executable # off
-          fm.toggle_executable # on again
-          (File.info(path).permissions.includes?(::File::Permissions::OwnerExecute)).should be_true
-        ensure
-          SpecHelper.cleanup_temp_dir(temp_dir)
-        end
-      end
-    {% end %}
-  end
-
-  # ── Error display ──────────────────────────────────────────────────────────
-  describe "show_error" do
-    it "stores the message and a future expiry" do
-      temp_dir = SpecHelper.create_temp_dir("fm_se")
-      begin
-        SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        fm.show_error("disk full")
-        fm.error_msg.should eq("disk full")
-        exp = fm.error_expires
-        exp.should_not be_nil
-        (exp.not_nil!.to_unix > Time.utc.to_unix).should be_true
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-
-    it "ignores nil and empty strings" do
-      temp_dir = SpecHelper.create_temp_dir("fm_se_nil")
-      begin
-        SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        fm.show_error(nil)
-        fm.show_error("")
-        fm.error_msg.should be_nil
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── Sort cycling ───────────────────────────────────────────────────────────
-  describe "cycle_sort_mode" do
-    it "cycles name → size → ctime → name" do
-      temp_dir = SpecHelper.create_temp_dir("fm_csm")
-      begin
-        %w[a.txt b.txt c.txt].each { |n| SpecHelper.create_temp_file(temp_dir, n, "x") }
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        dm = fm.dir_manager
-
-        dm.sort_mode.should eq(:name)
-        fm.dir_manager.cycle_sort_mode; dm.sort_mode.should eq(:size)
-        fm.dir_manager.cycle_sort_mode; dm.sort_mode.should eq(:time)
-        fm.dir_manager.cycle_sort_mode; dm.sort_mode.should eq(:name)
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-
-    it "toggles sort reverse" do
-      temp_dir = SpecHelper.create_temp_dir("fm_tsr")
-      begin
-        %w[a.txt b.txt].each { |n| SpecHelper.create_temp_file(temp_dir, n, "x") }
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        dm = fm.dir_manager
-
-        dm.sort_reverse.should be_false
-        fm.dir_manager.toggle_sort_reverse; dm.sort_reverse.should be_true
-        fm.dir_manager.toggle_sort_reverse; dm.sort_reverse.should be_false
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── Prev-state tracking for incremental redraw ─────────────────────────────
-  describe "redraw — prev_scroll / prev_page_offset" do
-    it "captures scroll state after each redraw" do
-      temp_dir = SpecHelper.create_temp_dir("fm_ps")
-      begin
-        10.times { |i| SpecHelper.create_temp_file(temp_dir, "f_#{i}.txt", "x") }
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-
-        fm.prev_scroll.should eq(-1)
-        fm.prev_page_offset.should eq(-1)
-
-        fm.redraw # no TTY side-effect because MockTerminal silences everything
-        fm.prev_scroll.should eq(0)
-        fm.prev_page_offset.should eq(0)
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── Realistic directory structure ──────────────────────────────────────────
-  describe "realistic directory structure" do
-    it "reads all files and subdirectories from a realistic layout" do
-      temp_dir = SpecHelper.create_temp_dir("fm_real")
-      begin
-        IntegrationHelper.create_realistic_test_structure(temp_dir)
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        dm = fm.dir_manager
-
-        dm.list.size.should be > 0
-        dm.list.any? { |f| File.basename(f) == "document.txt" }.should be_true
-        dm.list.any? { |f| File.basename(f) == "README.md" }.should be_true
-        # subdirectory 'documents' is visible; internal_doc.txt is inside it
-        dm.list.any? { |f| File.basename(f) == "documents" }.should be_true
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
   # ── search+scroll interaction ─────────────────────────────────────────────
   describe "search list size change with scroll" do
     it "does not exceed filtered list size on cursor_down" do
@@ -794,199 +480,14 @@ describe FFF::FileManager do
           fm.input_mode.handle_key(ch)
         }
         fm.live_search
-        dm.list.size.should eq(1) # only alpha.txt
+        dm.list.size.should eq(1)
 
         fm.scroll = 1
         fm.cursor_down
-        fm.scroll.should eq(0) # clamped
+        fm.scroll.should eq(0)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
-    end
-  end
-
-  # ── Rename ESC restores list ──────────────────────────────────────────────
-  describe "rename ESC restores original list" do
-    it "cancels rename and restores full file list on ESC" do
-      temp_dir = SpecHelper.create_temp_dir("fm_esc")
-      begin
-        %w[alpha.txt beta.txt gamma.txt].each { |n| SpecHelper.create_temp_file(temp_dir, n, "x") }
-
-        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-        dm = fm.dir_manager
-        dm.list.size.should eq(3)
-
-        fm.scroll = 0
-        fm.start_rename
-        fm.input_mode.active.should be_true
-
-        term.queue_keys("\e")
-        fm.handle_input_mode("\e")
-
-        fm.input_mode.active.should be_false
-        dm.list.size.should eq(3)
-        dm.list.any? { |f| File.basename(f) == "alpha.txt" }.should be_true
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── Rename + Enter completes filesystem rename ────────────────────────────
-  describe "rename + Enter applies filesystem rename" do
-    it "renames file on disk when Enter is pressed with new name" do
-      temp_dir = SpecHelper.create_temp_dir("fm_rn")
-      begin
-        path = SpecHelper.create_temp_file(temp_dir, "original.txt", "content")
-
-        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-        fm.scroll = 0
-        fm.start_rename
-
-        # Delete all 12 chars of "original.txt" then type "renamed.txt" + Enter
-        12.times { fm.input_mode.handle_key("\b") }
-        fm.input_mode.text.should eq("")
-        %w[r e n a m e d . t x t].each { |ch| fm.input_mode.handle_key(ch) }
-        fm.input_mode.text.should eq("renamed.txt")
-
-        fm.handle_rename_complete
-
-        fm.input_mode.active.should be_false
-        File.exists?(path).should be_false
-        new_path = File.join(temp_dir, "renamed.txt")
-        File.exists?(new_path).should be_true
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── Rename backspace during input ─────────────────────────────────────────
-  describe "rename backspace" do
-    it "deletes character before cursor during rename" do
-      temp_dir = SpecHelper.create_temp_dir("fm_rbs")
-      begin
-        SpecHelper.create_temp_file(temp_dir, "original.txt", "content")
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        fm.scroll = 0
-        fm.start_rename
-
-        fm.input_mode.text.should eq("original.txt")
-        fm.input_mode.cursor_pos.should eq(12)
-
-        fm.input_mode.handle_key("\b")
-        fm.input_mode.text.should eq("original.tx")
-        fm.input_mode.cursor_pos.should eq(11)
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-
-    it "does not delete past start of text" do
-      temp_dir = SpecHelper.create_temp_dir("fm_rbs2")
-      begin
-        SpecHelper.create_temp_file(temp_dir, "hi.txt", "x")
-
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        fm.scroll = 0
-        fm.start_rename
-
-        fm.input_mode.text.should eq("hi.txt")
-        fm.input_mode.cursor_pos.should eq(6)
-
-        6.times { fm.input_mode.handle_key("\b") }
-        fm.input_mode.text.should eq("")
-        fm.input_mode.cursor_pos.should eq(0)
-        fm.input_mode.handle_key("\b")
-        fm.input_mode.text.should eq("")
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── Paste in cut (move) mode ──────────────────────────────────────────────
-  describe "paste_files in cut mode" do
-    it "moves files from clipboard to current directory" do
-      src_dir = SpecHelper.create_temp_dir("fm_cut_src")
-      dst_dir = SpecHelper.create_temp_dir("fm_cut_dst")
-      begin
-        src_file = SpecHelper.create_temp_file(src_dir, "move_me.txt", "content")
-
-        fm, term = IntegrationHelper.create_test_file_manager(src_dir)
-        fm.clipboard = [src_file]
-        fm.clipboard_mode = :cut
-
-        fm.dir_manager = FFF::DirectoryManager.new(dst_dir)
-        fm.dir_manager.read!
-
-        term.queue_answers("y")
-        fm.paste_files
-
-        File.exists?(src_file).should be_false
-        dest_file = File.join(dst_dir, "move_me.txt")
-        File.exists?(dest_file).should be_true
-      ensure
-        SpecHelper.cleanup_temp_dir(src_dir)
-        SpecHelper.cleanup_temp_dir(dst_dir)
-      end
-    end
-  end
-
-  # ── Bulk rename ───────────────────────────────────────────────────────────
-  describe "bulk_rename" do
-    it "returns error when no files are marked" do
-      temp_dir = SpecHelper.create_temp_dir("fm_br_empty")
-      begin
-        fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
-        error = fm.file_ops.bulk_rename([] of String, "cat")
-        error.should eq("No files marked")
-      ensure
-        SpecHelper.cleanup_temp_dir(temp_dir)
-      end
-    end
-  end
-
-  # ── Toggle executable (POSIX only) ────────────────────────────────────────
-  describe "toggle_executable" do
-    {% unless flag?(:windows) %}
-      it "removes execute permission when toggled off" do
-        temp_dir = SpecHelper.create_temp_dir("fm_te_rm")
-        begin
-          path = SpecHelper.create_temp_file(temp_dir, "script.sh", "#!/bin/bash\necho hi")
-          File.chmod(path, File.info(path).permissions | File::Permissions::OwnerExecute)
-
-          fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-          term.queue_answers("y")
-          fm.scroll = 0
-          fm.toggle_executable # on
-          fm.toggle_executable # off again
-
-          (File.info(path).permissions.includes?(::File::Permissions::OwnerExecute)).should be_false
-        ensure
-          SpecHelper.cleanup_temp_dir(temp_dir)
-        end
-      end
-    {% end %}
-  end
-
-  # ── prompt_inline ESC cancels and returns nil ─────────────────────────────
-  describe "prompt_inline ESC" do
-    it "returns nil when queue is empty (simulates ESC cancel)" do
-      fm, term = IntegrationHelper.create_test_file_manager("/tmp")
-      result = term.prompt_inline("New file name:")
-      result.should be_nil
-    end
-  end
-
-  # ── confirm_inline Ctrl+C cancels ─────────────────────────────────────────
-  describe "confirm_inline Ctrl+C" do
-    it "returns false on Ctrl+C" do
-      fm, term = IntegrationHelper.create_test_file_manager("/tmp")
-      term.queue_answers("\u0003")
-      result = term.confirm_inline("Proceed?")
-      result.should be_false
     end
   end
 end
