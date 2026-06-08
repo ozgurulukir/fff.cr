@@ -51,7 +51,7 @@ module FFF
     getter fff_level : Int32
     getter running : Bool
     getter picker_mode : Bool
-    getter git_dir_cache : String
+    getter git_dir_cache : String?
     getter file_ops : FileOperations
     getter prev_dir : String?
     getter prev_child : String?
@@ -110,7 +110,7 @@ module FFF
       @show_help = false
       @git_branch = ""
       @git_status = ""
-      @git_dir_cache = ""
+      @git_dir_cache = nil
 
       @search_original_scroll = 0
       @search_original_page_offset = 0
@@ -274,10 +274,8 @@ module FFF
 
     def update_git_branch
       dir = @dir_manager.current_dir
-      @git_dir_cache ||= ""
-      if @git_dir_cache == dir
-        return
-      end
+      return if @git_dir_cache == dir
+
       @git_dir_cache = dir
 
       output = IO::Memory.new

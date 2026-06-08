@@ -16,10 +16,14 @@ module FFF
 
     @cached_path : String
     @cached_entries : Array(String)
+    @cached_is_dir : Hash(String, Bool)
+    @cached_file_lines : Hash(String, Array(String))
 
     def initialize
       @cached_path = ""
       @cached_entries = [] of String
+      @cached_is_dir = Hash(String, Bool).new
+      @cached_file_lines = Hash(String, Array(String)).new
     end
 
     # Calculate panel width. Returns 0 if terminal is too narrow.
@@ -47,6 +51,7 @@ module FFF
 
       @cached_path = path
       @cached_entries = load_entries(path)
+      @cached_is_dir[path] = File.directory?(path)
       @cached_entries
     end
 
@@ -55,6 +60,11 @@ module FFF
              start_row : Int32, end_row : Int32)
       pw = panel_width(term_width)
       return if pw == 0 || path.nil?
+
+      if path != @cached_path
+        @cached_file_lines.clear
+        @cached_path = ""
+      end
 
       start_col = term_width - pw
       divider_col = start_col - 1
@@ -159,8 +169,10 @@ module FFF
                                     start_row : Int32, end_row : Int32,
                                     start_col : Int32, width : Int32,
                                     max_lines : Int32)
+      lines = @cached_file_lines[path] ||= read_file_lines(path, max_lines - 2)
       line_idx = 0
-      File.each_line(path) do |line|
+
+      lines.each do |line|
         break if line_idx >= max_lines - 2
         row = start_row + line_idx + 3
         print "\e[#{row};#{start_col + 1}H"
@@ -213,6 +225,17 @@ module FFF
         .first(50) # Cap preview entries
         .map { |e| File.join(path, e) }
       entries
+    rescue
+      [] of String
+    end
+
+    private def read_file_lines(path : String, max_lines : Int32) : Array(String)
+      lines = [] of String
+      File.each_line(path) do |line|
+        break if lines.size >= max_lines
+        lines << line
+      end
+      lines
     rescue
       [] of String
     end
