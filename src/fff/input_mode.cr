@@ -141,13 +141,5 @@ module FFF
       @navigating = false
       @match_count = -1
     end
-
-    def cursor_position : Int32
-      case @mode
-      when :search then 13 + @text.size
-      when :rename then @term.height - 2
-      else              0
-      end
-    end
   end
 end

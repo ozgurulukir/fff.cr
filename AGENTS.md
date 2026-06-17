@@ -7,7 +7,7 @@
 - **Language**: Crystal 1.20.1
 - **Source**: Multiple files in `src/fff/`
 - **Version**: 0.3.0
-- **Tests**: 205 examples (94 unit + 111 integration), 0 failures
+- **Tests**: 224 examples (172 unit + 52 integration), 0 failures
 - **Build**: `make build` or `crystal build src/fff.cr --release -o bin/fff-cr`
 
 ## Architecture
@@ -206,23 +206,27 @@ Bulk copy and delete operations (5+ items) invoke the `ProgressBar` utility:
 ### 6. Selection Indicator & Icon Highlighting
 
 Rather than drawing a flat, single-color selection background that overrides file type coloration, the selected line retains its native colors (e.g. green for executables, blue for directories) and displays them bolded.
+
 - A vertical selection block indicator (`▌`) rendered in `theme.accent` is prepended to the line prefix.
 - Under search queries, the fuzzy matching highlighting is active on the selected line.
 
 ### 7. Status & Topbar Badges
 
 Critical indicators such as clipboard contents, marked files count, sort criteria, git branch, folders/files counts, and total directory size are rendered as pill-shaped colored badges.
+
 - Badges use `Theme.fg_bg(...)` with the `theme.selection_bg` background to stand out from the default status/topbar background colors.
 - Right-side layout alignment calculates lengths based on color-stripped visible characters (`right_visible_len`), avoiding cursor offsets or line wrapping.
 
 ### 8. Empty Directory Placeholder
 
 When directory listings are empty and not in a loading state, `draw_all_lines` renders a centered, dim placeholder: `  Empty Directory / Dizin Boş`.
+
 - Center position calculations dynamically adapt based on the left panel's current width (`list_w`).
 
 ### 9. Persistent Details Columns
 
 File details columns (size and date) are kept visible even when a line is selected, drawing seamlessly on `theme.selection_bg`.
+
 - `format_column` has been enhanced to accept an optional background color parameter (`bg_color`) to prevent background leakage.
 
 ## File Operations
@@ -383,3 +387,13 @@ end
 - Kullanılan handler'lar: `new_file`, `new_directory`, `rename_item`, `go_to_dir`
 
 Mock test'leri için `MockTerminal`'da `prompt_inline` override edilmelidir — `@answer_queue`'dan cevap çeker, boşsa `nil` döndürür.
+
+### Preview Panel Text Overflow — Ghost Character Artifact
+
+Preview panel'deki `render_text_content` metodu satırları truncate ederken visible width hesaplaması hatalıydı. `" #{line}"` prefix'i eklendikten sonra `width` sınırı aşılıyordu; terminal auto-wrap devreye girip taşan karakteri bir sonraki satırın 0. kolonuna (file list alanına) yazıyordu. Kullanıcı bunu uzun markdown satırlarında (ör. `## 🔴 CRITICAL — Race Conditions / Data Corruption` cümlesinden taşan `n` harfi) gözlüyordu.
+
+**Fix**: Her `move_to`'dan sonra `\e[K]` ile satır temizlendi. `render_text_content`'te `visible_width` ayrı hesaplanıp truncate mantığı düzeltildi. Tüm preview panel draw metodlarına (`draw`, `draw_directory_preview`, `draw_file_preview`, `clear_remaining_lines`) `\e[K]` eklendi.
+
+### Preview Panel Unit Tests
+
+`spec/fff/preview_panel_spec.cr` — 19 example ile `PreviewPanel` test coverage eklendi. `panel_width`, `list_width`, `active?`, `entries_for` cache invalidation, `read_file_lines` truncation, ve `draw` no-op guard test edilmektedir. Test edilebilirlik için `read_file_lines` metodu `private`'dan `public`'a çevrildi.

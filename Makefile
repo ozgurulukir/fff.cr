@@ -37,7 +37,7 @@ lint:
 	crystal run lib/ameba/bin/ameba.cr -- src/
 
 test:
-	crystal spec spec/fff/
+	crystal spec spec/
 
 format:
 	crystal tool format

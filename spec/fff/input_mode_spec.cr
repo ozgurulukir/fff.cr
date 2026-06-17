@@ -275,6 +275,30 @@ describe FFF::InputMode do
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
     end
+
+    it "returns error message when FileUtils.mv raises" do
+      temp_dir = SpecHelper.create_temp_dir("rename_error_test")
+      begin
+        old_path = File.join(temp_dir, "old_file.txt")
+        File.write(old_path, "content")
+
+        # Target a path whose parent directory does not exist — triggers FileUtils.mv error
+        target_name = "nonexistent_dir/out.txt"
+
+        term = FFF::Terminal.new
+        input_mode = FFF::InputMode.new(term)
+        input_mode.start_rename("old_file.txt")
+
+        "old_file.txt".size.times { input_mode.handle_key("\b") }
+        target_name.each_char { |c| input_mode.handle_key(c.to_s) }
+
+        result = input_mode.apply_rename(old_path)
+        result.should_not be_nil
+        result.as(String).size.should be > 0
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
   end
 
   describe "#end" do

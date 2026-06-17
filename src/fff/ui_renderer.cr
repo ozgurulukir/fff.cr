@@ -84,9 +84,15 @@ module FFF
       else
         draw_topbar(state, theme)
         if state.prev_scroll != state.scroll || state.prev_page_offset != state.page_offset
+          content_start = bookmark_bar_row + 1
           old_row = state.prev_scroll - state.prev_page_offset
           if old_row >= 0 && old_row < @term.max_items
-            draw_line(state, theme, old_row, state.prev_scroll, list_w) if state.prev_scroll < state.list.size
+            if state.prev_scroll < state.list.size
+              draw_line(state, theme, old_row, state.prev_scroll, list_w)
+            else
+              @term.move_to(content_start + old_row, 0)
+              print "\e[K"
+            end
           end
           new_row = state.scroll - state.page_offset
           if new_row >= 0 && new_row < @term.max_items && state.scroll < state.list.size
@@ -112,10 +118,6 @@ module FFF
       end
 
       STDOUT.flush
-    end
-
-    def clear_cache
-      @color_cache.clear
     end
 
     # ── Effective dimensions ────────────────────────────────────────
@@ -464,6 +466,7 @@ module FFF
 
       content_start = bookmark_bar_row + 1
       @term.move_to(content_start + row, 0)
+      print "\e[K"
 
       # Prefix length is 3:
       # Selected: "▌" (accent) + (marked ? "▪" : " ") + " "
@@ -543,23 +546,20 @@ module FFF
 
     private def draw_fuzzy_name(name : String, query : String, base_color : RGB, theme : Theme, bg_color : RGB? = nil)
       query_idx = 0
+      match_esc = bg_color ? Theme.set_fg_bg_bold_underline(theme.search_match, bg_color) : Theme.fg_bg_bold_underline("", theme.search_match, theme.bg)
+      normal_esc = bg_color ? Theme.set_fg_bg(base_color, bg_color) : Theme.set_fg(base_color)
+
       result = String.build do |s|
         name.each_char do |char|
           if query_idx < query.size && char.downcase == query[query_idx]
-            if bg_color
-              s << Theme.fg_bg_bold_underline(char.to_s, theme.search_match, bg_color)
-            else
-              s << Theme.fg_bg_bold_underline(char.to_s, theme.search_match, theme.bg)
-            end
+            s << match_esc
             query_idx += 1
           else
-            if bg_color
-              s << Theme.fg_bg(char.to_s, base_color, bg_color)
-            else
-              s << Theme.fg(char.to_s, base_color)
-            end
+            s << normal_esc
           end
+          s << char
         end
+        s << Theme.reset
       end
       print result
     end

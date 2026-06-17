@@ -17,16 +17,6 @@ describe FFF::UIRenderer do
     end
   end
 
-  describe "#clear_cache" do
-    it "clears color cache" do
-      term = FFF::Terminal.new
-      config = FFF::Config.new
-      renderer = FFF::UIRenderer.new(term, config)
-
-      renderer.clear_cache
-    end
-  end
-
   describe "#redraw" do
     it "handles full redraw without crashing" do
       term = FFF::Terminal.new

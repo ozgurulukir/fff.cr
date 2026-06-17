@@ -82,7 +82,8 @@ module FFF
         shell ||= "bash"
       {% end %}
 
-      with_tui_restored { Process.run(shell, input: STDIN, output: STDOUT, error: STDERR) }
+      shell_parts = shell.split
+      with_tui_restored { Process.run(shell_parts[0], shell_parts[1...], input: STDIN, output: STDOUT, error: STDERR) }
 
       @fff_level -= 1
       ENV["FFF_LEVEL"] = @fff_level.to_s

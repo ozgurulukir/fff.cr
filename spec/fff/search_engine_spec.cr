@@ -147,4 +147,33 @@ describe FFF::SearchEngine do
       end
     end
   end
+
+  describe ".recursive_search" do
+    it "returns empty array for short query" do
+      FFF::SearchEngine.recursive_search("", "/tmp").should be_empty
+    end
+
+    it "finds files recursively" do
+      temp_dir = SpecHelper.create_temp_dir("test_recursive_search")
+      begin
+        SpecHelper.create_temp_file(temp_dir, "hello.txt", "content")
+        subdir = File.join(temp_dir, "sub")
+        Dir.mkdir_p(subdir)
+        SpecHelper.create_temp_file(subdir, "world.txt", "content")
+
+        results = FFF::SearchEngine.recursive_search("hello", temp_dir)
+        results.should contain(File.join(temp_dir, "hello.txt"))
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+
+    it "returns empty array on error" do
+      # Pass a file path as dir — Dir.entries on a file raises, triggering rescue
+      temp_file = SpecHelper.create_temp_file(Dir.tempdir, "not_a_dir_recursive.txt", "content")
+      results = FFF::SearchEngine.recursive_search("x", temp_file)
+      results.should be_empty
+      SpecHelper.cleanup_temp_file(temp_file)
+    end
+  end
 end

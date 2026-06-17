@@ -229,7 +229,7 @@ module FFF
       [] of String
     end
 
-    private def read_file_lines(path : String, max_lines : Int32) : Array(String)
+    def read_file_lines(path : String, max_lines : Int32) : Array(String)
       lines = [] of String
       File.each_line(path) do |line|
         break if lines.size >= max_lines

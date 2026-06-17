@@ -66,4 +66,26 @@ describe FFF::Config do
       end
     end
   end
+
+  describe ".new" do
+    it "falls back to defaults on invalid JSON in config file" do
+      config_dir = File.join(FFF::HOME, ".config", "fff")
+      config_path = File.join(config_dir, "config.json")
+      original_content = File.exists?(config_path) ? File.read(config_path) : nil
+
+      Dir.mkdir_p(config_dir)
+      begin
+        File.write(config_path, "{invalid json\n")
+        config = FFF::Config.new
+        config.key_quit.should eq("q")
+        config.key_enter.should eq("l")
+      ensure
+        if original_content
+          File.write(config_path, original_content)
+        else
+          File.delete(config_path) if File.exists?(config_path)
+        end
+      end
+    end
+  end
 end

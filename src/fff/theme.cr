@@ -244,9 +244,19 @@ module FFF
       "\e[1m\e[38;2;#{fore[0]};#{fore[1]};#{fore[2]}m#{text}\e[0m"
     end
 
+    # Set bold + truecolor foreground (no reset)
+    def self.set_fg_bold(fore : RGB) : String
+      "\e[1m\e[38;2;#{fore[0]};#{fore[1]};#{fore[2]}m"
+    end
+
     # Render text with underline + truecolor foreground + background
     def self.fg_bg_bold_underline(text : String, fore : RGB, back : RGB) : String
       "\e[1;4m\e[38;2;#{fore[0]};#{fore[1]};#{fore[2]}m\e[48;2;#{back[0]};#{back[1]};#{back[2]}m#{text}\e[0m"
+    end
+
+    # Set underline + truecolor foreground + background (no reset)
+    def self.set_fg_bg_bold_underline(fore : RGB, back : RGB) : String
+      "\e[1;4m\e[38;2;#{fore[0]};#{fore[1]};#{fore[2]}m\e[48;2;#{back[0]};#{back[1]};#{back[2]}m"
     end
 
     # Render text with bold + truecolor foreground + background

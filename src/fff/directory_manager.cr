@@ -56,7 +56,7 @@ module FFF
         next unless linfo
         @lstat_cache[path] = linfo
 
-        info = File.info?(path) || linfo
+        info = linfo.symlink? ? (File.info?(path) || linfo) : linfo
         @stat_cache[path] = info
 
         if info.directory?

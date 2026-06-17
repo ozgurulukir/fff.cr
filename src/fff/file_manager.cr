@@ -541,14 +541,16 @@ module FFF
     end
 
     def open_in_editor(path : String)
-      with_tui_restored { Process.run(@config.editor, [path], input: STDIN, output: STDOUT, error: STDERR) }
+      editor = @config.editor.split
+      with_tui_restored { Process.run(editor[0], editor[1...] + [path], input: STDIN, output: STDOUT, error: STDERR) }
     end
 
     def open_with_opener(path : String)
       {% if flag?(:windows) %}
         with_tui_restored { Process.run("cmd.exe", ["/c", "start", "", path], input: STDIN, output: STDOUT, error: STDERR) }
       {% else %}
-        with_tui_restored { Process.run(@config.opener, [path], input: STDIN, output: STDOUT, error: STDERR) }
+        opener = @config.opener.split
+        with_tui_restored { Process.run(opener[0], opener[1...] + [path], input: STDIN, output: STDOUT, error: STDERR) }
       {% end %}
     end
 
