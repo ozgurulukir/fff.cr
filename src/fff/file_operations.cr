@@ -3,6 +3,44 @@ require "./file_service"
 require "./config"
 
 module FFF
+  # Minimal shell-word splitter (handles single/double-quoted strings).
+  # Crystal stdlib does not ship Shellwords; this covers the common case
+  # of editor commands like: code --wait "/path/with spaces"
+  def self.split_shell_words(str : String) : Array(String)
+    words = [] of String
+    current = ""
+    in_quote = false
+    quote_char = '\0'
+
+    str.each_char do |c|
+      case c
+      when '\'', '"'
+        if in_quote
+          if c == quote_char
+            in_quote = false
+            quote_char = '\0'
+          else
+            current += c.to_s
+          end
+        else
+          in_quote = true
+          quote_char = c
+        end
+      when ' ', '\t'
+        if in_quote
+          current += c.to_s
+        else
+          words << current unless current.empty?
+          current = ""
+        end
+      else
+        current += c.to_s
+      end
+    end
+    words << current unless current.empty?
+    words
+  end
+
   # FileOperations - High-level file operations with UI feedback
   class FileOperations
     @config : Config
@@ -94,6 +132,7 @@ module FFF
 
     def new_file(dir : String, name : String) : String?
       return "Empty filename" if name.empty?
+      return "Invalid filename: #{name}" if name.includes?('/') || name.includes?('\\')
 
       path = File.join(dir, name)
       return "File exists: #{name}" if File.exists?(path)
@@ -108,6 +147,7 @@ module FFF
 
     def new_directory(dir : String, name : String) : String?
       return "Empty directory name" if name.empty?
+      return "Invalid directory name: #{name}" if name.includes?('/') || name.includes?('\\')
 
       path = File.join(dir, name)
       return "Directory exists: #{name}" if File.exists?(path)
@@ -183,8 +223,8 @@ module FFF
           temp_file.close
         end
 
-        # Open editor
-        editor_parts = editor.split
+        # Open editor using shell-aware splitting to handle quoted paths
+        editor_parts = FFF.split_shell_words(editor)
         Process.run(editor_parts[0], editor_parts[1...] + [temp_path], input: STDIN, output: STDOUT, error: STDERR)
 
         # Read new names

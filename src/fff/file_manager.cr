@@ -363,33 +363,7 @@ module FFF
         return
       end
 
-      # ESC/Ctrl+C: cancel current mode
-      if key == "\e" || key == "escape" || key == "\u0003" || (key.bytesize == 1 && key.char_at(0).ord == 27)
-        if @input_mode.mode == :search
-          current_path = @scroll < @dir_manager.list.size ? @dir_manager.list[@scroll] : nil
-          @dir_manager.list = @input_mode.original_list.dup
-
-          if @search_navigated && current_path
-            if new_idx = @dir_manager.list.index(current_path)
-              @scroll = new_idx
-              if @scroll < @page_offset || @scroll >= @page_offset + @term.max_items
-                @page_offset = {@scroll - @term.max_items // 2, 0}.max
-              end
-            else
-              @scroll = @search_original_scroll
-              @page_offset = @search_original_page_offset
-            end
-          else
-            @scroll = @search_original_scroll
-            @page_offset = @search_original_page_offset
-          end
-        else
-          @dir_manager.list = @input_mode.original_list.dup
-        end
-        @input_mode.end
-        @force_full_redraw = true
-        return
-      end
+      return if cancel_input_mode(key)
 
       complete = @input_mode.handle_key(key)
 
@@ -410,6 +384,36 @@ module FFF
       else
         live_search if @input_mode.mode == :search && !@input_mode.text.starts_with?('!') && !@input_mode.text.starts_with?('>')
       end
+    end
+
+    private def cancel_input_mode(key : String) : Bool
+      is_escape = key == "\e" || key == "escape" || key == "\u0003" || (key.bytesize == 1 && key.char_at(0).ord == 27)
+      return false unless is_escape
+
+      if @input_mode.mode == :search
+        current_path = @scroll < @dir_manager.list.size ? @dir_manager.list[@scroll] : nil
+        @dir_manager.list = @input_mode.original_list.dup
+
+        if @search_navigated && current_path
+          if new_idx = @dir_manager.list.index(current_path)
+            @scroll = new_idx
+            if @scroll < @page_offset || @scroll >= @page_offset + @term.max_items
+              @page_offset = {@scroll - @term.max_items // 2, 0}.max
+            end
+          else
+            @scroll = @search_original_scroll
+            @page_offset = @search_original_page_offset
+          end
+        else
+          @scroll = @search_original_scroll
+          @page_offset = @search_original_page_offset
+        end
+      else
+        @dir_manager.list = @input_mode.original_list.dup
+      end
+      @input_mode.end
+      @force_full_redraw = true
+      true
     end
 
     def handle_search_complete
@@ -541,7 +545,7 @@ module FFF
     end
 
     def open_in_editor(path : String)
-      editor = @config.editor.split
+      editor = FFF.split_shell_words(@config.editor)
       with_tui_restored { Process.run(editor[0], editor[1...] + [path], input: STDIN, output: STDOUT, error: STDERR) }
     end
 

@@ -5,10 +5,11 @@ module FFF
     def self.fuzzy_match(list : Array(String), query : String) : Array(String)
       return list if query.empty?
 
+      q = query.downcase
       matches = [] of {String, Int32}
       list.each do |path|
         name = File.basename(path).downcase
-        score = fuzzy_score(name, query.downcase)
+        score = fuzzy_score(name, q)
         matches << {path, score} if score > 0
       end
 

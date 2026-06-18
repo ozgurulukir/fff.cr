@@ -65,47 +65,12 @@ module FFF
         @prev_path = state.current_dir
       end
 
-      # Calculate list width (depends on preview panel)
       list_w = effective_list_width
 
       if state.full
-        @term.move_to(0, 0)
-        print "\e[2J"
-        draw_topbar(state, theme)
-        draw_bookmark_bar(state, theme)
-        draw_all_lines(state, theme, list_w)
-        # Draw preview panel
-        if @config.preview && @preview_panel.active?(@term.width)
-          preview_path = state.preview_path
-          start_row = bookmark_bar_row + 1
-          end_row = @term.height - 3
-          @preview_panel.draw(@term.width, @term.height, preview_path, theme, start_row, end_row)
-        end
+        draw_full(state, theme, list_w)
       else
-        draw_topbar(state, theme)
-        if state.prev_scroll != state.scroll || state.prev_page_offset != state.page_offset
-          content_start = bookmark_bar_row + 1
-          old_row = state.prev_scroll - state.prev_page_offset
-          if old_row >= 0 && old_row < @term.max_items
-            if state.prev_scroll < state.list.size
-              draw_line(state, theme, old_row, state.prev_scroll, list_w)
-            else
-              @term.move_to(content_start + old_row, 0)
-              print "\e[K"
-            end
-          end
-          new_row = state.scroll - state.page_offset
-          if new_row >= 0 && new_row < @term.max_items && state.scroll < state.list.size
-            draw_line(state, theme, new_row, state.scroll, list_w)
-          end
-        end
-        # Update preview on cursor change
-        if @config.preview && @preview_panel.active?(@term.width)
-          preview_path = state.preview_path
-          start_row = bookmark_bar_row + 1
-          end_row = @term.height - 3
-          @preview_panel.draw(@term.width, @term.height, preview_path, theme, start_row, end_row)
-        end
+        draw_incremental(state, theme, list_w)
       end
 
       if state.show_help
@@ -118,6 +83,44 @@ module FFF
       end
 
       STDOUT.flush
+    end
+
+    private def draw_full(state : DrawState, theme : Theme, list_w : Int32)
+      @term.move_to(0, 0)
+      print "\e[2J"
+      draw_topbar(state, theme)
+      draw_bookmark_bar(state, theme)
+      draw_all_lines(state, theme, list_w)
+      draw_preview_if_active(state, theme, list_w)
+    end
+
+    private def draw_incremental(state : DrawState, theme : Theme, list_w : Int32)
+      draw_topbar(state, theme)
+      if state.prev_scroll != state.scroll || state.prev_page_offset != state.page_offset
+        content_start = bookmark_bar_row + 1
+        old_row = state.prev_scroll - state.prev_page_offset
+        if old_row >= 0 && old_row < @term.max_items
+          if state.prev_scroll < state.list.size
+            draw_line(state, theme, old_row, state.prev_scroll, list_w)
+          else
+            @term.move_to(content_start + old_row, 0)
+            print "\e[K"
+          end
+        end
+        new_row = state.scroll - state.page_offset
+        if new_row >= 0 && new_row < @term.max_items && state.scroll < state.list.size
+          draw_line(state, theme, new_row, state.scroll, list_w)
+        end
+      end
+      draw_preview_if_active(state, theme, list_w)
+    end
+
+    private def draw_preview_if_active(state : DrawState, theme : Theme, list_w : Int32)
+      return unless @config.preview && @preview_panel.active?(@term.width)
+      preview_path = state.preview_path
+      start_row = bookmark_bar_row + 1
+      end_row = @term.height - 3
+      @preview_panel.draw(@term.width, @term.height, preview_path, theme, start_row, end_row)
     end
 
     # ── Effective dimensions ────────────────────────────────────────

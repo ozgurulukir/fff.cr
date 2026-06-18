@@ -165,6 +165,22 @@ describe FFF::FileOperations do
       ops.new_file("/tmp", "").should eq("Empty filename")
     end
 
+    it "rejects path traversal with forward slash" do
+      config = FFF::Config.new
+      term = FFF::Terminal.new
+      ops = FFF::FileOperations.new(config, term)
+      result = ops.new_file("/tmp", "../../etc/passwd")
+      result.should eq("Invalid filename: ../../etc/passwd")
+    end
+
+    it "rejects path traversal with backslash" do
+      config = FFF::Config.new
+      term = FFF::Terminal.new
+      ops = FFF::FileOperations.new(config, term)
+      result = ops.new_file("/tmp", "..\\..\\etc\\passwd")
+      result.should eq("Invalid filename: ..\\..\\etc\\passwd")
+    end
+
     it "returns error when file already exists" do
       temp_dir = SpecHelper.create_temp_dir("test_new_file_exists")
       begin
@@ -202,6 +218,22 @@ describe FFF::FileOperations do
       term = FFF::Terminal.new
       ops = FFF::FileOperations.new(config, term)
       ops.new_directory("/tmp", "").should eq("Empty directory name")
+    end
+
+    it "rejects path traversal with forward slash" do
+      config = FFF::Config.new
+      term = FFF::Terminal.new
+      ops = FFF::FileOperations.new(config, term)
+      result = ops.new_directory("/tmp", "../../etc/evil")
+      result.should eq("Invalid directory name: ../../etc/evil")
+    end
+
+    it "rejects path traversal with backslash" do
+      config = FFF::Config.new
+      term = FFF::Terminal.new
+      ops = FFF::FileOperations.new(config, term)
+      result = ops.new_directory("/tmp", "..\\..\\etc\\evil")
+      result.should eq("Invalid directory name: ..\\..\\etc\\evil")
     end
 
     it "returns error when directory already exists" do

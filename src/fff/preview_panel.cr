@@ -50,9 +50,24 @@ module FFF
       return @cached_entries if path == @cached_path
 
       @cached_path = path
-      @cached_entries = load_entries(path)
-      @cached_is_dir[path] = File.directory?(path)
-      @cached_entries
+      return @cached_entries unless File.directory?(path)
+
+      raw = Dir.entries(path).reject { |e| e == "." || e == ".." }
+      dir_flags = raw.map { |e| File.join(path, e) }
+      raw.each_with_index do |e, i|
+        @cached_is_dir[dir_flags[i]] = File.directory?(dir_flags[i])
+      end
+      sorted = raw.each_with_index.to_a.sort_by { |e, i| {@cached_is_dir[dir_flags[i]] ? 0 : 1, e.downcase} }.map(&.[0])
+      @cached_entries = sorted.first(50).map { |e| File.join(path, e) }
+    end
+
+    private def load_entries(path : String) : Array(String)
+      Dir.entries(path)
+        .reject { |e| e == "." || e == ".." }
+        .first(50)
+        .map { |e| File.join(path, e) }
+    rescue
+      [] of String
     end
 
     # Draw the preview panel
@@ -79,6 +94,7 @@ module FFF
       name = File.basename(path)
       header = name.size > pw - 2 ? name[0...pw - 2] : name
       print "\e[#{start_row + 1};#{start_col + 1}H"
+      print "\e[K"
       print Theme.fg_bold(" #{header}", theme.preview_header)
       remaining = pw - header.size - 1
       print " " * remaining if remaining > 0
@@ -101,10 +117,10 @@ module FFF
         break if i >= max_lines
         row = start_row + i + 1
         print "\e[#{row};#{start_col + 1}H"
+        print "\e[K"
 
         name = File.basename(entry)
-        info = File.info?(entry)
-        is_dir = info.try(&.directory?) || false
+        is_dir = @cached_is_dir[entry]? || false
 
         icon = ""
         suffix = ""
@@ -117,10 +133,14 @@ module FFF
         end
 
         display = " #{icon}#{name}#{suffix}"
-        display = display[0...width] if display.size > width
+        if display.size > width
+          display = display[0...width]
+        end
         padding = width - display.size
         padding = 0 if padding < 0
 
+        print "\e[#{row};#{start_col + 1}H"
+        print "\e[K"
         print Theme.fg(display, color)
         print " " * padding if padding > 0
       end
@@ -146,11 +166,13 @@ module FFF
         info_line = " #{size_str}  #{format_time(info.modification_time)}"
         info_line = info_line[0...width] if info_line.size > width
         print "\e[#{start_row + 1};#{start_col + 1}H"
+        print "\e[K"
         print Theme.fg(info_line, theme.dim)
 
         print "\e[#{start_row + 2};#{start_col + 1}H"
-        sep = " " + "─" * (width - 2) + " "
-        sep = sep[0...width]
+        print "\e[K"
+        sep = " " + "─" * {width - 2, 0}.max + " "
+        sep = sep[0...width] if sep.size > width
         print Theme.fg(sep, theme.border)
 
         ext = File.extname(path).downcase
@@ -171,17 +193,21 @@ module FFF
                                     max_lines : Int32)
       lines = @cached_file_lines[path] ||= read_file_lines(path, max_lines - 2)
       line_idx = 0
+      visible_width = {width - 1, 1}.max
 
       lines.each do |line|
         break if line_idx >= max_lines - 2
         row = start_row + line_idx + 3
         print "\e[#{row};#{start_col + 1}H"
-        truncated = line.size > width - 1 ? " #{line[0...width - 2]}" : " #{line}"
-        truncated = truncated[0...width]
-        padding = width - truncated.size
+        print "\e[K"
+        visible = line.size > visible_width - 1 ? " #{line[0...visible_width - 1]}" : " #{line}"
+        if visible.size > visible_width
+          visible = visible[0...visible_width]
+        end
+        padding = visible_width - visible.size
         padding = 0 if padding < 0
-        print Theme.fg(truncated, theme.dim)
-        print " " * padding
+        print Theme.fg(visible, theme.dim)
+        print " " * padding if padding > 0
         line_idx += 1
       end
       clear_remaining_lines(start_row, end_row, start_col, width, line_idx + 3)
@@ -212,6 +238,7 @@ module FFF
       (from_line..max_lines).each do |i|
         row = start_row + i
         print "\e[#{row};#{start_col + 1}H"
+        print "\e[K"
         print " " * width
       end
     end
@@ -219,12 +246,10 @@ module FFF
     private def load_entries(path : String) : Array(String)
       return [] of String unless File.directory?(path)
 
-      entries = Dir.entries(path)
-        .reject { |e| e == "." || e == ".." }
-        .sort_by { |e| {File.directory?(File.join(path, e)) ? 0 : 1, e.downcase} }
-        .first(50) # Cap preview entries
-        .map { |e| File.join(path, e) }
-      entries
+      raw = Dir.entries(path).reject { |e| e == "." || e == ".." }
+      dir_flags = raw.map { |e| File.directory?(File.join(path, e)) ? 0 : 1 }
+      sorted = raw.each_with_index.sort_by { |e, i| {dir_flags[i], e.downcase} }.map(&.[0])
+      sorted.first(50).map { |e| File.join(path, e) }
     rescue
       [] of String
     end
@@ -241,9 +266,7 @@ module FFF
     end
 
     private def format_time(time : Time) : String
-      time.to_local.to_s("%b %d %H:%M")
-    rescue
-      ""
+      FormatUtils.format_time_detailed(time)
     end
   end
 end

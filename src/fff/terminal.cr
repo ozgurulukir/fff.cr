@@ -139,35 +139,40 @@ module FFF
           return text.empty? ? (default || "") : text
         when "\u0003"
           return nil
-        when "\u007F", "\b", "backspace"
-          if cursor > 0
-            text = text[0...cursor - 1] + text[cursor..]
-            cursor -= 1
-            draw_prompt(row, col, message, text, cursor)
-          end
-        when "\e[3~", "delete"
-          if cursor < text.size
-            text = text[0...cursor] + text[cursor + 1..]
-            draw_prompt(row, col, message, text, cursor)
-          end
-        when "\e[D", "left"
-          cursor -= 1 if cursor > 0
-          draw_prompt(row, col, message, text, cursor)
-        when "\e[C", "right"
-          cursor += 1 if cursor < text.size
-          draw_prompt(row, col, message, text, cursor)
-        when "\e[H", "home"
-          cursor = 0
-          draw_prompt(row, col, message, text, cursor)
-        when "\e[F", "end"
-          cursor = text.size
-          draw_prompt(row, col, message, text, cursor)
         else
-          if key && key.bytesize > 0 && key.char_at(0).ord >= 32
-            text = text[0...cursor] + key + text[cursor..]
-            cursor += 1
-            draw_prompt(row, col, message, text, cursor)
-          end
+          text, cursor = apply_prompt_key(key, text, cursor)
+          draw_prompt(row, col, message, text, cursor)
+        end
+      end
+    end
+
+    private def apply_prompt_key(key : String?, text : String, cursor : Int32) : {String, Int32}
+      case key
+      when "\u007F", "\b", "backspace"
+        if cursor > 0
+          {text[0...cursor - 1] + text[cursor..], cursor - 1}
+        else
+          {text, cursor}
+        end
+      when "\e[3~", "delete"
+        if cursor < text.size
+          {text[0...cursor] + text[cursor + 1..], cursor}
+        else
+          {text, cursor}
+        end
+      when "\e[D", "left"
+        {text, Math.max(cursor - 1, 0)}
+      when "\e[C", "right"
+        {text, Math.min(cursor + 1, text.size)}
+      when "\e[H", "home"
+        {text, 0}
+      when "\e[F", "end"
+        {text, text.size}
+      else
+        if key && key.bytesize > 0 && key.char_at(0).ord >= 32
+          {text[0...cursor] + key + text[cursor..], cursor + 1}
+        else
+          {text, cursor}
         end
       end
     end
