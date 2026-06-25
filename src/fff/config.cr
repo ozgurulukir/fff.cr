@@ -51,6 +51,7 @@ module FFF
     getter show_columns : Bool
     getter column_mode : Symbol
     getter preview : Bool
+    getter preview_width : String?
 
     # ── Phase 14: key binding defaults — single source of truth ──
     # key_* ivar = ENV[env]? || json_get(json, keys_array) || default
@@ -149,6 +150,7 @@ module FFF
       @show_columns = (ENV["FFF_COLUMNS"]? != "0") && (json_get(json, %w[columns]) != "false")
       @column_mode = parse_column_mode(resolve(json, "FFF_COLUMN_MODE", %w[column_mode], "size"))
       @preview = (ENV["FFF_PREVIEW"]? == "1") || (json_get(json, %w[preview]) == "true")
+      @preview_width = ENV["FFF_PREVIEW_WIDTH"]? || json_get(json, %w[preview_width])
     end
 
     private def parse_column_mode(mode : String?) : Symbol

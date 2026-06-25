@@ -18,8 +18,9 @@ module FFF
     @cached_entries : Array(String)
     @cached_is_dir : Hash(String, Bool)
     @cached_file_lines : Hash(String, Array(String))
+    @preview_width_config : String?
 
-    def initialize
+    def initialize(@preview_width_config : String? = nil)
       @cached_path = ""
       @cached_entries = [] of String
       @cached_is_dir = Hash(String, Bool).new
@@ -27,9 +28,20 @@ module FFF
     end
 
     # Calculate panel width. Returns 0 if terminal is too narrow.
+    # Supports preview_width config: "40%" (ratio), "30" (absolute cols), nil (default 40% capped at 50)
     def panel_width(term_width : Int32) : Int32
       return 0 if term_width < MIN_WIDTH
-      w = (term_width * PANEL_RATIO).to_i
+
+      w = if cfg = @preview_width_config
+            if cfg.ends_with?('%')
+              (term_width * (cfg[0..-2].to_f / 100.0)).to_i
+            else
+              cfg.to_i
+            end
+          else
+            (term_width * PANEL_RATIO).to_i
+          end
+
       {w, MAX_PANEL_W}.min
     end
 

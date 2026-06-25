@@ -53,7 +53,7 @@ module FFF
     def initialize(@term : Terminal, @config : Config)
       @color_cache = Hash(String, RGB).new
       @prev_path = ""
-      @preview_panel = PreviewPanel.new
+      @preview_panel = PreviewPanel.new(@config.preview_width)
     end
 
     def redraw(state : DrawState)

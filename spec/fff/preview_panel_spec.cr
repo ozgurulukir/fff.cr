@@ -37,6 +37,26 @@ describe FFF::PreviewPanel do
       w200 = panel.panel_width(200)
       w200.should be > w100
     end
+
+    it "uses absolute value from config" do
+      panel = FFF::PreviewPanel.new("30")
+      panel.panel_width(120).should eq(30)
+    end
+
+    it "uses percentage from config" do
+      panel = FFF::PreviewPanel.new("50%")
+      panel.panel_width(100).should eq(50)
+    end
+
+    it "caps percentage result at MAX_PANEL_W" do
+      panel = FFF::PreviewPanel.new("60%")
+      panel.panel_width(120).should eq(50)
+    end
+
+    it "falls back to default ratio when config is nil" do
+      panel = FFF::PreviewPanel.new(nil)
+      panel.panel_width(100).should eq(40)
+    end
   end
 
   describe "#list_width" do
