@@ -56,6 +56,8 @@ State is managed within the `FileManager` instance, with `Config` and `Terminal`
 
 All external command execution uses `Process.run` with explicit argv arrays — no shell interpolation. Backtick and `system()` calls were eliminated (including `default_opener`'s backtick for `uname` in Phase 8). Commands affected: ripgrep (`rg`), `file --mime-type`, `uname`, shell spawn, editor/open invocations, bulk rename, `bat`, `less`.
 
+**Argument injection prevention**: All `Process.run` calls that accept user-supplied file paths pass `--` as the last argument before the path. This prevents filenames starting with `-` from being interpreted as command flags (e.g., a file named `--help` would not trigger `rg`'s help). Affected commands: `rg`, `file`, editor spawn, opener, `bat`, `less`.
+
 ## Dependencies (crystal-term shards)
 
 | Shard         | Version  | Usage                                                                                      |
@@ -187,6 +189,7 @@ If terminal width is sufficient (>= 80 columns) and `FFF_PREVIEW=1` is configure
 
 - Left half displays the standard navigable file listing.
 - Right half displays the `PreviewPanel`. It renders directory statistics (total items, files, folders, writability status) or the preview contents of the highlighted file (first 40 lines).
+- **Configurable width**: `FFF_PREVIEW_WIDTH` env var or `preview_width` JSON property. Format: `"40%"` → ratio of terminal width, `"30"` → absolute columns, `nil` → default 40% (`PANEL_RATIO = 0.4`). Capped at `MAX_PANEL_W = 50` columns regardless of mode. When previewing switches files, the content area is cleared to prevent remnant text from the previous file.
 
 ### 4. Message Bus & Toast Notifications
 
@@ -251,6 +254,7 @@ File details columns (size and date) are kept visible even when a line is select
 - **Lazy Content Search**: Live search queries only update fuzzy file list scanning. Expensive content queries (triggered via `!`) are deferred until the user presses **Enter**, preventing TUI lag and freezes while typing.
 - **Recursive Tree Search Performance Guards**: Recursive tree search (`>` prefix) limits folder recursion to a depth of 5 and caps maximum results at 200 items. In addition, typing matches are not updated live; the search is deferred until the user presses **Enter** to prevent event loop blocking.
 - **Fuzzy Search Scoring**: `SearchEngine.fuzzy_score` uses consecutive matching bonus (`score += consecutive * 5`) and a substring inclusion bonus (`+50`) at the end, ensuring that exact substring matches outrank distant fuzzy matches.
+- **Sort Key Caching**: `DirectoryManager` sorts use `@stat_cache` lookups for size and date modes instead of re-computing `File.info` per comparison. `PreviewPanel` caches directory entries and invalidates on path change.
 - **Hot-path string building**: `draw_status`, `draw_topbar`, `draw_help_overlay` use `String.build` instead of `parts = [] + join`.
 - **Per-char rendering**: `draw_fuzzy_name` and `colorize_git_status` use `String.build { |s| s << char }` instead of `char.to_s`.
 - **Anti-patterns avoided**:
@@ -299,6 +303,10 @@ Crystal 1.20 deprecates `File.executable?`. **Fix**: `File::Info.executable?(pat
 
 `def key_bindings : Hash(String, String)` was building a new Hash on every call (every keypress). **Fix**: `@key_bindings_cache : Hash(String, String)?` with `@key_bindings_cache ||= { ... }` — built once on first access.
 
+### Config `resolve`/`resolve_lazy` Helpers
+
+`Config#initialize` had repetitive boilerplate for each setting: check env var → check JSON → fall back to default. **Pattern**: `resolve(json, env_var, keys, default)` for plain string defaults, `resolve_lazy(json, env_var, keys) { computed_default }` for computed defaults (e.g. `default_editor`). Both use `json_get(keys : Array(String | Symbol))` internally.
+
 ### `make clean` Removes `bin/` Directory
 
 `Makefile.clean` uses `rm -rf bin/` which removes the directory itself, causing `make build` linker to fail on subsequent invocation. **Workaround**: `mkdir -p bin` before `make build`.
@@ -330,6 +338,18 @@ Arama modunda (`/`) `j`/`k`/`↑`/`↓` tuşları text input'e değil navigasyon
 ### Crystal `getter` vs `property` in Test Context
 
 Crystal'da `getter` sadece okunur, `property` okunur+yazılır. Test'lerde mock injection veya state reset için `property` kullan. `FileManager.renderer` örneği: önce `getter` idi, test'de mock renderer set edilemedi → `property`'a çevrildi.
+
+### Crystal `print` is a Kernel Function, Not `String#<<`
+
+`print` bir kernel fonksiyondur, `String#<<` operatörü ile çalışmaz. `print` argümanlarında string birleştirme için `+` kullanın. Hatalı: `print "a" << "b"` — `<<` `IO`-like hedef bekler. Doğru: `print "a" + "b"` veya `print "ab"`.
+
+### Crystal Splat (`*args`) Requires Tuple, Not Array
+
+Crystal'da splat parametre (`*keys`) çağrılırken Tuple gerektirir, Array değil. `json_get(*["a", "b"])` derleme hatası verir. **Fix**: imzayı `Array(String | Symbol)` olarak değiştir → `json_get(["a", "b"])`. `Config#json_get` bu nedenle `*keys` yerine `Array(String | Symbol)` parametresi kullanır.
+
+### Crystal `Proc` Default Args — Type Inference Edge Cases
+
+Çok satırlı imzalı `Proc` default argümanlarda type inference başarısız olabilir. **Fix**: tipi açıkça belirtin: `&block : -> String` yerine `&block : -> String = nil` + `block || ->{ default }` deseni. `Config#resolve_lazy` bu deseni kullanır.
 
 ### Windows 11 Cross-Platform Solutions
 
@@ -394,6 +414,14 @@ Preview panel'deki `render_text_content` metodu satırları truncate ederken vis
 
 **Fix**: Her `move_to`'dan sonra `\e[K]` ile satır temizlendi. `render_text_content`'te `visible_width` ayrı hesaplanıp truncate mantığı düzeltildi. Tüm preview panel draw metodlarına (`draw`, `draw_directory_preview`, `draw_file_preview`, `clear_remaining_lines`) `\e[K]` eklendi.
 
+### Preview Panel Path-Change Remnant Clearing
+
+Preview panel'de dosya değiştirildiğinde (ör. cursor aşağı kaydırılıp yeni dosya highlight edildiğinde) önceki dosyanın içeriği panel'de kalıntı olarak görünüyordu — kısa dosyadan uzun dosyaya geçince eski satırlar altta görünmeye devam ediyordu. **Fix**: `PreviewPanel#draw` metoduna `if path != @cached_path` guard eklendi. Path değiştiğinde `@cached_file_lines.clear` yapılıyor ve içerik alanı `\e[K` ile tamamen temizleniyor, ardından yeni içerik çiziliyor.
+
 ### Preview Panel Unit Tests
 
-`spec/fff/preview_panel_spec.cr` — 19 example ile `PreviewPanel` test coverage eklendi. `panel_width`, `list_width`, `active?`, `entries_for` cache invalidation, `read_file_lines` truncation, ve `draw` no-op guard test edilmektedir. Test edilebilirlik için `read_file_lines` metodu `private`'dan `public`'a çevrildi.
+`spec/fff/preview_panel_spec.cr` — 24 example ile `PreviewPanel` test coverage. `panel_width`, `list_width`, `active?`, `entries_for` cache invalidation, `read_file_lines` truncation, configurable width (absolute/percentage/nil/cap), ve `draw` no-op guard test edilmektedir. Test edilebilirlik için `read_file_lines` metodu `private`'dan `public`'a çevrildi.
+
+### FileOpHandlers Unit Tests
+
+`spec/fff/file_op_handlers_spec.cr` — `DummyFileOpHandler` (includes `FileOpHandlers` module) ve `MockFOTerminal` pattern kullanılarak enter/new/rename/mark/yank/paste/delete handler metodları test edilir. `DummyFileOpHandler`, `FileManager`'a dependency injection yapmadan handler metodlarını izole test etmeyi sağlar.

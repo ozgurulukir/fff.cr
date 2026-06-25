@@ -48,9 +48,9 @@ describe FFF::PreviewPanel do
       panel.panel_width(100).should eq(50)
     end
 
-    it "caps percentage result at MAX_PANEL_W" do
+    it "respects explicit percentage without cap" do
       panel = FFF::PreviewPanel.new("60%")
-      panel.panel_width(120).should eq(50)
+      panel.panel_width(120).should eq(72)
     end
 
     it "falls back to default ratio when config is nil" do

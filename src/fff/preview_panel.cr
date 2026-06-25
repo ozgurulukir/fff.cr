@@ -29,20 +29,19 @@ module FFF
 
     # Calculate panel width. Returns 0 if terminal is too narrow.
     # Supports preview_width config: "40%" (ratio), "30" (absolute cols), nil (default 40% capped at 50)
+    # Cap applies to default only — explicit user config is respected as-is.
     def panel_width(term_width : Int32) : Int32
       return 0 if term_width < MIN_WIDTH
 
-      w = if cfg = @preview_width_config
-            if cfg.ends_with?('%')
-              (term_width * (cfg[0..-2].to_f / 100.0)).to_i
-            else
-              cfg.to_i
-            end
-          else
-            (term_width * PANEL_RATIO).to_i
-          end
-
-      {w, MAX_PANEL_W}.min
+      if cfg = @preview_width_config
+        if cfg.ends_with?('%')
+          (term_width * (cfg[0..-2].to_f / 100.0)).to_i
+        else
+          cfg.to_i
+        end
+      else
+        {(term_width * PANEL_RATIO).to_i, MAX_PANEL_W}.min
+      end
     end
 
     # Calculate left panel (file list) width

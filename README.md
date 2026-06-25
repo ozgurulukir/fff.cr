@@ -119,13 +119,14 @@ fff reads from environment variables first, then falls back to `~/.config/fff/co
 
 ### UI & Layout Settings
 
-| Env Variable      | Config JSON Key | Description / Values                                                                                 |
-| ----------------- | --------------- | ---------------------------------------------------------------------------------------------------- |
-| `FFF_THEME`       | `theme.name`    | UI Theme: `default`, `catppuccin-mocha`, `gruvbox-dark`, `nord`, `dracula` (Default: `default`)      |
-| `FFF_ICONS`       | `icons`         | Enable Nerd Font icons: `1` or `true` (Default: disabled)                                            |
-| `FFF_COLUMNS`     | `columns`       | Show details columns (size/date): `0` to hide (Default: enabled)                                     |
-| `FFF_COLUMN_MODE` | `column_mode`   | Column display mode: `size`, `date`, or `both` (Default: `both`)                                     |
-| `FFF_PREVIEW`     | `preview`       | Enable directory/file preview side-panel when term is wide enough: `1` or `true` (Default: disabled) |
+| Env Variable        | Config JSON Key | Description / Values                                                                                 |
+| ------------------- | --------------- | ---------------------------------------------------------------------------------------------------- |
+| `FFF_THEME`         | `theme.name`    | UI Theme: `default`, `catppuccin-mocha`, `gruvbox-dark`, `nord`, `dracula` (Default: `default`)      |
+| `FFF_ICONS`         | `icons`         | Enable Nerd Font icons: `1` or `true` (Default: disabled)                                            |
+| `FFF_COLUMNS`       | `columns`       | Show details columns (size/date): `0` to hide (Default: enabled)                                     |
+| `FFF_COLUMN_MODE`   | `column_mode`   | Column display mode: `size`, `date`, or `both` (Default: `both`)                                     |
+| `FFF_PREVIEW`       | `preview`       | Enable directory/file preview side-panel when term is wide enough: `1` or `true` (Default: disabled) |
+| `FFF_PREVIEW_WIDTH` | `preview_width` | Preview panel width: `"40%"` (ratio), `"30"` (absolute columns), `nil` → default 40% capped at 50    |
 
 ### Key variables
 
@@ -139,6 +140,7 @@ export FFF_TRASH="$HOME/.local/share/fff/trash"
 export FFF_THEME="catppuccin-mocha"
 export FFF_ICONS="1"
 export FFF_PREVIEW="1"
+export FFF_PREVIEW_WIDTH="40%"
 ```
 
 Full list of `FFF_KEY_*` variables: `UP`, `DOWN`, `ENTER`, `QUIT`, `SEARCH`, `PARENT`, `MARK`, `MARK_ALL`, `COPY`, `MOVE`, `PASTE`, `DELETE`, `NEW_DIR`, `MKFILE`, `RENAME`, `BULK_RENAME`, `PREVIEW`, `SHELL`, `HIDDEN`, `HOME`, `PREVIOUS`, `REFRESH`, `ATTRIBUTES`, `EXECUTABLE`, `GO_DIR`, `GO_TRASH`, `SYMLINK`, `TOP`, `BOTTOM`, `PAGE_UP`, `PAGE_DOWN`.
@@ -153,6 +155,7 @@ Full list of `FFF_KEY_*` variables: `UP`, `DOWN`, `ENTER`, `QUIT`, `SEARCH`, `PA
   "columns": true,
   "column_mode": "both",
   "preview": true,
+  "preview_width": "40%",
   "favorites": { "1": "/home/user/Documents" },
   "keys": { "up": "k", "down": "j" },
   "bookmarks": { "proj": "/home/user/projects" }
@@ -238,7 +241,7 @@ make lint       # ameba static analysis
 ### Running Tests
 
 ```bash
-make test           # all specs (294 examples)
+make test           # all specs (298 examples)
 crystal spec spec/integration/navigation_integration_spec.cr
 crystal spec spec/integration/file_operations_integration_spec.cr
 crystal spec spec/integration/ui_integration_spec.cr
@@ -246,7 +249,7 @@ crystal spec spec/integration/ui_integration_spec.cr
 
 #### Test Architecture
 
-- **242 unit tests** across 16 spec files (config, directory_manager, draw_state, file_operations, file_op_handlers, file_service, format_utils, icon_provider, input_mode, message_bus, navigation_handlers, preview_panel, progress_bar, search_engine, theme, ui_renderer)
+- **246 unit tests** across 16 spec files (config, directory_manager, draw_state, file_operations, file_op_handlers, file_service, format_utils, icon_provider, input_mode, message_bus, navigation_handlers, preview_panel, progress_bar, search_engine, theme, ui_renderer)
 - **52 integration tests** across 4 suites (navigation, file_operations, ui, advanced) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
 
 - Both specs run headless; no terminal or display required
