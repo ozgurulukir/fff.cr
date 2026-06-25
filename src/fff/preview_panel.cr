@@ -76,13 +76,18 @@ module FFF
       pw = panel_width(term_width)
       return if pw == 0 || path.nil?
 
+      start_col = term_width - pw
+      divider_col = start_col - 1
+
       if path != @cached_path
         @cached_file_lines.clear
         @cached_path = ""
+        # Clear previous content area to avoid remnants
+        (start_row + 1..end_row).each do |row|
+          print "\e[#{row};#{start_col + 1}H"
+          print "\e[K"
+        end
       end
-
-      start_col = term_width - pw
-      divider_col = start_col - 1
 
       # Draw vertical divider
       (start_row..end_row).each do |row|
@@ -183,7 +188,7 @@ module FFF
           render_binary_message(theme, start_row, end_row, start_col, width)
         end
       rescue
-        render_error(theme, start_row, start_col, width)
+        render_error(theme, start_row, end_row, start_col, width)
       end
     end
 
@@ -224,11 +229,12 @@ module FFF
     end
 
     private def render_error(theme : Theme,
-                             start_row : Int32, start_col : Int32,
-                             width : Int32)
+                             start_row : Int32, end_row : Int32,
+                             start_col : Int32, width : Int32)
       print "\e[#{start_row + 1};#{start_col + 1}H"
       err_msg = " [cannot read]"
       print Theme.fg(err_msg, theme.error)
+      clear_remaining_lines(start_row, end_row, start_col, width, 2)
     end
 
     private def clear_remaining_lines(start_row : Int32, end_row : Int32,
