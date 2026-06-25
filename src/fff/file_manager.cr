@@ -537,7 +537,7 @@ module FFF
         false
       {% else %}
         output = IO::Memory.new
-        status = Process.run("file", ["--mime-type", path], output: output, error: STDERR)
+        status = Process.run("file", ["--mime-type", "--", path], output: output, error: STDERR)
         status.success? && output.to_s.includes?("text/")
       {% end %}
     rescue e : Exception
@@ -546,7 +546,7 @@ module FFF
 
     def open_in_editor(path : String)
       editor = FFF.split_shell_words(@config.editor)
-      with_tui_restored { Process.run(editor[0], editor[1...] + [path], input: STDIN, output: STDOUT, error: STDERR) }
+      with_tui_restored { Process.run(editor[0], editor[1...] + ["--", path], input: STDIN, output: STDOUT, error: STDERR) }
     end
 
     def open_with_opener(path : String)
@@ -554,7 +554,7 @@ module FFF
         with_tui_restored { Process.run("cmd.exe", ["/c", "start", "", path], input: STDIN, output: STDOUT, error: STDERR) }
       {% else %}
         opener = @config.opener.split
-        with_tui_restored { Process.run(opener[0], opener[1...] + [path], input: STDIN, output: STDOUT, error: STDERR) }
+        with_tui_restored { Process.run(opener[0], opener[1...] + ["--", path], input: STDIN, output: STDOUT, error: STDERR) }
       {% end %}
     end
 

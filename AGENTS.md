@@ -7,7 +7,7 @@
 - **Language**: Crystal 1.20.1
 - **Source**: Multiple files in `src/fff/`
 - **Version**: 0.3.0
-- **Tests**: 224 examples (172 unit + 52 integration), 0 failures
+- **Tests**: 294 examples (242 unit + 52 integration), 0 failures
 - **Build**: `make build` or `crystal build src/fff.cr --release -o bin/fff-cr`
 
 ## Architecture

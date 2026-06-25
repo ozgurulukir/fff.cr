@@ -148,37 +148,11 @@ module FFF
       home = HOME
       display_path = home && dir.starts_with?(home) ? "~#{dir[home.size..]}" : dir
 
-      # Breadcrumb rendering
       sep = File::SEPARATOR.to_s
       segments = display_path.split(sep).reject(&.empty?)
 
-      # Build right side
-      right = if state.search_mode
-                match_info = state.match_count >= 0 ? "  (#{state.match_count} matches)" : ""
-                before = state.search_term[0...state.cursor_pos]
-                after = state.search_term[state.cursor_pos..]
-                " / #{before}█#{after}#{match_info} "
-              else
-                sort_indicator = state.sort_reverse ? " ↑" : " ↓"
-                hidden_note = state.hidden_count > 0 ? " (#{state.hidden_count} hidden)" : ""
-                " #{state.scroll + 1}/#{state.list.size}#{hidden_note}#{sort_indicator} "
-              end
-
-      # Folder and file counts
-      folder_count = 0
-      file_count = 0
-      state.list.each do |path|
-        if info = state.stat_cache[path]?
-          if info.directory?
-            folder_count += 1
-          else
-            file_count += 1
-          end
-        else
-          file_count += 1
-        end
-      end
-
+      right, right_width = build_right_side(state)
+      folder_count, file_count = count_folders_and_files(state.list, state.stat_cache)
       git_branch = state.git_branch
       size_str = state.total_size > 0 ? FormatUtils.human_size(state.total_size) : "—"
 
@@ -187,8 +161,68 @@ module FFF
       file_icon = @config.icons ? "  " : "files:"
       size_icon = @config.icons ? "󰋊 " : "size:"
 
-      # Build breadcrumb left side
-      raw_left_len = 1 # leading space
+      breadcrumb, breadcrumb_width = build_breadcrumb(segments, theme)
+      git_badge, git_badge_width = if git_branch.empty?
+                                     {nil, 0}
+                                   else
+                                     build_badge(" #{git_icon}#{git_branch} ", theme.symlink_color, theme.selection_bg, theme)
+                                   end
+      folder_badge, folder_w = build_badge(" #{folder_icon}#{folder_count} ", theme.dir_color, theme.selection_bg, theme)
+      file_badge, file_w = build_badge(" #{file_icon}#{file_count} ", theme.topbar_fg, theme.selection_bg, theme)
+      size_badge, size_w = build_badge(" #{size_icon}#{size_str} ", theme.accent, theme.selection_bg, theme)
+
+      raw_left_len = 1 + breadcrumb_width
+      raw_left_len += git_badge_width
+      raw_left_len += folder_w + file_w + size_w
+
+      gap = @term.width - raw_left_len - right_width
+      gap = 0 if gap < 0
+
+      print Theme.set_fg_bg(theme.topbar_fg, theme.topbar_bg)
+      print breadcrumb
+      if git_badge
+        print "  " + git_badge.not_nil!
+      end
+      print "  " + folder_badge
+      print "  " + file_badge
+      print "  " + size_badge
+      print " " * gap
+      print Theme.fg(right, theme.topbar_fg)
+      print Theme.reset
+    end
+
+    private def build_right_side(state : DrawState) : {String, Int32}
+      if state.search_mode
+        match_info = state.match_count >= 0 ? "  (#{state.match_count} matches)" : ""
+        before = state.search_term[0...state.cursor_pos]
+        after = state.search_term[state.cursor_pos..]
+        right = " / #{before}█#{after}#{match_info} "
+      else
+        sort_indicator = state.sort_reverse ? " ↑" : " ↓"
+        hidden_note = state.hidden_count > 0 ? " (#{state.hidden_count} hidden)" : ""
+        right = " #{state.scroll + 1}/#{state.list.size}#{hidden_note}#{sort_indicator} "
+      end
+      {right, right.size}
+    end
+
+    private def count_folders_and_files(list : Array(String), cache : Hash(String, File::Info)) : {Int32, Int32}
+      folders = 0
+      files = 0
+      list.each do |path|
+        if info = cache[path]?
+          if info.directory?
+            folders += 1
+          else
+            files += 1
+          end
+        else
+          files += 1
+        end
+      end
+      {folders, files}
+    end
+
+    private def build_breadcrumb(segments : Array(String), theme : Theme) : {String, Int32}
       breadcrumb = String.build do |s|
         s << " "
         segments.each_with_index do |seg, i|
@@ -196,58 +230,19 @@ module FFF
             s << Theme.fg(" ❯ ", theme.dim)
           end
           if i == segments.size - 1
-            # Last segment: accent color, bold
             s << Theme.fg_bold(seg, theme.accent)
           else
             s << Theme.fg(seg, theme.topbar_fg)
           end
         end
       end
-      raw_left_len += segments.size > 0 ? segments.join(" ❯ ").size : 0
+      width = segments.size > 0 ? segments.join(" ❯ ").size : 0
+      {breadcrumb, width}
+    end
 
-      # Git branch badge
-      git_badge_str = ""
-      unless git_branch.empty?
-        git_badge_text = " #{git_icon}#{git_branch} "
-        git_badge_str = Theme.fg_bg(git_badge_text, theme.symlink_color, theme.selection_bg)
-        raw_left_len += 2 + git_badge_text.size
-      end
-
-      # Folder count badge
-      folder_badge_text = " #{folder_icon}#{folder_count} "
-      folder_badge_str = Theme.fg_bg(folder_badge_text, theme.dir_color, theme.selection_bg)
-      raw_left_len += 2 + folder_badge_text.size
-
-      # File count badge
-      file_badge_text = " #{file_icon}#{file_count} "
-      file_badge_str = Theme.fg_bg(file_badge_text, theme.topbar_fg, theme.selection_bg)
-      raw_left_len += 2 + file_badge_text.size
-
-      # Size badge
-      size_badge_text = " #{size_icon}#{size_str} "
-      size_badge_str = Theme.fg_bg(size_badge_text, theme.accent, theme.selection_bg)
-      raw_left_len += 2 + size_badge_text.size
-
-      # Left side string
-      left_side = String.build do |s|
-        s << breadcrumb
-        unless git_badge_str.empty?
-          s << "  " << git_badge_str
-        end
-        s << "  " << folder_badge_str
-        s << "  " << file_badge_str
-        s << "  " << size_badge_str
-      end
-
-      gap = @term.width - raw_left_len - right.size
-      gap = 0 if gap < 0
-
-      # Print with topbar background
-      print Theme.set_fg_bg(theme.topbar_fg, theme.topbar_bg)
-      print left_side
-      print " " * gap
-      print Theme.fg(right, theme.topbar_fg)
-      print Theme.reset
+    private def build_badge(text : String, fore : RGB, back : RGB, theme : Theme) : {String?, Int32}
+      badge = Theme.fg_bg(text, fore, back)
+      {badge, 2 + text.size}
     end
 
     # ── Bookmark Bar ────────────────────────────────────────────────

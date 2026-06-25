@@ -8,12 +8,7 @@ module FFF
       sources.each do |src|
         verify_exists!(src)
         name = File.basename(src)
-        dest = File.join(dest_dir, name)
-
-        if File.exists?(dest)
-          timestamp = Time.utc.to_unix
-          dest = File.join(dest_dir, "#{name}.#{timestamp}")
-        end
+        dest = safe_dest_path(name, dest_dir)
 
         if File.directory?(src)
           FileUtils.cp_r(src, dest)
@@ -31,12 +26,7 @@ module FFF
         raise "Source parent not writable: #{File.dirname(src)}" unless writable_dir?(File.dirname(src))
 
         name = File.basename(src)
-        dest = File.join(dest_dir, name)
-
-        if File.exists?(dest)
-          timestamp = Time.utc.to_unix
-          dest = File.join(dest_dir, "#{name}.#{timestamp}")
-        end
+        dest = safe_dest_path(name, dest_dir)
 
         FileUtils.mv(src, dest)
       end
@@ -100,6 +90,15 @@ module FFF
 
     private def self.verify_exists!(path : String)
       raise "No such file or directory: #{path}" unless File.exists?(path)
+    end
+
+    private def self.safe_dest_path(name : String, dest_dir : String) : String
+      dest = File.join(dest_dir, name)
+      if File.exists?(dest)
+        timestamp = Time.utc.to_unix
+        dest = File.join(dest_dir, "#{name}.#{timestamp}")
+      end
+      dest
     end
   end
 end

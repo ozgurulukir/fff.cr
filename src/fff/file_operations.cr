@@ -50,23 +50,7 @@ module FFF
     end
 
     def paste_files(sources : Array(String), dest_dir : String, mode : Symbol) : String?
-      return nil if sources.empty? || mode == :none
-
-      sources.each do |src|
-        return "No such file or directory: #{src}" unless File.exists?(src)
-      end
-
-      begin
-        case mode
-        when :copy
-          FileService.copy(sources, dest_dir)
-        when :cut
-          FileService.move(sources, dest_dir)
-        end
-        nil
-      rescue e : IO::Error | File::Error
-        e.message
-      end
+      paste_files_with_progress(sources, dest_dir, mode) { |i, name| }
     end
 
     # Progress-aware version: yields (index, filename) per item
@@ -96,18 +80,7 @@ module FFF
     end
 
     def delete_files(sources : Array(String), trash_dir : String) : String?
-      return nil if sources.empty?
-
-      sources.each do |src|
-        return "No such file or directory: #{src}" unless File.exists?(src)
-      end
-
-      begin
-        FileService.trash(sources, trash_dir)
-        nil
-      rescue e : IO::Error | File::Error
-        e.message
-      end
+      delete_files_with_progress(sources, trash_dir) { |i, name| }
     end
 
     # Progress-aware version: yields (index, filename) per item

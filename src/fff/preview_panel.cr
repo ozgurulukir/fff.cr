@@ -57,7 +57,7 @@ module FFF
       raw.each_with_index do |e, i|
         @cached_is_dir[dir_flags[i]] = File.directory?(dir_flags[i])
       end
-      sorted = raw.each_with_index.to_a.sort_by { |e, i| {@cached_is_dir[dir_flags[i]] ? 0 : 1, e.downcase} }.map(&.[0])
+      sorted = raw.each_with_index.to_a.sort_by { |e, i| is_dir = @cached_is_dir[dir_flags[i]] ? 0 : 1; name = e.downcase; {is_dir, name} }.map(&.[0])
       @cached_entries = sorted.first(50).map { |e| File.join(path, e) }
     end
 

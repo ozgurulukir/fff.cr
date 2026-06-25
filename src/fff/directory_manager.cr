@@ -74,8 +74,8 @@ module FFF
     def sort(dirs : Array(String), files : Array(String)) : Array(String)
       case @sort_mode
       when :name
-        sorted_dirs = dirs.sort_by { |d| File.basename(d).downcase }
-        sorted_files = files.sort_by { |f| File.basename(f).downcase }
+        sorted_dirs = dirs.sort_by { |d| base = File.basename(d); base.downcase }
+        sorted_files = files.sort_by { |f| base = File.basename(f); base.downcase }
       when :size
         sorted_dirs = dirs.sort_by { |d| @stat_cache[d]?.try(&.size) || 0 }
         sorted_files = files.sort_by { |f| @stat_cache[f]?.try(&.size) || 0 }

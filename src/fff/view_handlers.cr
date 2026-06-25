@@ -20,10 +20,10 @@ module FFF
 
     def external_preview(path : String) : Bool
       if bat = Process.find_executable("bat")
-        with_tui_restored { Process.run(bat, ["--paging=always", path], input: STDIN, output: STDOUT, error: STDERR) }
+        with_tui_restored { Process.run(bat, ["--paging=always", "--", path], input: STDIN, output: STDOUT, error: STDERR) }
         true
       elsif less = Process.find_executable("less")
-        with_tui_restored { Process.run(less, [path], input: STDIN, output: STDOUT, error: STDERR) }
+        with_tui_restored { Process.run(less, ["--", path], input: STDIN, output: STDOUT, error: STDERR) }
         true
       else
         false

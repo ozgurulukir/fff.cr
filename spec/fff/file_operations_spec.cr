@@ -378,4 +378,168 @@ describe FFF::FileOperations do
       ops.bulk_rename([] of String, "cat").should eq("No files marked")
     end
   end
+
+  # --- Error handling in rescue blocks ---
+
+  describe "#new_file error handling" do
+    it "returns error when parent directory is not writable" do
+      temp_dir = SpecHelper.create_temp_dir("test_new_file_ro")
+      ro_dir = File.join(temp_dir, "readonly")
+      begin
+        Dir.mkdir(ro_dir)
+
+        info = File.info(ro_dir)
+        no_write = info.permissions & ~(File::Permissions::OwnerWrite | File::Permissions::GroupWrite | File::Permissions::OtherWrite)
+        File.chmod(ro_dir, no_write)
+
+        config = FFF::Config.new
+        term = FFF::Terminal.new
+        ops = FFF::FileOperations.new(config, term)
+
+        result = ops.new_file(ro_dir, "test.txt")
+        result.should_not be_nil
+        result.as(String).should contain("Permission denied")
+      ensure
+        if File.directory?(ro_dir)
+          begin
+            info = File.info(ro_dir)
+            File.chmod(ro_dir, info.permissions | File::Permissions::OwnerWrite | File::Permissions::GroupWrite | File::Permissions::OtherWrite)
+          rescue
+          end
+        end
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  describe "#new_directory error handling" do
+    it "returns error when parent directory is not writable" do
+      temp_dir = SpecHelper.create_temp_dir("test_new_dir_ro")
+      ro_dir = File.join(temp_dir, "readonly")
+      begin
+        Dir.mkdir(ro_dir)
+
+        info = File.info(ro_dir)
+        no_write = info.permissions & ~(File::Permissions::OwnerWrite | File::Permissions::GroupWrite | File::Permissions::OtherWrite)
+        File.chmod(ro_dir, no_write)
+
+        config = FFF::Config.new
+        term = FFF::Terminal.new
+        ops = FFF::FileOperations.new(config, term)
+
+        result = ops.new_directory(ro_dir, "test_dir")
+        result.should_not be_nil
+        result.as(String).should contain("Permission denied")
+      ensure
+        if File.directory?(ro_dir)
+          begin
+            info = File.info(ro_dir)
+            File.chmod(ro_dir, info.permissions | File::Permissions::OwnerWrite | File::Permissions::GroupWrite | File::Permissions::OtherWrite)
+          rescue
+          end
+        end
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  describe "#create_symlink error handling" do
+    it "returns error when destination is a file instead of directory" do
+      temp_dir = SpecHelper.create_temp_dir("test_symlink_dest_file")
+      begin
+        target = SpecHelper.create_temp_file(temp_dir, "target.txt", "content")
+        dest_dir = File.join(temp_dir, "dest")
+        File.write(dest_dir, "i am a file")
+
+        config = FFF::Config.new
+        term = FFF::Terminal.new
+        ops = FFF::FileOperations.new(config, term)
+
+        result = ops.create_symlink([target], dest_dir)
+        result.should_not be_nil
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  describe "#delete_files error handling" do
+    it "returns error when trash path is a file instead of directory" do
+      temp_dir = SpecHelper.create_temp_dir("test_delete_trash_file")
+      begin
+        src_file = SpecHelper.create_temp_file(temp_dir, "file.txt", "content")
+        trash_dir = File.join(temp_dir, "trash")
+        File.write(trash_dir, "i am a file")
+
+        config = FFF::Config.new
+        term = FFF::Terminal.new
+        ops = FFF::FileOperations.new(config, term)
+
+        result = ops.delete_files([src_file], trash_dir)
+        result.should_not be_nil
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  describe "#delete_files_with_progress error handling" do
+    it "returns error when trash path is a file instead of directory" do
+      temp_dir = SpecHelper.create_temp_dir("test_delete_prog_trash_file")
+      begin
+        src_file = SpecHelper.create_temp_file(temp_dir, "file.txt", "content")
+        trash_dir = File.join(temp_dir, "trash")
+        File.write(trash_dir, "i am a file")
+
+        config = FFF::Config.new
+        term = FFF::Terminal.new
+        ops = FFF::FileOperations.new(config, term)
+
+        result = ops.delete_files_with_progress([src_file], trash_dir) { |i, n| }
+        result.should_not be_nil
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  describe "#paste_files error handling" do
+    it "returns error when destination is a file instead of directory" do
+      temp_dir = SpecHelper.create_temp_dir("test_paste_dest_file")
+      begin
+        src_file = SpecHelper.create_temp_file(temp_dir, "source.txt", "hello")
+        dest_dir = File.join(temp_dir, "dest")
+        File.write(dest_dir, "i am a file")
+
+        config = FFF::Config.new
+        term = FFF::Terminal.new
+        ops = FFF::FileOperations.new(config, term)
+
+        result = ops.paste_files([src_file], dest_dir, :copy)
+        result.should_not be_nil
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
+
+  describe "#paste_files_with_progress error handling" do
+    it "returns error when destination is a file instead of directory" do
+      temp_dir = SpecHelper.create_temp_dir("test_paste_prog_dest_file")
+      begin
+        src_file = SpecHelper.create_temp_file(temp_dir, "source.txt", "hello")
+        dest_dir = File.join(temp_dir, "dest")
+        File.write(dest_dir, "i am a file")
+
+        config = FFF::Config.new
+        term = FFF::Terminal.new
+        ops = FFF::FileOperations.new(config, term)
+
+        result = ops.paste_files_with_progress([src_file], dest_dir, :copy) { |i, n| }
+        result.should_not be_nil
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+  end
 end

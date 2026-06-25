@@ -238,7 +238,7 @@ make lint       # ameba static analysis
 ### Running Tests
 
 ```bash
-make test           # all specs (224 examples)
+make test           # all specs (294 examples)
 crystal spec spec/integration/navigation_integration_spec.cr
 crystal spec spec/integration/file_operations_integration_spec.cr
 crystal spec spec/integration/ui_integration_spec.cr
@@ -246,7 +246,7 @@ crystal spec spec/integration/ui_integration_spec.cr
 
 #### Test Architecture
 
-- **172 unit tests** across 12 modules (config, directory_manager, file_service, format_utils, icon_provider, input_mode, message_bus, preview_panel, progress_bar, search_engine, theme, ui_renderer)
+- **242 unit tests** across 16 spec files (config, directory_manager, draw_state, file_operations, file_op_handlers, file_service, format_utils, icon_provider, input_mode, message_bus, navigation_handlers, preview_panel, progress_bar, search_engine, theme, ui_renderer)
 - **52 integration tests** across 4 suites (navigation, file_operations, ui, advanced) — use `MockTerminal` to simulate keyboard input and prompts without a real TTY
 
 - Both specs run headless; no terminal or display required

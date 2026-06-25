@@ -117,7 +117,7 @@ module FFF
         _the_proc = nil
         begin
           p = Process.new(
-            "rg", ["-l", "--max-count", "1", query, dir],
+            "rg", ["-l", "--max-count", "1", "--", query, dir],
             output: pipe_wr, error: pipe_err_wr
           )
           _the_proc = p
