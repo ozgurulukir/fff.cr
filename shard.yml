@@ -1,5 +1,5 @@
 name: fff
-version: 0.3.1
+version: 0.3.2
 
 authors:
   - dylanaraps <dylanaraps@gmail.com>
@@ -18,19 +18,19 @@ crystal: 1.20.1
 dependencies:
   term-color:
     github: crystal-term/color
-    version: ~> 0.4.0
+    version: ~> 1.0.0
   term-screen:
     github: crystal-term/screen
-    version: ~> 0.3.0
+    version: ~> 1.0.0
   term-cursor:
     github: crystal-term/cursor
-    version: ~> 0.3.0
+    version: ~> 1.0.0
   term-reader:
     github: crystal-term/reader
-    version: ~> 0.3.0
+    version: ~> 1.0.0
   term-prompt:
     github: crystal-term/prompt
-    version: ~> 0.3.0
+    version: ~> 1.0.0
 
 development_dependencies:
   ameba:

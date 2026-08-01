@@ -65,7 +65,7 @@ sudo make install
 
 ```powershell
 shards install                              # install shards
-crystal run scripts/patch_shards.cr         # patch known shard bugs
+crystal run scripts/patch_shards.cr         # patch known shard bug (ESC hang)
 crystal build src/fff.cr -o bin/fff-cr.exe  # build fff-cr.exe
 crystal spec spec/fff/                      # run unit tests
 .\bin\fff-cr.exe                            # run the app
@@ -256,7 +256,7 @@ crystal spec spec/integration/ui_integration_spec.cr
 
 ### Patches
 
-The project patches several `crystal-term` shard bugs via `scripts/patch_shards.cr` after `shards install`. `make deps` applies them automatically on Linux/macOS; on Windows, run `crystal run scripts/patch_shards.cr` manually. The script is idempotent. See `AGENTS.md` for details.
+The project patches one remaining `crystal-term` shard bug (the `term-reader` ESC hang) via `scripts/patch_shards.cr` after `shards install`. `make deps` applies it automatically on Linux/macOS; on Windows, run `crystal run scripts/patch_shards.cr` manually. The script is idempotent. See `AGENTS.md` for details.
 
 ## License
 

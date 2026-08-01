@@ -6,8 +6,8 @@
 
 - **Language**: Crystal 1.20.1
 - **Source**: Multiple files in `src/fff/`
-- **Version**: 0.3.0
-- **Tests**: 294 examples (242 unit + 52 integration), 0 failures
+- **Version**: 0.3.2
+- **Tests**: 298 examples (246 unit + 52 integration), 0 failures
 - **Build**: `make build` or `crystal build src/fff.cr --release -o bin/fff-cr`
 
 ## Architecture
@@ -62,18 +62,19 @@ All external command execution uses `Process.run` with explicit argv arrays — 
 
 | Shard         | Version  | Usage                                                                                      |
 | ------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `term-color`  | ~> 0.4.0 | `Term::Color.color(:blue)`, `Term::Color.truecolor_string(text, fore:, back:)`             |
-| `term-screen` | ~> 0.3.0 | `Term::Screen.width`, `Term::Screen.height` — returns `{rows, cols}`                       |
-| `term-cursor` | ~> 0.3.0 | `Term::Cursor.hide` / `.show` / `.clear_line` — **return ANSI strings, must be `print`ed** |
-| `term-reader` | ~> 0.3.0 | `Term::Reader#read_keypress` for keyboard input                                            |
-| `term-prompt` | ~> 0.3.0 | `Term::Prompt#ask`, `#yes?`, `#keypress` for interactive dialogs                           |
+| `term-color`  | ~> 1.0.0 | `Term::Color.color(:blue)`, `Term::Color.truecolor_string(text, fore:, back:)`             |
+| `term-screen` | ~> 1.0.0 | `Term::Screen.width`, `Term::Screen.height` — returns `{rows, cols}`                       |
+| `term-cursor` | ~> 1.0.0 | `Term::Cursor.hide` / `.show` / `.clear_line` — **return ANSI strings, must be `print`ed** |
+| `term-reader` | ~> 1.0.0 | `Term::Reader#read_keypress` for keyboard input                                            |
+| `term-prompt` | ~> 1.0.0 | `Term::Prompt#ask`, `#yes?`, `#keypress` for interactive dialogs                           |
 
 ## Known Shard Bugs (patched in lib/)
 
-These are known issues in `crystal-term` shards. Bugs 1, 3, and 6 are patched by `scripts/patch_shards.cr` after `shards install` (called automatically by `make deps`). Bugs 2, 4, and 5 are handled via workarounds in the main source code. The patch script is idempotent and cross-platform (Crystal runs on both Linux and Windows). Patches are **not** persistent — re-running `shards install` overwrites `lib/` contents, but `make deps` or `crystal run scripts/patch_shards.cr` re-applies them.
+These are known issues in `crystal-term` shards. Bug 2 (ESC hang) is patched by `scripts/patch_shards.cr` after `shards install` (called automatically by `make deps`). Bugs 4 and 5 are handled via workarounds in the main source code. Bugs 1, 3, and 6 were fixed upstream in v1.0.0 and their patches have been removed. The patch script is idempotent and cross-platform (Crystal runs on both Linux and Windows). Patches are **not** persistent — re-running `shards install` overwrites `lib/` contents, but `make deps` or `crystal run scripts/patch_shards.cr` re-applies them.
 
 ### 1. `term-reader` — `sync=` type mismatch
 
+- **Status**: Fixed upstream in v1.0.0. Patch removed.
 - **File**: `lib/term-reader/src/term-reader.cr:102`
 - **Fix**: change `@output.as(IO::FileDescriptor).sync = buffering` to `@output.as(IO::FileDescriptor).sync = buffering || false`
 
@@ -85,6 +86,7 @@ These are known issues in `crystal-term` shards. Bugs 1, 3, and 6 are patched by
 
 ### 3. `term-prompt` — `Regex.escape` type mismatch
 
+- **Status**: Fixed upstream in v1.0.0. Patch removed.
 - **File**: `lib/term-prompt/src/prompt/confirm_question.cr:95`
 - **Fix**: change `positive.to_s[0]` to `positive.to_s[0].to_s`
 
@@ -98,6 +100,7 @@ These are known issues in `crystal-term` shards. Bugs 1, 3, and 6 are patched by
 
 ### 6. `term-color` — `Cor` undefined constant in `pretty_print`
 
+- **Status**: Fixed upstream in v1.0.0. Patch removed.
 - **File**: `lib/term-color/src/color/color.cr:359`
 - **Bug**: `Cor.truecolor_string(...)` references undefined constant `Cor` — should be `Color.truecolor_string(...)`
 - **Fix**: change `Cor.truecolor_string` to `Color.truecolor_string`
@@ -122,7 +125,7 @@ make run                          # build + run
 
 ```powershell
 shards install                              # install dependencies
-crystal run scripts/patch_shards.cr         # patch known shard bugs
+crystal run scripts/patch_shards.cr         # patch known shard bug (ESC hang)
 crystal build src/fff.cr -o bin/fff-cr.exe  # build fff-cr.exe
 crystal spec spec/fff/                      # run unit tests
 .\bin\fff-cr.exe                            # run the app
