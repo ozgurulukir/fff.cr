@@ -52,11 +52,19 @@ module FFF
 
         path = File.join(@current_dir, entry)
 
-        linfo = File.info?(path, follow_symlinks: false)
+        linfo = begin
+          File.info?(path, follow_symlinks: false)
+        rescue File::Error
+          next
+        end
         next unless linfo
         @lstat_cache[path] = linfo
 
-        info = linfo.symlink? ? (File.info?(path) || linfo) : linfo
+        info = begin
+          linfo.symlink? ? (File.info?(path) || linfo) : linfo
+        rescue File::Error
+          next
+        end
         @stat_cache[path] = info
 
         if info.directory?
