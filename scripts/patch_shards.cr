@@ -10,6 +10,12 @@ PATCHES = {
   {
     shard:   "term-reader",
     path:    "lib/term-reader/src/reader/console.cr",
+    search:  "require \"./keys\"\nrequire \"./mode\"\n\nmodule Term",
+    replace: "require \"./keys\"\nrequire \"./mode\"\n\n{% if flag?(:windows) %}\n  lib LibMSVCRT\n    fun kbhit = \"_kbhit\" : Int32\n  end\n{% end %}\n\nmodule Term",
+  },
+  {
+    shard:   "term-reader",
+    path:    "lib/term-reader/src/reader/console.cr",
     search:  "      def get_char(raw : Bool, echo : Bool, nonblock : Bool) : Char?\n        char = nil\n        mode.cooked(!raw) do\n          mode.raw(raw) do\n            mode.echo(echo) do\n              @input.blocking = !nonblock\n              char = @input.read_char\n            end\n          end\n        end\n\n        char\n      rescue\n        nil\n      end",
     replace: "      def get_char(raw : Bool, echo : Bool, nonblock : Bool) : Char?\n        char = nil\n        mode.cooked(!raw) do\n          mode.raw(raw) do\n            mode.echo(echo) do\n              {% if flag?(:windows) %}\n                char = windows_read_char(nonblock)\n              {% else %}\n                char = posix_read_char(nonblock)\n              {% end %}\n            end\n          end\n        end\n\n        char\n      rescue\n        nil\n      end\n\n      {% if flag?(:windows) %}\n        private def windows_read_char(nonblock : Bool) : Char?\n          LibMSVCRT.kbhit == 0 ? nil : @input.read_char\n        rescue\n          nil\n        end\n      {% else %}\n        private def posix_read_char(nonblock : Bool) : Char?\n          return @input.read_char unless nonblock\n\n          chan = Channel(Char?).new\n          spawn { chan.send(@input.read_char) }\n          select\n          when c = chan.receive\n            c\n          when timeout 5.milliseconds\n            nil\n          end\n        rescue\n          nil\n        end\n      {% end %}",
   },
