@@ -27,6 +27,7 @@ PATCHES.each do |patch|
   end
 
   content = File.read(path)
+  content = content.gsub("\r\n", "\n")
 
   if content.includes?(patch[:replace])
     puts "  OK   #{patch[:shard]}: already patched"
