@@ -1,9 +1,16 @@
 require "file_utils"
 
 module FFF
+  # Raised by FileService when a precondition fails (e.g. an unwritable
+  # destination or a missing source). Subclassing Exception lets callers
+  # distinguish these validation errors from low-level IO::Error / File::Error
+  # filesystem failures, which are handled separately.
+  class FileServiceError < Exception
+  end
+
   class FileService
     def self.copy(sources : Array(String), dest_dir : String)
-      raise "Destination not writable: #{dest_dir}" unless writable_dir?(dest_dir)
+      raise FileServiceError.new("Destination not writable: #{dest_dir}") unless writable_dir?(dest_dir)
 
       sources.each do |src|
         verify_exists!(src)
@@ -19,11 +26,11 @@ module FFF
     end
 
     def self.move(sources : Array(String), dest_dir : String)
-      raise "Destination not writable: #{dest_dir}" unless writable_dir?(dest_dir)
+      raise FileServiceError.new("Destination not writable: #{dest_dir}") unless writable_dir?(dest_dir)
 
       sources.each do |src|
         verify_exists!(src)
-        raise "Source parent not writable: #{File.dirname(src)}" unless writable_dir?(File.dirname(src))
+        raise FileServiceError.new("Source parent not writable: #{File.dirname(src)}") unless writable_dir?(File.dirname(src))
 
         name = File.basename(src)
         dest = safe_dest_path(name, dest_dir)
@@ -34,11 +41,11 @@ module FFF
 
     def self.trash(sources : Array(String), trash_dir : String)
       FileUtils.mkdir_p(trash_dir)
-      raise "Trash directory not writable: #{trash_dir}" unless writable_dir?(trash_dir)
+      raise FileServiceError.new("Trash directory not writable: #{trash_dir}") unless writable_dir?(trash_dir)
 
       sources.each do |src|
         verify_exists!(src)
-        raise "Source parent not writable: #{File.dirname(src)}" unless writable_dir?(File.dirname(src))
+        raise FileServiceError.new("Source parent not writable: #{File.dirname(src)}") unless writable_dir?(File.dirname(src))
 
         name = File.basename(src)
         dest = File.join(trash_dir, name)
@@ -58,7 +65,7 @@ module FFF
     end
 
     def self.create_symlink(sources : Array(String), dest_dir : String)
-      raise "Destination not writable: #{dest_dir}" unless writable_dir?(dest_dir)
+      raise FileServiceError.new("Destination not writable: #{dest_dir}") unless writable_dir?(dest_dir)
 
       sources.each do |src|
         verify_exists!(src)
@@ -89,7 +96,7 @@ module FFF
     end
 
     private def self.verify_exists!(path : String)
-      raise "No such file or directory: #{path}" unless File.exists?(path)
+      raise FileServiceError.new("No such file or directory: #{path}") unless File.exists?(path)
     end
 
     private def self.safe_dest_path(name : String, dest_dir : String) : String

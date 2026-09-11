@@ -21,11 +21,59 @@ describe FFF::FileService do
       end
     end
 
+    it "raises FileServiceError when destination is not writable" do
+      temp_dir = SpecHelper.create_temp_dir("test_ro_dest")
+      dest_dir = ""
+      begin
+        dest_dir = File.join(temp_dir, "readonly")
+        Dir.mkdir_p(dest_dir)
+        File.chmod(dest_dir, 0o555)
+
+        expect_raises(FFF::FileServiceError, "Destination not writable") do
+          FFF::FileService.copy([SpecHelper.create_temp_file(temp_dir, "src.txt", "x")], dest_dir)
+        end
+      ensure
+        File.chmod(dest_dir.to_s, 0o755) rescue nil
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+
+    it "raises FileServiceError when source parent is not writable" do
+      temp_dir = SpecHelper.create_temp_dir("test_ro_parent")
+      source_dir = ""
+      begin
+        source_dir = File.join(temp_dir, "readonly")
+        Dir.mkdir_p(source_dir)
+        source_file = SpecHelper.create_temp_file(source_dir, "src.txt", "x")
+        File.chmod(source_dir, 0o555)
+        dest_dir = File.join(temp_dir, "dest")
+        Dir.mkdir_p(dest_dir)
+
+        expect_raises(FFF::FileServiceError, "Source parent not writable") do
+          FFF::FileService.move([source_file], dest_dir)
+        end
+      ensure
+        File.chmod(source_dir.to_s, 0o755) rescue nil
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+
     it "raises when source doesn't exist" do
       temp_dir = SpecHelper.create_temp_dir("test_copy_missing")
       begin
         expect_raises(Exception, "No such file or directory") do
           FFF::FileService.copy(["/nonexistent/source.txt"], temp_dir)
+        end
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+
+    it "raises FileServiceError when source doesn't exist" do
+      temp_dir = SpecHelper.create_temp_dir("test_missing_source2")
+      begin
+        expect_raises(FFF::FileServiceError, "No such file or directory") do
+          FFF::FileService.move(["/nonexistent/moving.txt"], temp_dir)
         end
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
@@ -70,6 +118,23 @@ describe FFF::FileService do
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
     end
+
+    it "raises IO::Error from the underlying copy" do
+      temp_dir = SpecHelper.create_temp_dir("test_io_error")
+      begin
+        # Passing a file path as the destination directory makes cp fail with
+        # an IO::Error. FileService exposes that low-level error; callers such
+        # as FileOperations are responsible for converting it to a message.
+        dest_file = SpecHelper.create_temp_file(temp_dir, "dest.txt", "dest")
+        source_file = SpecHelper.create_temp_file(temp_dir, "src.txt", "src")
+
+        expect_raises(IO::Error) do
+          FFF::FileService.copy([source_file], dest_file)
+        end
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
   end
 
   describe ".move" do
@@ -103,7 +168,7 @@ describe FFF::FileService do
         FFF::FileService.move([source_file], dest_dir)
 
         File.exists?(source_file).should be_false
-        File.read(existing_file).should eq("existing content")
+        File.read(File.join(dest_dir, "source.txt")).should eq("existing content")
         Dir.glob(File.join(dest_dir, "source.txt.*").gsub('\\', '/')).size.should eq(1)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
@@ -130,6 +195,23 @@ describe FFF::FileService do
       end
     end
 
+    it "raises FileServiceError when trash directory is not writable" do
+      temp_dir = SpecHelper.create_temp_dir("test_ro_trash")
+      trash_dir = ""
+      begin
+        trash_dir = File.join(temp_dir, "readonly")
+        Dir.mkdir_p(trash_dir)
+        File.chmod(trash_dir, 0o555)
+
+        expect_raises(FFF::FileServiceError, "Trash directory not writable") do
+          FFF::FileService.trash([SpecHelper.create_temp_file(temp_dir, "file.txt", "x")], trash_dir)
+        end
+      ensure
+        File.chmod(trash_dir.to_s, 0o755) rescue nil
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
+
     it "handles trash directory conflict with timestamp" do
       temp_dir = SpecHelper.create_temp_dir("test_trash_conflict")
       begin
@@ -144,7 +226,7 @@ describe FFF::FileService do
         FFF::FileService.trash([source_file], trash_dir)
 
         File.exists?(source_file).should be_false
-        File.read(existing_file).should eq("existing content")
+        File.read(File.join(trash_dir, "file.txt")).should eq("existing content")
         Dir.glob(File.join(trash_dir, "file.txt.*").gsub('\\', '/')).size.should eq(1)
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
@@ -200,13 +282,13 @@ describe FFF::FileService do
       end
     end
 
-    it "returns false when target doesn't exist" do
+    it "raises FileServiceError when target doesn't exist" do
       temp_dir = SpecHelper.create_temp_dir("test_symlink_missing")
       begin
         dest_dir = File.join(temp_dir, "links")
         Dir.mkdir_p(dest_dir)
 
-        expect_raises(Exception, "No such file or directory") do
+        expect_raises(FFF::FileServiceError, "No such file or directory") do
           FFF::FileService.create_symlink(["/nonexistent/file.txt"], dest_dir)
         end
       ensure

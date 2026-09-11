@@ -128,6 +128,24 @@ describe FFF::PreviewPanel do
       SpecHelper.cleanup_temp_dir(dir2)
     end
 
+    it "returns empty for a non-directory path and does not leak the previous directory" do
+      panel = FFF::PreviewPanel.new
+      dir1 = SpecHelper.create_temp_dir("preview_leak")
+      SpecHelper.create_temp_file(dir1, "only_here.txt", "x")
+
+      panel.entries_for(dir1)
+
+      nonexistent = File.join(Dir.tempdir, "preview_gone_#{Random::Secure.hex(6)}.txt")
+      panel.entries_for(nonexistent).should be_empty
+
+      # A second query of the same non-directory must stay empty (idempotency)
+      panel.entries_for(nonexistent).should be_empty
+
+      # Switching back to a real directory must repopulate, not stay empty
+      panel.entries_for(dir1).should contain(File.join(dir1, "only_here.txt"))
+      SpecHelper.cleanup_temp_dir(dir1)
+    end
+
     it "sorts directories before files" do
       panel = FFF::PreviewPanel.new
       temp_dir = SpecHelper.create_temp_dir("preview_sort_test")

@@ -220,10 +220,10 @@ describe FFF::NavigationHandlers do
       config = FFF::Config.new
       term = FFF::Terminal.new
       nav = DummyNavigator.new(dir_manager, config, term)
-      nav.scroll = 30
+      nav.scroll = term.max_items + 5
       nav.page_offset = 0
       nav.adjust_page_offset
-      expected = 30 - term.max_items + 1
+      expected = nav.scroll - term.max_items + 1
       nav.page_offset.should eq(expected)
     end
   end

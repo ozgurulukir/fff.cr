@@ -91,7 +91,7 @@ module FFF
           end
         end
         nil
-      rescue e : IO::Error | File::Error
+      rescue e : IO::Error | File::Error | FFF::FileServiceError
         e.message
       end
     end
@@ -115,7 +115,7 @@ module FFF
           FileService.trash([src], trash_dir)
         end
         nil
-      rescue e : IO::Error | File::Error
+      rescue e : IO::Error | File::Error | FFF::FileServiceError
         e.message
       end
     end
@@ -160,7 +160,7 @@ module FFF
       begin
         FileService.create_symlink(sources, dest_dir)
         nil
-      rescue e : IO::Error | File::Error
+      rescue e : IO::Error | File::Error | FFF::FileServiceError
         e.message
       end
     end

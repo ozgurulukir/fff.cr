@@ -124,23 +124,29 @@ describe FFF::FileManager do
       begin
         path = SpecHelper.create_temp_file(temp_dir, "to_trash.txt", "bye")
 
-        fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
-        trash_dir = File.join(ENV["HOME"], ".local", "share", "fff", "trash")
+        trash_dir = File.join(temp_dir, "trash")
+        original_trash = ENV["FFF_TRASH"]?
+        ENV["FFF_TRASH"] = trash_dir
+        begin
+          fm, term = IntegrationHelper.create_test_file_manager(temp_dir)
 
-        fm.marked = Set{path}
-        fm.scroll = 0
-        term.queue_answers("y")
-        fm.delete_files
+          fm.marked = Set{path}
+          fm.scroll = 0
+          term.queue_answers("y")
+          fm.delete_files
 
-        File.exists?(path).should be_false
-        trash_contents = Dir.children(trash_dir)
-        trash_contents.any? { |f| f.includes?("to_trash") }.should be_true
+          File.exists?(path).should be_false
+          trash_contents = Dir.children(trash_dir)
+          trash_contents.any? { |f| f.includes?("to_trash") }.should be_true
+        ensure
+          if original_trash
+            ENV["FFF_TRASH"] = original_trash
+          else
+            ENV.delete("FFF_TRASH")
+          end
+        end
       ensure
         SpecHelper.cleanup_temp_dir(temp_dir)
-        if home = ENV["HOME"]?
-          trash_dir = File.join(home, ".local", "share", "fff", "trash")
-          FileUtils.rm_rf(trash_dir) if File.exists?(trash_dir)
-        end
       end
     end
 

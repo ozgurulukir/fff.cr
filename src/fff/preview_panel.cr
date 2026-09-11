@@ -60,7 +60,14 @@ module FFF
     def entries_for(path : String) : Array(String)
       return @cached_entries if path == @cached_path
 
+      # Invalidate the cache whenever the path changes. This MUST happen before
+      # the directory check below — otherwise a non-directory path (e.g. a file
+      # that was just deleted, or a symlink target) leaks the previous
+      # directory's stale entries into the preview panel.
+      @cached_entries = [] of String
+      @cached_is_dir.clear
       @cached_path = path
+
       return @cached_entries unless File.directory?(path)
 
       raw = Dir.entries(path).reject { |e| e == "." || e == ".." }

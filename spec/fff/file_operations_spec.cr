@@ -563,5 +563,30 @@ describe FFF::FileOperations do
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
     end
+
+    it "returns error when destination directory is not writable" do
+      # The unwritable check raises FileServiceError from FileService, not an
+      # IO::Error. This guards the regression where a plain-string raise escaped
+      # FileOperations' rescue clause.
+      temp_dir = SpecHelper.create_temp_dir("test_paste_prog_ro")
+      dest_dir = ""
+      begin
+        src_file = SpecHelper.create_temp_file(temp_dir, "source.txt", "hello")
+        dest_dir = File.join(temp_dir, "readonly")
+        Dir.mkdir_p(dest_dir)
+        File.chmod(dest_dir, 0o555)
+
+        config = FFF::Config.new
+        term = FFF::Terminal.new
+        ops = FFF::FileOperations.new(config, term)
+
+        result = ops.paste_files_with_progress([src_file], dest_dir, :copy) { |i, n| }
+        result.should_not be_nil
+        result.as(String).should contain("Destination not writable")
+      ensure
+        File.chmod(dest_dir.to_s, 0o755) rescue nil
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
   end
 end
