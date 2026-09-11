@@ -6,6 +6,28 @@ require "../../src/fff/config.cr"
 require "../../src/fff/terminal.cr"
 
 describe FFF::FileOperations do
+  describe ".split_shell_words" do
+    it "splits quoted arguments and preserves spaces" do
+      FFF.split_shell_words(%(code --wait "path with spaces")).should eq(["code", "--wait", "path with spaces"])
+    end
+
+    it "handles escaped spaces and quotes" do
+      FFF.split_shell_words("cmd a\\ b \"a\\\"b\"").should eq(["cmd", "a b", "a\"b"])
+    end
+
+    it "preserves backslashes inside single quotes" do
+      FFF.split_shell_words("cmd 'a\\b'").should eq(["cmd", "a\\b"])
+    end
+
+    it "preserves explicitly empty arguments" do
+      FFF.split_shell_words("cmd \"\" ''").should eq(["cmd", "", ""])
+    end
+
+    it "does not perform shell expansion" do
+      FFF.split_shell_words("cmd ~/file $HOME/file").should eq(["cmd", "~/file", "$HOME/file"])
+    end
+  end
+
   describe ".new" do
     it "creates with config and terminal" do
       config = FFF::Config.new

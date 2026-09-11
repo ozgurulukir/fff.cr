@@ -97,16 +97,31 @@ module FFF
       proc_chan = Channel(Process?).new(2)
       result_chan = Channel(IO::Memory).new(2)
       timeout_chan = Channel(Nil).new(2)
+      pipe_rd : IO? = nil
+      pipe_wr : IO? = nil
+      pipe_err_rd : IO? = nil
+      pipe_err_wr : IO? = nil
 
-      pipe_rd, pipe_wr = IO.pipe
-      pipe_err_rd, pipe_err_wr = IO.pipe
+      begin
+        pipe_rd, pipe_wr = IO.pipe
+        pipe_err_rd, pipe_err_wr = IO.pipe
 
-      spawn_ripgrep(query, dir, proc_chan, result_chan, pipe_rd, pipe_wr, pipe_err_rd, pipe_err_wr)
-      spawn_timeout(proc_chan, timeout_chan, pipe_rd, pipe_err_rd)
+        if pipe_rd && pipe_wr && pipe_err_rd && pipe_err_wr
+          spawn_ripgrep(query, dir, proc_chan, result_chan, pipe_rd, pipe_wr, pipe_err_rd, pipe_err_wr)
+          spawn_timeout(proc_chan, timeout_chan, pipe_rd, pipe_err_rd)
 
-      parse_rg_output(result_chan, timeout_chan, dir)
-    rescue
-      [] of String
+          parse_rg_output(result_chan, timeout_chan, dir)
+        else
+          [] of String
+        end
+      rescue
+        [] of String
+      ensure
+        close_io(pipe_rd)
+        close_io(pipe_wr)
+        close_io(pipe_err_rd)
+        close_io(pipe_err_wr)
+      end
     end
 
     private def self.spawn_ripgrep(query, dir, proc_chan, result_chan, pipe_rd, pipe_wr, pipe_err_rd, pipe_err_wr)
@@ -139,7 +154,16 @@ module FFF
           result_chan.send(output_io)
         rescue
           result_chan.send(output_io)
+        ensure
+          close_io(pipe_rd)
+          close_io(pipe_err_rd)
         end
+      end
+    end
+
+    private def self.close_io(io : IO?)
+      io.try do |stream|
+        stream.close rescue nil
       end
     end
 

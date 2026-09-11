@@ -3,41 +3,58 @@ require "./file_service"
 require "./config"
 
 module FFF
-  # Minimal shell-word splitter (handles single/double-quoted strings).
-  # Crystal stdlib does not ship Shellwords; this covers the common case
-  # of editor commands like: code --wait "/path/with spaces"
+  # Split an editor command into argv without invoking a shell.
+  # Supports single/double quotes and backslash escapes. Tilde and environment
+  # variable expansion are intentionally not performed because Process.run
+  # receives the resulting argv directly rather than going through a shell.
   def self.split_shell_words(str : String) : Array(String)
     words = [] of String
     current = ""
-    in_quote = false
-    quote_char = '\0'
+    quote_char : Char? = nil
+    escaped = false
+    word_started = false
 
     str.each_char do |c|
+      if escaped
+        current += c.to_s
+        escaped = false
+        word_started = true
+        next
+      end
+
+      if c == '\\' && quote_char != '\''
+        escaped = true
+        word_started = true
+        next
+      end
+
+      if quote_char
+        if c == quote_char
+          quote_char = nil
+        else
+          current += c.to_s
+        end
+        next
+      end
+
       case c
       when '\'', '"'
-        if in_quote
-          if c == quote_char
-            in_quote = false
-            quote_char = '\0'
-          else
-            current += c.to_s
-          end
-        else
-          in_quote = true
-          quote_char = c
-        end
+        quote_char = c
+        word_started = true
       when ' ', '\t'
-        if in_quote
-          current += c.to_s
-        else
-          words << current unless current.empty?
+        if word_started
+          words << current
           current = ""
+          word_started = false
         end
       else
         current += c.to_s
+        word_started = true
       end
     end
-    words << current unless current.empty?
+
+    current += "\\" if escaped
+    words << current if word_started
     words
   end
 

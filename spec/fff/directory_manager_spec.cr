@@ -215,6 +215,23 @@ describe FFF::DirectoryManager do
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
     end
+
+    it "loads missing metadata when sorting with an empty cache" do
+      temp_dir = SpecHelper.create_temp_dir("test_sort_cache_guard")
+      begin
+        small = SpecHelper.create_temp_file(temp_dir, "small.txt", "s")
+        large = SpecHelper.create_temp_file(temp_dir, "large.txt", "this is a larger file content")
+
+        dir_manager = FFF::DirectoryManager.new(temp_dir)
+        dir_manager.cycle_sort_mode
+        dir_manager.stat_cache.clear
+
+        sorted = dir_manager.sort([] of String, [large, small])
+        sorted.should eq([small, large])
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
   end
 
   describe "#safe_navigate" do

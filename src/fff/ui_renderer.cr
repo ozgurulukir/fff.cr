@@ -13,30 +13,6 @@ module FFF
     @prev_path : String
     @preview_panel : PreviewPanel
 
-    HELP_LINES = [
-      "───── Navigation ─────",
-      " j/k  Down/Up          h/l  Parent/Enter",
-      " g/G  Top/Bottom       PgUp/PgDn  Page",
-      " .    Toggle hidden    -    Previous dir",
-      " ~    Home             :    Go to dir",
-      " t    Trash            e    Refresh",
-      "",
-      "───── File Ops ───────",
-      " SPACE  Mark           m    Mark all",
-      " y  Copy               v    Cut",
-      " p  Paste              d    Delete (trash)",
-      " r  Rename             b    Bulk rename",
-      " n  New dir            f    New file",
-      " S  Symlink            x    Attributes",
-      " X  Toggle executable",
-      "",
-      "───── Misc ───────────",
-      " /  Search             i  Preview",
-      " s  Shell              =  Cycle sort",
-      " +  Reverse sort       1-9  Favorites",
-      " q  Quit               ?  This help",
-    ]
-
     SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 
     # Map LS_COLORS symbol → theme-compatible RGB
@@ -145,7 +121,7 @@ module FFF
       print "\e[K"
 
       dir = state.current_dir
-      home = HOME
+      home = FFF::HOME
       display_path = home && dir.starts_with?(home) ? "~#{dir[home.size..]}" : dir
 
       sep = File::SEPARATOR.to_s
@@ -260,7 +236,7 @@ module FFF
           key = i.to_s
           if path = state.favorites[key]?
             name = File.basename(path)
-            name = "~" if path == HOME
+            name = "~" if path == FFF::HOME
             # Check if current dir matches this favorite
             is_active = state.current_dir == path ||
                         state.current_dir.starts_with?(path + File::SEPARATOR)
@@ -426,8 +402,8 @@ module FFF
                elsif info && info.directory?
                  "/"
                elsif info && (info.permissions.includes?(::File::Permissions::OwnerExecute) ||
-                 info.permissions.includes?(::File::Permissions::GroupExecute) ||
-                 info.permissions.includes?(::File::Permissions::OtherExecute))
+                     info.permissions.includes?(::File::Permissions::GroupExecute) ||
+                     info.permissions.includes?(::File::Permissions::OtherExecute))
                  "*"
                else
                  ""
@@ -607,9 +583,10 @@ module FFF
     # ── Help Overlay ────────────────────────────────────────────────
 
     private def draw_help_overlay(theme : Theme)
-      max_w = HELP_LINES.max_of?(&.size) || 50
+      lines = help_lines
+      max_w = lines.max_of?(&.size) || 50
       box_w = {max_w + 4, @term.width - 4}.min
-      box_h = HELP_LINES.size + 2
+      box_h = lines.size + 2
       start_row = {(@term.height - box_h) // 2, 0}.max
 
       # The total box width is box_w + 4 (including the left/right "│ " and " │" paddings)
@@ -627,7 +604,7 @@ module FFF
         elsif r == box_h - 1
           print Theme.fg_bg(bot_border, theme.accent, theme.bg)
         else
-          text = HELP_LINES[r - 1]? || ""
+          text = lines[r - 1]? || ""
           text = text[0...box_w].ljust(box_w)
           print Theme.fg_bg("│ ", theme.accent, theme.bg)
           print colorize_help_line(text, theme)
@@ -636,6 +613,52 @@ module FFF
       end
 
       @term.move_to(start_row + box_h + 1, 0)
+    end
+
+    private def help_lines : Array(String)
+      [
+        "───── Navigation ─────",
+        help_pair("#{help_key(@config.key_down)}/#{help_key(@config.key_up)}", "Down/Up", "#{help_key(@config.key_parent)}/#{help_key(@config.key_enter)}", "Parent/Enter"),
+        help_pair("#{help_key(@config.key_top)}/#{help_key(@config.key_bottom)}", "Top/Bottom", "#{help_key(@config.key_page_up)}/#{help_key(@config.key_page_down)}", "Page"),
+        help_pair(help_key(@config.key_hidden), "Toggle hidden", help_key(@config.key_prev), "Previous dir"),
+        help_pair(help_key(@config.key_home), "Home", help_key(@config.key_go_dir), "Go to dir"),
+        help_pair(help_key(@config.key_go_trash), "Trash", help_key(@config.key_refresh), "Refresh"),
+        "",
+        "───── File Ops ───────",
+        help_pair(help_key(@config.key_mark), "Mark", help_key(@config.key_mark_all), "Mark all"),
+        help_pair(help_key(@config.key_copy), "Copy", help_key(@config.key_move), "Cut"),
+        help_pair(help_key(@config.key_paste), "Paste", help_key(@config.key_delete), "Delete (trash)"),
+        help_pair(help_key(@config.key_rename), "Rename", help_key(@config.key_bulk_rename), "Bulk rename"),
+        help_pair(help_key(@config.key_new_dir), "New dir", help_key(@config.key_mkfile), "New file"),
+        help_pair(help_key(@config.key_symlink), "Symlink", help_key(@config.key_attributes), "Attributes"),
+        help_pair(help_key(@config.key_executable), "Toggle executable"),
+        "",
+        "───── Misc ───────────",
+        help_pair(help_key(@config.key_search), "Search", help_key(@config.key_preview), "Preview"),
+        help_pair(help_key(@config.key_shell), "Shell", "=", "Cycle sort"),
+        help_pair("+", "Reverse sort", "1-9", "Favorites"),
+        help_pair(help_key(@config.key_quit), "Quit", help_key(@config.key_help), "This help"),
+      ]
+    end
+
+    private def help_pair(left_key : String, left_label : String, right_key : String? = nil, right_label : String? = nil) : String
+      left = " #{left_key}  #{left_label}"
+      return left unless right_key && right_label
+
+      left.ljust(24) + "#{right_key}  #{right_label}"
+    end
+
+    private def help_key(key : String) : String
+      case key
+      when " "     then "SPACE"
+      when "\e[A"  then "↑"
+      when "\e[B"  then "↓"
+      when "\e[C"  then "→"
+      when "\e[D"  then "←"
+      when "\e[5~" then "PgUp"
+      when "\e[6~" then "PgDn"
+      else              key
+      end
     end
 
     private def colorize_help_line(line : String, theme : Theme) : String

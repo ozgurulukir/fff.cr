@@ -57,42 +57,42 @@ module FFF
     # key_* ivar = ENV[env]? || json_get(json, keys_array) || default
     # Order mirrors this table. Add new keys here + getter + key_bindings entry.
     KEY_DEFAULTS = {
-      up:          ["FFF_KEY_UP", %w[keys up], "k"],
-      down:        ["FFF_KEY_DOWN", %w[keys down], "j"],
-      enter:       ["FFF_KEY_ENTER", %w[keys enter], "l"],
-      quit:        ["FFF_KEY_QUIT", %w[keys quit], "q"],
-      search:      ["FFF_KEY_SEARCH", %w[keys search], "/"],
-      parent:      ["FFF_KEY_PARENT", %w[keys parent], "h"],
-      mark:        ["FFF_KEY_MARK", %w[keys mark], " "],
-      mark_all:    ["FFF_KEY_MARK_ALL", %w[keys mark_all], "m"],
-      copy:        ["FFF_KEY_COPY", %w[keys copy], "y"],
-      move:        ["FFF_KEY_MOVE", %w[keys move], "v"],
-      delete:      ["FFF_KEY_DELETE", %w[keys delete], "d"],
-      new_dir:     ["FFF_KEY_NEW_DIR", %w[keys new_dir], "n"],
-      paste:       ["FFF_KEY_PASTE", %w[keys paste], "p"],
-      preview:     ["FFF_KEY_PREVIEW", %w[keys preview], "i"],
-      page_up:     ["FFF_KEY_PAGE_UP", %w[keys page_up], "\e[5~"],
-      page_down:   ["FFF_KEY_PAGE_DOWN", %w[keys page_down], "\e[6~"],
-      top:         ["FFF_KEY_TOP", %w[keys top], "g"],
-      bottom:      ["FFF_KEY_BOTTOM", %w[keys bottom], "G"],
-      rename:      ["FFF_KEY_RENAME", %w[keys rename], "r"],
-      shell:       ["FFF_KEY_SHELL", %w[keys shell], "s"],
-      hidden:      ["FFF_KEY_HIDDEN", %w[keys hidden], "."],
-      home:        ["FFF_KEY_HOME", %w[keys home], "~"],
-      prev:        ["FFF_KEY_PREVIOUS", %w[keys previous], "-"],
-      refresh:     ["FFF_KEY_REFRESH", %w[keys refresh], "e"],
-      mkfile:      ["FFF_KEY_MKFILE", %w[keys mkfile], "f"],
-      attributes:  ["FFF_KEY_ATTRIBUTES", %w[keys attributes], "x"],
-      executable:  ["FFF_KEY_EXECUTABLE", %w[keys executable], "X"],
-      go_dir:      ["FFF_KEY_GO_DIR", %w[keys go_dir], ":"],
-      go_trash:    ["FFF_KEY_GO_TRASH", %w[keys go_trash], "t"],
-      bulk_rename: ["FFF_KEY_BULK_RENAME", %w[keys bulk_rename], "b"],
-      symlink:     ["FFF_KEY_SYMLINK", %w[keys symlink], "S"],
-      help:        ["FFF_KEY_HELP", %w[keys help], "?"],
+      :up          => {env: "FFF_KEY_UP", keys: %w[keys up], default: "k"},
+      :down        => {env: "FFF_KEY_DOWN", keys: %w[keys down], default: "j"},
+      :enter       => {env: "FFF_KEY_ENTER", keys: %w[keys enter], default: "l"},
+      :quit        => {env: "FFF_KEY_QUIT", keys: %w[keys quit], default: "q"},
+      :search      => {env: "FFF_KEY_SEARCH", keys: %w[keys search], default: "/"},
+      :parent      => {env: "FFF_KEY_PARENT", keys: %w[keys parent], default: "h"},
+      :mark        => {env: "FFF_KEY_MARK", keys: %w[keys mark], default: " "},
+      :mark_all    => {env: "FFF_KEY_MARK_ALL", keys: %w[keys mark_all], default: "m"},
+      :copy        => {env: "FFF_KEY_COPY", keys: %w[keys copy], default: "y"},
+      :move        => {env: "FFF_KEY_MOVE", keys: %w[keys move], default: "v"},
+      :delete      => {env: "FFF_KEY_DELETE", keys: %w[keys delete], default: "d"},
+      :new_dir     => {env: "FFF_KEY_NEW_DIR", keys: %w[keys new_dir], default: "n"},
+      :paste       => {env: "FFF_KEY_PASTE", keys: %w[keys paste], default: "p"},
+      :preview     => {env: "FFF_KEY_PREVIEW", keys: %w[keys preview], default: "i"},
+      :page_up     => {env: "FFF_KEY_PAGE_UP", keys: %w[keys page_up], default: "\e[5~"},
+      :page_down   => {env: "FFF_KEY_PAGE_DOWN", keys: %w[keys page_down], default: "\e[6~"},
+      :top         => {env: "FFF_KEY_TOP", keys: %w[keys top], default: "g"},
+      :bottom      => {env: "FFF_KEY_BOTTOM", keys: %w[keys bottom], default: "G"},
+      :rename      => {env: "FFF_KEY_RENAME", keys: %w[keys rename], default: "r"},
+      :shell       => {env: "FFF_KEY_SHELL", keys: %w[keys shell], default: "s"},
+      :hidden      => {env: "FFF_KEY_HIDDEN", keys: %w[keys hidden], default: "."},
+      :home        => {env: "FFF_KEY_HOME", keys: %w[keys home], default: "~"},
+      :prev        => {env: "FFF_KEY_PREVIOUS", keys: %w[keys previous], default: "-"},
+      :refresh     => {env: "FFF_KEY_REFRESH", keys: %w[keys refresh], default: "e"},
+      :mkfile      => {env: "FFF_KEY_MKFILE", keys: %w[keys mkfile], default: "f"},
+      :attributes  => {env: "FFF_KEY_ATTRIBUTES", keys: %w[keys attributes], default: "x"},
+      :executable  => {env: "FFF_KEY_EXECUTABLE", keys: %w[keys executable], default: "X"},
+      :go_dir      => {env: "FFF_KEY_GO_DIR", keys: %w[keys go_dir], default: ":"},
+      :go_trash    => {env: "FFF_KEY_GO_TRASH", keys: %w[keys go_trash], default: "t"},
+      :bulk_rename => {env: "FFF_KEY_BULK_RENAME", keys: %w[keys bulk_rename], default: "b"},
+      :symlink     => {env: "FFF_KEY_SYMLINK", keys: %w[keys symlink], default: "S"},
+      :help        => {env: "FFF_KEY_HELP", keys: %w[keys help], default: "?"},
     }
 
     def initialize
-      config_path = File.join(HOME, ".config", "fff", "config.json")
+      config_path = File.join(FFF::HOME, ".config", "fff", "config.json")
       json = if File.exists?(config_path)
                begin
                  JSON.parse(File.read(config_path))
@@ -105,42 +105,45 @@ module FFF
 
       @editor = resolve_lazy(json, "EDITOR", %w[editor]) { default_editor }
       @opener = resolve_lazy(json, "FFF_OPENER", %w[opener]) { default_opener }
-      @trash_dir = resolve_lazy(json, "FFF_TRASH", %w[trash_dir]) { File.join(HOME, ".local", "share", "fff", "trash") }
+      @trash_dir = resolve_lazy(json, "FFF_TRASH", %w[trash_dir]) { File.join(FFF::HOME, ".local", "share", "fff", "trash") }
       @cd_on_exit = (ENV["FFF_CD_ON_EXIT"]? == "1") || (json_get(json, %w[cd_on_exit]) == "true")
-      @cd_file = resolve(json, "FFF_CD_FILE", %w[cd_file], File.join(HOME, ".cache", "fff", ".fff_d"))
+      @cd_file = resolve(json, "FFF_CD_FILE", %w[cd_file], File.join(FFF::HOME, ".cache", "fff", ".fff_d"))
       @ls_colors = parse_ls_colors
-      @key_up = resolve(json, "FFF_KEY_UP", %w[keys up], "k")
-      @key_down = resolve(json, "FFF_KEY_DOWN", %w[keys down], "j")
-      @key_enter = resolve(json, "FFF_KEY_ENTER", %w[keys enter], "l")
-      @key_quit = resolve(json, "FFF_KEY_QUIT", %w[keys quit], "q")
-      @key_search = resolve(json, "FFF_KEY_SEARCH", %w[keys search], "/")
-      @key_parent = resolve(json, "FFF_KEY_PARENT", %w[keys parent], "h")
-      @key_mark = resolve(json, "FFF_KEY_MARK", %w[keys mark], " ")
-      @key_mark_all = resolve(json, "FFF_KEY_MARK_ALL", %w[keys mark_all], "m")
-      @key_copy = resolve(json, "FFF_KEY_COPY", %w[keys copy], "y")
-      @key_move = resolve(json, "FFF_KEY_MOVE", %w[keys move], "v")
-      @key_delete = resolve(json, "FFF_KEY_DELETE", %w[keys delete], "d")
-      @key_new_dir = resolve(json, "FFF_KEY_NEW_DIR", %w[keys new_dir], "n")
-      @key_paste = resolve(json, "FFF_KEY_PASTE", %w[keys paste], "p")
-      @key_preview = resolve(json, "FFF_KEY_PREVIEW", %w[keys preview], "i")
-      @key_page_up = resolve(json, "FFF_KEY_PAGE_UP", %w[keys page_up], "\e[5~")
-      @key_page_down = resolve(json, "FFF_KEY_PAGE_DOWN", %w[keys page_down], "\e[6~")
-      @key_top = resolve(json, "FFF_KEY_TOP", %w[keys top], "g")
-      @key_bottom = resolve(json, "FFF_KEY_BOTTOM", %w[keys bottom], "G")
-      @key_rename = resolve(json, "FFF_KEY_RENAME", %w[keys rename], "r")
-      @key_shell = resolve(json, "FFF_KEY_SHELL", %w[keys shell], "s")
-      @key_hidden = resolve(json, "FFF_KEY_HIDDEN", %w[keys hidden], ".")
-      @key_home = resolve(json, "FFF_KEY_HOME", %w[keys home], "~")
-      @key_prev = resolve(json, "FFF_KEY_PREVIOUS", %w[keys previous], "-")
-      @key_refresh = resolve(json, "FFF_KEY_REFRESH", %w[keys refresh], "e")
-      @key_mkfile = resolve(json, "FFF_KEY_MKFILE", %w[keys mkfile], "f")
-      @key_attributes = resolve(json, "FFF_KEY_ATTRIBUTES", %w[keys attributes], "x")
-      @key_executable = resolve(json, "FFF_KEY_EXECUTABLE", %w[keys executable], "X")
-      @key_go_dir = resolve(json, "FFF_KEY_GO_DIR", %w[keys go_dir], ":")
-      @key_go_trash = resolve(json, "FFF_KEY_GO_TRASH", %w[keys go_trash], "t")
-      @key_bulk_rename = resolve(json, "FFF_KEY_BULK_RENAME", %w[keys bulk_rename], "b")
-      @key_symlink = resolve(json, "FFF_KEY_SYMLINK", %w[keys symlink], "S")
-      @key_help = resolve(json, "FFF_KEY_HELP", %w[keys help], "?")
+      resolved_keys = KEY_DEFAULTS.transform_values do |setting|
+        resolve(json, setting[:env], setting[:keys], setting[:default])
+      end
+      @key_up = resolved_keys[:up]
+      @key_down = resolved_keys[:down]
+      @key_enter = resolved_keys[:enter]
+      @key_quit = resolved_keys[:quit]
+      @key_search = resolved_keys[:search]
+      @key_parent = resolved_keys[:parent]
+      @key_mark = resolved_keys[:mark]
+      @key_mark_all = resolved_keys[:mark_all]
+      @key_copy = resolved_keys[:copy]
+      @key_move = resolved_keys[:move]
+      @key_delete = resolved_keys[:delete]
+      @key_new_dir = resolved_keys[:new_dir]
+      @key_paste = resolved_keys[:paste]
+      @key_preview = resolved_keys[:preview]
+      @key_page_up = resolved_keys[:page_up]
+      @key_page_down = resolved_keys[:page_down]
+      @key_top = resolved_keys[:top]
+      @key_bottom = resolved_keys[:bottom]
+      @key_rename = resolved_keys[:rename]
+      @key_shell = resolved_keys[:shell]
+      @key_hidden = resolved_keys[:hidden]
+      @key_home = resolved_keys[:home]
+      @key_prev = resolved_keys[:prev]
+      @key_refresh = resolved_keys[:refresh]
+      @key_mkfile = resolved_keys[:mkfile]
+      @key_attributes = resolved_keys[:attributes]
+      @key_executable = resolved_keys[:executable]
+      @key_go_dir = resolved_keys[:go_dir]
+      @key_go_trash = resolved_keys[:go_trash]
+      @key_bulk_rename = resolved_keys[:bulk_rename]
+      @key_symlink = resolved_keys[:symlink]
+      @key_help = resolved_keys[:help]
       @favorites = parse_favorites(json)
       @bookmarks = parse_bookmarks(json)
 
@@ -162,7 +165,7 @@ module FFF
       end
     end
 
-    private def json_get(json, keys : Array(String | Symbol)) : String?
+    private def json_get(json, keys : Array(String)) : String?
       return nil unless json
       node = json
       keys.each do |k|
@@ -174,13 +177,13 @@ module FFF
 
     # Resolve a config value: env var → JSON key path → default.
     # Plain string lookup (covers ~30 key binding assignments).
-    private def resolve(json, env_var : String, keys : Array(String | Symbol), default) : String
+    private def resolve(json, env_var : String, keys : Array(String), default) : String
       ENV[env_var]? || json_get(json, keys) || default
     end
 
     # Resolve with a computed default: env var → JSON key path → block result.
     # Used when the default requires a method call (e.g. platform detection).
-    private def resolve_lazy(json, env_var : String, keys : Array(String | Symbol), &block : -> String) : String
+    private def resolve_lazy(json, env_var : String, keys : Array(String), &block : -> String) : String
       ENV[env_var]? || json_get(json, keys) || yield
     end
 

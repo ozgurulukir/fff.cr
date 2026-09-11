@@ -85,11 +85,11 @@ module FFF
         sorted_dirs = dirs.sort_by { |d| base = File.basename(d); base.downcase }
         sorted_files = files.sort_by { |f| base = File.basename(f); base.downcase }
       when :size
-        sorted_dirs = dirs.sort_by { |d| @stat_cache[d]?.try(&.size) || 0 }
-        sorted_files = files.sort_by { |f| @stat_cache[f]?.try(&.size) || 0 }
+        sorted_dirs = dirs.sort_by { |d| stat_for_sort(d).try(&.size) || 0 }
+        sorted_files = files.sort_by { |f| stat_for_sort(f).try(&.size) || 0 }
       when :time
-        sorted_dirs = dirs.sort_by { |d| @stat_cache[d]?.try(&.modification_time) || Time.unix(0) }
-        sorted_files = files.sort_by { |f| @stat_cache[f]?.try(&.modification_time) || Time.unix(0) }
+        sorted_dirs = dirs.sort_by { |d| stat_for_sort(d).try(&.modification_time) || Time.unix(0) }
+        sorted_files = files.sort_by { |f| stat_for_sort(f).try(&.modification_time) || Time.unix(0) }
       else
         sorted_dirs = dirs
         sorted_files = files
@@ -128,8 +128,7 @@ module FFF
     end
 
     def go_home
-      home = HOME || Dir.current
-      safe_navigate(home)
+      safe_navigate(FFF::HOME)
     end
 
     def go_prev(prev_dir : String?, prev_child : String?) : Bool
@@ -171,6 +170,18 @@ module FFF
 
     def find_child(name : String) : Int32?
       @list.index { |path| File.basename(path) == name }
+    end
+
+    private def stat_for_sort(path : String) : File::Info?
+      if cached = @stat_cache[path]?
+        return cached
+      end
+
+      info = File.info?(path)
+      @stat_cache[path] = info if info
+      info
+    rescue File::Error
+      nil
     end
   end
 end

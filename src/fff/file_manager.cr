@@ -204,7 +204,7 @@ module FFF
     end
 
     def ensure_dirs
-      FileUtils.mkdir_p(File.join(HOME, ".cache", "fff")) if @config.cd_on_exit
+      FileUtils.mkdir_p(File.join(FFF::HOME, ".cache", "fff")) if @config.cd_on_exit
     end
 
     def handle_resize
@@ -570,7 +570,7 @@ module FFF
     end
 
     def save_cd_on_exit
-      last_file = File.join(HOME, ".cache", "fff", "opened_file")
+      last_file = File.join(FFF::HOME, ".cache", "fff", "opened_file")
       File.write(last_file, @dir_manager.current_dir)
     end
 
@@ -578,7 +578,7 @@ module FFF
       return if @dir_manager.list.empty?
       return if @scroll >= @dir_manager.list.size
 
-      last_file = File.join(HOME, ".cache", "fff", "opened_file")
+      last_file = File.join(FFF::HOME, ".cache", "fff", "opened_file")
       File.write(last_file, @dir_manager.list[@scroll])
     end
 

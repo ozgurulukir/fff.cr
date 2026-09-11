@@ -23,4 +23,3 @@ shards:
   term-screen:
     git: https://github.com/crystal-term/screen.git
     version: 1.0.0
-
