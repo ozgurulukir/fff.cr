@@ -174,6 +174,21 @@ describe FFF::FileManager do
         SpecHelper.cleanup_temp_dir(temp_dir)
       end
     end
+
+    it "dispatches configured keys directly" do
+      temp_dir = SpecHelper.create_temp_dir("fm_custom_key")
+      begin
+        SpecHelper.create_temp_file(temp_dir, "a.txt", "x")
+
+        SpecHelper.mock_env_vars({"FFF_KEY_QUIT" => "z"}) do
+          fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
+          fm.handle_key("z")
+          fm.running.should be_false
+        end
+      ensure
+        SpecHelper.cleanup_temp_dir(temp_dir)
+      end
+    end
   end
 
   # ── Cursor navigation ──────────────────────────────────────────────────────

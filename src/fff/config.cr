@@ -11,38 +11,6 @@ module FFF
     getter cd_on_exit : Bool
     getter cd_file : String
     getter ls_colors : Hash(String, Symbol)
-    getter key_up : String
-    getter key_down : String
-    getter key_enter : String
-    getter key_quit : String
-    getter key_search : String
-    getter key_parent : String
-    getter key_mark : String
-    getter key_mark_all : String
-    getter key_copy : String
-    getter key_move : String
-    getter key_delete : String
-    getter key_new_dir : String
-    getter key_paste : String
-    getter key_preview : String
-    getter key_page_up : String
-    getter key_page_down : String
-    getter key_top : String
-    getter key_bottom : String
-    getter key_rename : String
-    getter key_shell : String
-    getter key_hidden : String
-    getter key_home : String
-    getter key_prev : String
-    getter key_refresh : String
-    getter key_mkfile : String
-    getter key_attributes : String
-    getter key_executable : String
-    getter key_go_dir : String
-    getter key_go_trash : String
-    getter key_bulk_rename : String
-    getter key_symlink : String
-    getter key_help : String
     getter favorites : Hash(String, String)
     getter bookmarks : Hash(String, String)
     # ── New UI settings ──
@@ -54,8 +22,9 @@ module FFF
     getter preview_width : String?
 
     # ── Phase 14: key binding defaults — single source of truth ──
-    # key_* ivar = ENV[env]? || json_get(json, keys_array) || default
-    # Order mirrors this table. Add new keys here + getter + key_bindings entry.
+    # Each key is resolved as ENV[env]? || json_get(json, keys_array) || default.
+    # Accessors are generated below so adding a key here keeps its resolution
+    # and public config API in one place.
     KEY_DEFAULTS = {
       :up          => {env: "FFF_KEY_UP", keys: %w[keys up], default: "k"},
       :down        => {env: "FFF_KEY_DOWN", keys: %w[keys down], default: "j"},
@@ -91,6 +60,18 @@ module FFF
       :help        => {env: "FFF_KEY_HELP", keys: %w[keys help], default: "?"},
     }
 
+    @resolved_keys : Hash(Symbol, String)
+
+    macro key_accessors
+      {% for name, setting in KEY_DEFAULTS %}
+        def key_{{name.id}} : String
+          @resolved_keys[{{name}}]
+        end
+      {% end %}
+    end
+
+    key_accessors
+
     def initialize
       config_path = File.join(FFF::HOME, ".config", "fff", "config.json")
       json = if File.exists?(config_path)
@@ -109,41 +90,9 @@ module FFF
       @cd_on_exit = (ENV["FFF_CD_ON_EXIT"]? == "1") || (json_get(json, %w[cd_on_exit]) == "true")
       @cd_file = resolve(json, "FFF_CD_FILE", %w[cd_file], File.join(FFF::HOME, ".cache", "fff", ".fff_d"))
       @ls_colors = parse_ls_colors
-      resolved_keys = KEY_DEFAULTS.transform_values do |setting|
+      @resolved_keys = KEY_DEFAULTS.transform_values do |setting|
         resolve(json, setting[:env], setting[:keys], setting[:default])
       end
-      @key_up = resolved_keys[:up]
-      @key_down = resolved_keys[:down]
-      @key_enter = resolved_keys[:enter]
-      @key_quit = resolved_keys[:quit]
-      @key_search = resolved_keys[:search]
-      @key_parent = resolved_keys[:parent]
-      @key_mark = resolved_keys[:mark]
-      @key_mark_all = resolved_keys[:mark_all]
-      @key_copy = resolved_keys[:copy]
-      @key_move = resolved_keys[:move]
-      @key_delete = resolved_keys[:delete]
-      @key_new_dir = resolved_keys[:new_dir]
-      @key_paste = resolved_keys[:paste]
-      @key_preview = resolved_keys[:preview]
-      @key_page_up = resolved_keys[:page_up]
-      @key_page_down = resolved_keys[:page_down]
-      @key_top = resolved_keys[:top]
-      @key_bottom = resolved_keys[:bottom]
-      @key_rename = resolved_keys[:rename]
-      @key_shell = resolved_keys[:shell]
-      @key_hidden = resolved_keys[:hidden]
-      @key_home = resolved_keys[:home]
-      @key_prev = resolved_keys[:prev]
-      @key_refresh = resolved_keys[:refresh]
-      @key_mkfile = resolved_keys[:mkfile]
-      @key_attributes = resolved_keys[:attributes]
-      @key_executable = resolved_keys[:executable]
-      @key_go_dir = resolved_keys[:go_dir]
-      @key_go_trash = resolved_keys[:go_trash]
-      @key_bulk_rename = resolved_keys[:bulk_rename]
-      @key_symlink = resolved_keys[:symlink]
-      @key_help = resolved_keys[:help]
       @favorites = parse_favorites(json)
       @bookmarks = parse_bookmarks(json)
 
@@ -270,14 +219,14 @@ module FFF
 
     def key_bindings : Hash(String, String)
       @key_bindings_cache ||= {
-        "j" => @key_down, "k" => @key_up, "h" => @key_parent, "l" => @key_enter,
-        "q" => @key_quit, "/" => @key_search, " " => @key_mark, "m" => @key_mark_all,
-        "y" => @key_copy, "v" => @key_move, "p" => @key_paste, "d" => @key_delete,
-        "n" => @key_new_dir, "f" => @key_mkfile, "r" => @key_rename, "b" => @key_bulk_rename,
-        "i" => @key_preview, "s" => @key_shell, "g" => @key_top, "G" => @key_bottom,
-        "." => @key_hidden, "~" => @key_home, "-" => @key_prev, "e" => @key_refresh,
-        "x" => @key_attributes, "X" => @key_executable, ":" => @key_go_dir, "t" => @key_go_trash,
-        "S" => @key_symlink, "=" => "=", "+" => "+", "?" => @key_help,
+        "j" => key_down, "k" => key_up, "h" => key_parent, "l" => key_enter,
+        "q" => key_quit, "/" => key_search, " " => key_mark, "m" => key_mark_all,
+        "y" => key_copy, "v" => key_move, "p" => key_paste, "d" => key_delete,
+        "n" => key_new_dir, "f" => key_mkfile, "r" => key_rename, "b" => key_bulk_rename,
+        "i" => key_preview, "s" => key_shell, "g" => key_top, "G" => key_bottom,
+        "." => key_hidden, "~" => key_home, "-" => key_prev, "e" => key_refresh,
+        "x" => key_attributes, "X" => key_executable, ":" => key_go_dir, "t" => key_go_trash,
+        "S" => key_symlink, "=" => "=", "+" => "+", "?" => key_help,
       }
     end
   end
