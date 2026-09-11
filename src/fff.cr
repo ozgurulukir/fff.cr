@@ -26,7 +26,7 @@ require "./fff/view_handlers"
 require "./fff/file_manager"
 
 module FFF
-  VERSION = "0.3.2"
+  VERSION = "0.3.3"
 
   # Main application
   class Application
