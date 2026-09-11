@@ -72,15 +72,6 @@ module FFF
       @cached_entries = sorted.first(50).map { |e| File.join(path, e) }
     end
 
-    private def load_entries(path : String) : Array(String)
-      Dir.entries(path)
-        .reject { |e| e == "." || e == ".." }
-        .first(50)
-        .map { |e| File.join(path, e) }
-    rescue
-      [] of String
-    end
-
     # Draw the preview panel
     def draw(term_width : Int32, term_height : Int32, path : String?, theme : Theme,
              start_row : Int32, end_row : Int32)
@@ -258,17 +249,6 @@ module FFF
         print "\e[K"
         print " " * width
       end
-    end
-
-    private def load_entries(path : String) : Array(String)
-      return [] of String unless File.directory?(path)
-
-      raw = Dir.entries(path).reject { |e| e == "." || e == ".." }
-      dir_flags = raw.map { |e| File.directory?(File.join(path, e)) ? 0 : 1 }
-      sorted = raw.each_with_index.sort_by { |e, i| {dir_flags[i], e.downcase} }.map(&.[0])
-      sorted.first(50).map { |e| File.join(path, e) }
-    rescue
-      [] of String
     end
 
     def read_file_lines(path : String, max_lines : Int32) : Array(String)

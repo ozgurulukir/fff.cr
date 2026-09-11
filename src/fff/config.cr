@@ -187,17 +187,8 @@ module FFF
     private def default_opener
       {% if flag?(:windows) %}
         "explorer"
-      {% else %}
-        output = IO::Memory.new
-        Process.run("uname", output: output)
-        case output.to_s.strip
-        when "Darwin" then "open"
-        else               "xdg-open"
-        end
-      {% end %}
-    rescue
-      {% if flag?(:windows) %}
-        "explorer"
+      {% elsif flag?(:darwin) %}
+        "open"
       {% else %}
         "xdg-open"
       {% end %}

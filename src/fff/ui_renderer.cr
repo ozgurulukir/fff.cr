@@ -425,7 +425,9 @@ module FFF
                  "@"
                elsif info && info.directory?
                  "/"
-               elsif info && info.permissions.includes?(::File::Permissions::OtherExecute)
+               elsif info && (info.permissions.includes?(::File::Permissions::OwnerExecute) ||
+                 info.permissions.includes?(::File::Permissions::GroupExecute) ||
+                 info.permissions.includes?(::File::Permissions::OtherExecute))
                  "*"
                else
                  ""

@@ -94,9 +94,9 @@ module FFF
     def self.content_search(query : String, dir : String) : Array(String)
       return [] of String if query.size < 2
 
-      proc_chan = Channel(Process?).new(1)
-      result_chan = Channel(IO::Memory).new(1)
-      timeout_chan = Channel(Nil).new(1)
+      proc_chan = Channel(Process?).new(2)
+      result_chan = Channel(IO::Memory).new(2)
+      timeout_chan = Channel(Nil).new(2)
 
       pipe_rd, pipe_wr = IO.pipe
       pipe_err_rd, pipe_err_wr = IO.pipe

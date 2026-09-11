@@ -27,7 +27,9 @@ describe FFF::IconProvider do
         dir = SpecHelper.create_temp_dir("icon_exec_test")
         file_path = File.join(dir, "script.sh")
         File.write(file_path, "#!/bin/bash\necho hello")
-        File.chmod(file_path, File.info(file_path).permissions | File::Permissions::OwnerExecute)
+        # Set permissions using octal to avoid Crystal bitwise OR issues
+        File.chmod(file_path, 0o755)
+        # Re-read file info to get updated permissions
         info = File.info(file_path)
         FFF::IconProvider.icon_for(file_path, info, nil).should eq(FFF::IconProvider::EXEC_ICON)
       {% end %}
@@ -37,12 +39,14 @@ describe FFF::IconProvider do
       FFF::IconProvider::EXTENSION_ICONS[".cr"]?.should_not be_nil
       FFF::IconProvider::EXTENSION_ICONS[".py"]?.should_not be_nil
       FFF::IconProvider::EXTENSION_ICONS[".json"]?.should_not be_nil
+      FFF::IconProvider::EXTENSION_ICONS[".ts"].should eq("\uE628")
     end
 
     it "returns special name icon for known filenames" do
       FFF::IconProvider::SPECIAL_NAMES["Makefile"]?.should_not be_nil
       FFF::IconProvider::SPECIAL_NAMES["README.md"]?.should_not be_nil
       FFF::IconProvider::SPECIAL_NAMES["Cargo.toml"]?.should_not be_nil
+      FFF::IconProvider::SPECIAL_NAMES["tsconfig.json"].should eq("\uE628")
     end
 
     it "returns file icon for unknown extensions" do
