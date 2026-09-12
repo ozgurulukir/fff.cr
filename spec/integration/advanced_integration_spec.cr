@@ -127,9 +127,12 @@ describe FFF::FileManager do
         10.times { |i| SpecHelper.create_temp_file(temp_dir, "f_#{i}.txt", "x") }
 
         fm, _term = AdvancedHelper.create_mock_file_manager(temp_dir)
-        # Initial values set by initialize
-        fm.prev_scroll.should eq(-1)
-        fm.prev_page_offset.should eq(-1)
+        # prev_scroll/page_offset are initialized to 0 (matching @scroll and
+        # @page_offset). Note: the first frame is always a full draw
+        # (@prev_list_size = -1), so these are never read beforehand; 0 simply
+        # avoids a misleading sentinel value.
+        fm.prev_scroll.should eq(0)
+        fm.prev_page_offset.should eq(0)
 
         fm.redraw # no-op (no TTY), but state should be captured
         fm.prev_scroll.should eq(0)

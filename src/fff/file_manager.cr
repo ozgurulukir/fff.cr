@@ -37,7 +37,6 @@ module FFF
     property dir_manager : DirectoryManager
     property input_mode : InputMode
     property message_bus : MessageBus
-    property loading : Bool
     property show_help : Bool
     property git_branch : String
     property git_status : String
@@ -101,10 +100,14 @@ module FFF
       @running = true
       @prev_dir = nil
       @prev_child = nil
-      @prev_scroll = -1
-      @prev_page_offset = -1
+      # prev_scroll/page_offset track the previous frame's scroll position so
+      # draw_incremental only redraws the two changed rows. Initialized to 0
+      # (matching @scroll/@page_offset) — note the first frame is always a full
+      # draw (@prev_list_size = -1 forces list_changed), so these are never read
+      # before being overwritten; 0 simply avoids a misleading sentinel value.
+      @prev_scroll = 0
+      @prev_page_offset = 0
       @fff_level = (ENV["FFF_LEVEL"]?.try(&.to_i?) || 0)
-      @loading = false
       @prev_list_size = -1
       @force_full_redraw = false
       @show_help = false
@@ -225,7 +228,7 @@ module FFF
 
       update_git_branch
 
-      full_draw = full || @force_full_redraw || @input_mode.active || list_changed || @message_bus.current != nil || @loading || @show_help || @prev_page_offset != @page_offset
+      full_draw = full || @force_full_redraw || @input_mode.active || list_changed || @message_bus.current != nil || @show_help || @prev_page_offset != @page_offset
       @force_full_redraw = false
 
       # Determine preview path (cursor item)
@@ -252,7 +255,6 @@ module FFF
         clipboard_size: @clipboard.size,
         clipboard_items: @clipboard,
         message: @message_bus.current,
-        loading: @loading,
         full: full_draw,
         sort_mode: @dir_manager.sort_mode,
         sort_reverse: @dir_manager.sort_reverse,

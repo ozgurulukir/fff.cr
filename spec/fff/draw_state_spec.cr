@@ -21,7 +21,6 @@ describe FFF::DrawState do
       state.clipboard_size.should eq(0)
       state.clipboard_items.should be_empty
       state.message.should be_nil
-      state.loading.should be_false
       state.full.should be_false
       state.sort_mode.should eq(:name)
       state.sort_reverse.should be_false

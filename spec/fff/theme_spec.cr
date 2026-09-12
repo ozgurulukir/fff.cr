@@ -78,10 +78,16 @@ describe FFF::Theme do
       FFF::Theme::BUILTIN_THEMES["default"]?.should_not be_nil
     end
 
-    it "has catppuccin-mocha theme" do
+    it "has catppuccin-mocha theme (distinct from default)" do
       theme = FFF::Theme::BUILTIN_THEMES["catppuccin-mocha"]?
       theme.should_not be_nil
+      # Catppuccin Mocha base (#1e1e2e) — previously this was accidentally
+      # identical to `default`, making the theme a silent no-op.
       theme.not_nil!.bg.should eq({30_u8, 30_u8, 46_u8})
+      theme.not_nil!.accent.should eq({203_u8, 166_u8, 247_u8})
+      # Must genuinely differ from the default theme (accent/mauve is the
+      # distinguishing Catppuccin color; default uses blue)
+      theme.not_nil!.accent.should_not eq(FFF::Theme::BUILTIN_THEMES["default"].accent)
     end
 
     it "has gruvbox-dark theme" do

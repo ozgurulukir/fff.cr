@@ -17,7 +17,6 @@ module FFF
     getter clipboard_size : Int32
     getter clipboard_items : Array(String)
     getter message : Message?
-    getter loading : Bool
     getter full : Bool
     getter sort_mode : Symbol
     getter sort_reverse : Bool
@@ -49,7 +48,6 @@ module FFF
       @clipboard_size : Int32 = 0,
       @clipboard_items : Array(String) = [] of String,
       @message : Message? = nil,
-      @loading : Bool = false,
       @full : Bool = false,
       @sort_mode : Symbol = :name,
       @sort_reverse : Bool = false,

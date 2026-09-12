@@ -13,8 +13,6 @@ module FFF
     @prev_path : String
     @preview_panel : PreviewPanel
 
-    SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-
     # Map LS_COLORS symbol → theme-compatible RGB
     LS_COLOR_RGB = {
       :red     => {243_u8, 139_u8, 168_u8},
@@ -352,15 +350,6 @@ module FFF
     # ── File Lines ──────────────────────────────────────────────────
 
     private def draw_all_lines(state : DrawState, theme : Theme, list_w : Int32)
-      if state.loading
-        row = (@term.height / 2).to_i
-        col = (@term.width / 2).to_i - 7
-        @term.move_to(row, {col, 0}.max)
-        spinner = SPINNER_FRAMES[(Time.utc.to_unix * 10 % 10).to_i]
-        print Theme.fg(" #{spinner} Loading…", theme.warning)
-        return
-      end
-
       content_start = bookmark_bar_row + 1
       max = @term.max_items
 

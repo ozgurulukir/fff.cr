@@ -171,8 +171,12 @@ describe FFF::FileManager do
 
         fm, _term = IntegrationHelper.create_test_file_manager(temp_dir)
 
-        fm.prev_scroll.should eq(-1)
-        fm.prev_page_offset.should eq(-1)
+        # prev_scroll/page_offset are initialized to 0 (matching @scroll and
+        # @page_offset). Note: the first frame is always a full draw
+        # (@prev_list_size = -1), so these are never read beforehand; 0 simply
+        # avoids a misleading sentinel value.
+        fm.prev_scroll.should eq(0)
+        fm.prev_page_offset.should eq(0)
 
         fm.redraw
         fm.prev_scroll.should eq(0)

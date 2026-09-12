@@ -71,14 +71,12 @@ module FFF
 
     def go_prev
       begin
-        old_prev = @prev_dir
         return unless @dir_manager.go_prev(@prev_dir, @prev_child)
 
         if prev_child = @prev_child
           found_idx = @dir_manager.find_child(prev_child)
           @scroll = found_idx if found_idx
         end
-        @prev_dir = old_prev
         @prev_child = nil
         @page_offset = 0
       rescue e : Exception
